@@ -1,7 +1,7 @@
 use sp_core::{Pair, Public, sr25519};
 use zerodao::{
-	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
-	SudoConfig, SystemConfig, WASM_BINARY, Signature
+	AccountId, AuraConfig, BalancesConfig, CurrencyId, GenesisConfig, GrandpaConfig,
+	SudoConfig, SystemConfig, WASM_BINARY, Signature, TokensConfig
 };
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -153,5 +153,16 @@ fn testnet_genesis(
 			// Assign network admin rights.
 			key: root_key,
 		}),
+		orml_tokens: Some(TokensConfig {
+            endowed_accounts: endowed_accounts
+                .iter()
+                .flat_map(|x| {
+                    vec![
+                        (x.clone(), CurrencyId::ZDAO, 1000u128.pow(16)),
+                        (x.clone(), CurrencyId::SOCI, 1000u128.pow(16)),
+                    ]
+                })
+                .collect(),
+        }),
 	}
 }

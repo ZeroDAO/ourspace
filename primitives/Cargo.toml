@@ -1,0 +1,31 @@
+[package]
+name = "socoin-primitives"
+version = "0.0.1"
+authors = ["Patract <https://github.com/patractlabs/patract>"]
+edition = "2018"
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
+serde = { version = "1.0.119", optional = true, features = ["derive"] }
+primitive-types = {default-features = false, version = '0.8.0'}
+
+# Substrate primitives
+sp-core = { version = "3.0.0", default-features = false }
+sp-runtime = { version = "3.0.0", default-features = false }
+sp-std = { version = "3.0.0", default-features = false }
+
+# Substrate pallets
+frame-system = { version = "3.0.0", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "serde/std",
+
+    "sp-core/std",
+    "sp-runtime/std",
+    "sp-std/std",
+
+    "frame-system/std",
+]
