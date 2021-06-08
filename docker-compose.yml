@@ -1,0 +1,17 @@
+version: "3.2"
+
+services:
+  dev:
+    container_name: zerodao-node
+    image: paritytech/ci-linux:974ba3ac-20201006
+    working_dir: /var/www/zerodao-node
+    ports:
+      - "9944:9944"
+    environment:
+      - CARGO_HOME=/var/www/zerodao-node/.cargo
+    volumes:
+      - .:/var/www/zerodao-node
+      - type: bind
+        source: ./.local
+        target: /root/.local
+    command: bash -c "cargo build --release && ./target/release/zerodao-node --dev --ws-external"
