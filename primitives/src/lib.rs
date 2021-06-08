@@ -37,14 +37,20 @@ pub type Amount = i128;
 
 pub mod factor {
     use super::{BlockNumber, Balance, Perbill};
-    /// 挑战抵押金额
+
+    /// Challenge staking amount.
     pub const CHALLENGE_STAKING_AMOUNT: Balance = 5_000;
-    /// 领取收益保护期
+
+    /// After this period, the proceeds can be claimed by other users.
     pub const RECEIVER_PROTECTION_PERIOD: BlockNumber = 10;
-    /// 挑战期，超过挑战期将不可挑战
+
+    /// After this period, no challenge can be launched.
     pub const CHALLENGE_PERIOD: BlockNumber = 10_000;
-    /// 代领分成百分比值
+
+    /// When other users receive their earnings, they receive that percentage of the earnings.
     pub const PROXY_PICKUP_RATIO: Perbill = Perbill::from_percent(60);
-    /// 挑战最终声誉值与原始声誉值一致时，会计师分成百分比值
+
+    /// When the final reputation value obtained from the challenge is consistent with the 
+    /// original reputation value, the accountant divides it into percentage values.
     pub const ANALYST_RATIO: Perbill = Perbill::from_percent(10);
 }
