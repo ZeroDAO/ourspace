@@ -22,6 +22,11 @@ sp-core = { version = "3.0.0", default-features = false }
 sp-io = { version = "3.0.0", default-features = false }
 pallet-treasury = { version = "3.0.0" }
 pallet-elections-phragmen = { version = "3.0.0" }
+pallet-balances = { default-features = false, version = '3.0.0' }
+
+# orml extensions
+orml-tokens = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1' }
+orml-currencies = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1' }
 
 [features]
 default = ["std"]
@@ -33,4 +38,6 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"orml-traits/std",
+	"orml-currencies/std",
+	"orml-tokens/std",
 ]

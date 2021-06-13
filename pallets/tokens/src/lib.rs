@@ -5,7 +5,7 @@ use frame_support::pallet_prelude::*;
 use frame_system::{ensure_signed, pallet_prelude::*};
 use orml_traits::{
     arithmetic::{self, Signed},
-    MultiCurrencyExtended, SocialCurrency,
+    MultiCurrency, SocialCurrency,
 };
 use sp_runtime::traits::{AtLeast32BitUnsigned, MaybeSerializeDeserialize, Member, StaticLookup};
 
@@ -49,11 +49,10 @@ pub mod module {
             + Copy
             + MaybeSerializeDeserialize;
 
-        type Currency: MultiCurrencyExtended<
+        type Currency: MultiCurrency<
                 Self::AccountId,
                 CurrencyId = Self::CurrencyId,
                 Balance = Self::Balance,
-                Amount = Self::Amount,
             > + SocialCurrency<Self::AccountId, Balance = Self::Balance>;
 
         /// Weight information for extrinsics in this module.

@@ -3617,6 +3617,7 @@ dependencies = [
  "orml-traits",
  "orml-utilities",
  "parity-scale-codec",
+ "serde",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -6284,7 +6285,10 @@ version = "0.0.1"
 dependencies = [
  "frame-support",
  "frame-system",
+ "orml-currencies",
+ "orml-tokens",
  "orml-traits",
+ "pallet-balances",
  "pallet-elections-phragmen",
  "pallet-treasury",
  "parity-scale-codec",
