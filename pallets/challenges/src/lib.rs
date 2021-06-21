@@ -289,19 +289,19 @@ pub mod pallet {
                     .and_then(|a| a.checked_sub(challenger_amount))
                     .ok_or(Error::<T>::NoPermission)?;
 
-                Self::harvest(&analyst, analyst_amount)?;
-                Self::harvest(&challenge.beneficiary, challenger_amount)?;
+                Self::release(&analyst, analyst_amount)?;
+                Self::release(&challenge.beneficiary, challenger_amount)?;
             }else {
                 let b_amount = Self::less_proxy(&total_amount,is_proxy);
                 total_amount = total_amount
                     .checked_sub(b_amount)
                     .ok_or(Error::<T>::NoPermission)?;
 
-                Self::harvest(&challenge.beneficiary, Self::less_proxy(&b_amount,is_proxy))?;
+                Self::release(&challenge.beneficiary, Self::less_proxy(&b_amount,is_proxy))?;
             }
 
             if is_proxy {
-                Self::harvest(&who, total_amount)?;
+                Self::release(&who, total_amount)?;
             }
 
             Ok(().into())
@@ -338,8 +338,8 @@ impl<T: Config> Pallet<T> {
         T::Currency::staking(T::BaceToken::get(), who, amount)
     }
 
-    pub(crate) fn harvest(who: &T::AccountId, amount: Balance) -> DispatchResult {
-        T::Currency::harvest(T::BaceToken::get(), who, amount)
+    pub(crate) fn release(who: &T::AccountId, amount: Balance) -> DispatchResult {
+        T::Currency::release(T::BaceToken::get(), who, amount)
     }
 
     pub(crate) fn checked_proxy(
