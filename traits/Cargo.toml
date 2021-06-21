@@ -1,0 +1,33 @@
+[package]
+name = "zd-traits"
+description = "Shared traits including `Renew`, `Reputation`, `Seed` and `Trust`."
+repository = "https://github.com/ZeroDAO/ZeroDAO-node/tree/master/traits"
+license = "Apache-2.0"
+version = "0.0.1"
+authors = ["ZeroDAO <https://github.com/ZeroDAO>"]
+homepage = 'https://0p0.org'
+edition = "2018"
+
+[dependencies]
+serde = { version = "1.0.119", optional = true }
+codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
+sp-runtime = { version = "3.0.0", default-features = false }
+sp-io = { version = "3.0.0", default-features = false }
+sp-std = { version = "3.0.0", default-features = false }
+num-traits = { version = "0.2.11", default-features = false }
+frame-support = { default-features = false, version = '3.0.0' }
+orml-traits = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1' }
+
+[dev-dependencies]
+
+[features]
+default = ["std"]
+std = [
+	"serde",
+	"codec/std",
+	"sp-runtime/std",
+	"sp-io/std",
+	"sp-std/std",
+	"num-traits/std",
+	"frame-support/std",
+]

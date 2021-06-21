@@ -8418,6 +8418,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "zd-challenges"
+version = "0.0.1"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "parity-scale-codec",
+ "serde",
+ "socoin-primitives",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "zd-traits",
+]
+
+[[package]]
+name = "zd-traits"
+version = "0.0.1"
+dependencies = [
+ "frame-support",
+ "num-traits",
+ "orml-traits",
+ "parity-scale-codec",
+ "serde",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "zerodao"
 version = "0.0.1"
 dependencies = [
