@@ -6093,9 +6093,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.61"
+version = "1.0.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fceb2595057b6891a4ee808f70054bd2d12f0e97f1cbb78689b59f676df325a"
+checksum = "799e97dc9fdae36a5c8b8f2cae9ce2ee9fdce2058c57a93e6099d919fd982f79"
 dependencies = [
  "itoa",
  "ryu",
@@ -8443,6 +8443,22 @@ dependencies = [
  "orml-traits",
  "parity-scale-codec",
  "serde",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "zd-utilities"
+version = "0.0.1"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "funty",
+ "orml-utilities",
+ "parity-scale-codec",
+ "serde",
+ "serde_json",
  "sp-io",
  "sp-runtime",
  "sp-std",
