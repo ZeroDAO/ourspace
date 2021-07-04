@@ -306,11 +306,11 @@ pub mod pallet {
 
             let mut total_amount = challenge.total_amount().ok_or(Error::<T>::NoPermission)?;
 
-            let old_ir = T::Reputation::get_ir_new(&target).ok_or(Error::<T>::NoPermission)?;
+            let old_ir = T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::NoPermission)?;
             let analyst = challenge.progress.owner;
 
             if old_ir != challenge.score {
-                T::Reputation::mutate_ir(&target, challenge.score);
+                T::Reputation::mutate_reputation(&target, challenge.score);
             }
 
             if challenge.beneficiary != analyst && old_ir == challenge.score {
