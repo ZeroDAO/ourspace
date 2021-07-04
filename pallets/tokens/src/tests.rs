@@ -15,7 +15,7 @@ fn new_test_ext() -> sp_io::TestExternalities {
 #[test]
 fn test_transfer_social() {
     new_test_ext().execute_with(|| {
-        assert_ok!(SocoinToken::transfer_social(
+        assert_ok!(ZdToken::transfer_social(
             Origin::signed(ALICE),
             BOB,
             DOT,
@@ -27,7 +27,7 @@ fn test_transfer_social() {
         assert_eq!(Currencies::actual_balance(DOT, &BOB), ENDOWED_AMOUNT + 10);
         assert_eq!(Currencies::social_balance(DOT, &BOB), 10);
 
-        let social_transferred_event = Event::socoin_tokens(crate::Event::TransferSocial(DOT, ALICE, BOB, 10));
+        let social_transferred_event = Event::zd_tokens(crate::Event::TransferSocial(DOT, ALICE, BOB, 10));
         assert!(System::events().iter().any(|record| record.event == social_transferred_event));
     });
 }

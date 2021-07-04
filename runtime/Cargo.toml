@@ -25,8 +25,8 @@ hex-literal = { optional = true, version = '0.3.1' }
 serde = { features = ['derive'], optional = true, version = '1.0.119' }
 
 # local dependencies
-socoin-primitives = { path = "../primitives", default-features = false, version = '0.0.1' }
-socoin-tokens = { default-features = false, path = '../pallets/tokens', version = '0.0.1' }
+zd-primitives = { path = "../primitives", default-features = false, version = '0.0.1' }
+zd-tokens = { default-features = false, path = '../pallets/tokens', version = '0.0.1' }
 
 # orml extensions
 orml-tokens = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1' }

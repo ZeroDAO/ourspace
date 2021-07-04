@@ -1,5 +1,5 @@
 [package]
-name = "socoin-tokens"
+name = "zd-tokens"
 description = "Support social finance"
 repository = "https://github.com/ZeroDAO/ZeroDAO-node"
 license = "Apache-2.0"

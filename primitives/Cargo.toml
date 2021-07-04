@@ -1,5 +1,5 @@
 [package]
-name = "socoin-primitives"
+name = "zd-primitives"
 version = "0.0.1"
 authors = ["Patract <https://github.com/patractlabs/patract>"]
 edition = "2018"

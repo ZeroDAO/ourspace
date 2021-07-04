@@ -45,13 +45,13 @@ pub use frame_support::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 	},
 };
-pub use socoin_primitives::*;
+pub use zd_primitives::*;
 use pallet_transaction_payment::CurrencyAdapter;
 
 use orml_traits::parameter_type_with_key;
 use orml_currencies::BasicCurrencyAdapter;
 
-pub use socoin_tokens;
+pub use zd_tokens;
 pub use orml_tokens;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
@@ -280,7 +280,7 @@ impl orml_tokens::Config for Runtime {
 	type OnDust = ();
 }
 
-impl socoin_tokens::Config for Runtime {
+impl zd_tokens::Config for Runtime {
 	type Event = Event;
 	type CurrencyId = CurrencyId;
 	type WeightInfo = ();
@@ -307,7 +307,7 @@ construct_runtime!(
 
 		Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Module, Event<T>},
-		SocoinToken: socoin_tokens::{Module, Call, Event<T>},
+		ZdToken: zd_tokens::{Module, Call, Event<T>},
 	}
 );
 
@@ -510,7 +510,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-			add_benchmark!(params, batches, socoin_tokens, Socointokens);
+			add_benchmark!(params, batches, zd_tokens, Zdtokens);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

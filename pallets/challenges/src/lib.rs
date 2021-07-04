@@ -10,7 +10,7 @@ use frame_support::{
 };
 use frame_system::{self as system};
 use orml_traits::{MultiCurrencyExtended, StakingCurrency};
-use socoin_primitives::{factor, Amount, Balance};
+use zd_primitives::{factor, Amount, Balance};
 use zd_traits::{Reputation, SeedsBase, StartChallenge, TrustBase};
 
 use sp_runtime::DispatchResult;

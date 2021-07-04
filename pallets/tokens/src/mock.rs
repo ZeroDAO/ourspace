@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate as socoin_tokens;
+use crate as zd_tokens;
 use frame_support::{construct_runtime, parameter_types, traits::GenesisBuild};
 use frame_support::sp_runtime::{
     testing::Header,
@@ -40,7 +40,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
         Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Module, Call, Event<T>},
-        SocoinToken: socoin_tokens::{Module, Call, Event<T>},
+        ZdToken: zd_tokens::{Module, Call, Event<T>},
     }
 );
 
@@ -117,7 +117,7 @@ impl pallet_balances::Config for Test {
     type WeightInfo = ();
 }
 
-impl socoin_tokens::Config for Test {
+impl zd_tokens::Config for Test {
 	type Event = Event;
 	type CurrencyId = CurrencyId;
 	type WeightInfo = ();

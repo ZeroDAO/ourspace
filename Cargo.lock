@@ -6267,39 +6267,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "socoin-primitives"
-version = "0.0.1"
-dependencies = [
- "frame-system",
- "parity-scale-codec",
- "primitive-types 0.8.0",
- "serde",
- "sp-core",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "socoin-tokens"
-version = "0.0.1"
-dependencies = [
- "frame-support",
- "frame-system",
- "orml-currencies",
- "orml-tokens",
- "orml-traits",
- "pallet-balances",
- "pallet-elections-phragmen",
- "pallet-treasury",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "soketto"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8426,12 +8393,59 @@ dependencies = [
  "orml-traits",
  "parity-scale-codec",
  "serde",
- "socoin-primitives",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "zd-primitives",
  "zd-traits",
+]
+
+[[package]]
+name = "zd-primitives"
+version = "0.0.1"
+dependencies = [
+ "frame-system",
+ "parity-scale-codec",
+ "primitive-types 0.8.0",
+ "serde",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "zd-reputation"
+version = "0.0.1"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "zd-traits",
+]
+
+[[package]]
+name = "zd-tokens"
+version = "0.0.1"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-currencies",
+ "orml-tokens",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-elections-phragmen",
+ "pallet-treasury",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -8488,8 +8502,6 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "serde",
- "socoin-primitives",
- "socoin-tokens",
  "sp-api",
  "sp-block-builder",
  "sp-consensus-aura",
@@ -8502,6 +8514,8 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
+ "zd-primitives",
+ "zd-tokens",
 ]
 
 [[package]]
