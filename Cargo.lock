@@ -8424,6 +8424,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "zd-refresh-reputation"
+version = "0.0.1"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "zd-primitives",
+ "zd-traits",
+ "zd-trust",
+ "zd-utilities",
+]
+
+[[package]]
 name = "zd-reputation"
 version = "0.0.1"
 dependencies = [

@@ -6,7 +6,7 @@ use frame_support::{
 };
 use sp_runtime::{DispatchResult, DispatchError, Perbill};
 use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
-use frame_system::{ensure_signed, ensure_root, pallet_prelude::*};
+use frame_system::{ensure_signed, pallet_prelude::*};
 use zd_traits::{Reputation, TrustBase, SeedsBase};
 use zd_utilities::{UserSet, UserSetExt};
 use sp_std::vec::Vec;
@@ -79,22 +79,6 @@ pub mod module {
             Pallet::<T>::do_untrust(&who, &target)?;
             Ok(().into())
 		}
-
-        // 测试期间管理员添加信任
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn trust_by_admin(origin: OriginFor<T>, who: T::AccountId, target: T::AccountId) -> DispatchResultWithPostInfo {
-            ensure_root(origin)?;
-            Pallet::<T>::do_trust(&who, &target)?;
-            Ok(().into())
-		}
-
-        // 测试期间管理员添加信任
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn untrust_by_admin(origin: OriginFor<T>, who: T::AccountId, target: T::AccountId) -> DispatchResultWithPostInfo {
-            ensure_root(origin)?;
-            Pallet::<T>::do_untrust(&who, &target)?;
-            Ok(().into())
-        }
     }
 }
 
