@@ -3,22 +3,18 @@
 
 // use frame_support::{ensure, dispatch::DispatchResultWithPostInfo, pallet, pallet_prelude::*};
 use frame_support::{
-    ensure,
-    pallet,
     codec::{Decode, Encode},
+    ensure, pallet,
+    traits::Get,
     RuntimeDebug,
-    traits::Get
 };
-use zd_traits::{Reputation, StartChallenge, TrustBase, SeedsBase};
-use orml_traits::{ StakingCurrency, MultiCurrencyExtended };
-use socoin_primitives::{ Balance, factor, Amount};
 use frame_system::{self as system};
+use orml_traits::{MultiCurrencyExtended, StakingCurrency};
+use socoin_primitives::{factor, Amount, Balance};
+use zd_traits::{Reputation, SeedsBase, StartChallenge, TrustBase};
 
 use sp_runtime::DispatchResult;
-use sp_runtime::{
-	traits::Zero,
-    DispatchError
-};
+use sp_runtime::{traits::Zero, DispatchError};
 use sp_std::vec::Vec;
 
 pub use pallet::*;
@@ -66,14 +62,14 @@ pub struct Path<AccountId> {
 
 impl<AccountId, BlockNumber> Challenge<AccountId, BlockNumber> {
     fn total_amount(&self) -> Option<Balance> {
-        self.pool.staking
+        self.pool
+            .staking
             .checked_add(self.pool.sub_staking)
-            .and_then(|a|a.checked_add(self.pool.earnings))
+            .and_then(|a| a.checked_add(self.pool.earnings))
     }
 }
 
 impl<AccountId> Path<AccountId> {
-
     fn check_nodes_leng(&self) -> bool {
         self.nodes.len() as u32 <= MAX_PATH_COUNT
     }
@@ -87,17 +83,21 @@ impl<AccountId> Path<AccountId> {
 pub mod pallet {
     use super::*;
 
-    use frame_system::{ ensure_signed, pallet_prelude::*};
+    use frame_system::{ensure_signed, pallet_prelude::*};
 
     use frame_support::pallet_prelude::*;
 
     #[pallet::config]
-	pub trait Config: frame_system::Config {
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+    pub trait Config: frame_system::Config {
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
         type BaceToken: Get<Self::CurrencyId>;
-        type Currency: MultiCurrencyExtended<Self::AccountId, CurrencyId = Self::CurrencyId, Balance = Balance, Amount = Amount>
-		+ StakingCurrency<Self::AccountId>;
+        type Currency: MultiCurrencyExtended<
+                Self::AccountId,
+                CurrencyId = Self::CurrencyId,
+                Balance = Balance,
+                Amount = Amount,
+            > + StakingCurrency<Self::AccountId>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
         type StartChallenge: StartChallenge<Self::AccountId, Balance>;
         type TrustBase: TrustBase<Self::AccountId>;
@@ -105,87 +105,112 @@ pub mod pallet {
         #[pallet::constant]
         type ReceiverProtectionPeriod: Get<Self::BlockNumber>;
         type ChallengePerior: Get<Self::BlockNumber>;
-	}
+    }
 
     #[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
-	pub struct Pallet<T>(_);
+    #[pallet::generate_store(pub(super) trait Store)]
+    pub struct Pallet<T>(_);
 
     #[pallet::storage]
-	#[pallet::getter(fn get_challenge)]
-    pub type Challenges<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Challenge<T::AccountId, T::BlockNumber>, ValueQuery>;
+    #[pallet::getter(fn get_challenge)]
+    pub type Challenges<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        Challenge<T::AccountId, T::BlockNumber>,
+        ValueQuery,
+    >;
 
     #[pallet::storage]
-	#[pallet::getter(fn last_update)]
+    #[pallet::getter(fn last_update)]
     pub type LastUpdate<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
 
     #[pallet::storage]
-	#[pallet::getter(fn get_sub_challenge)]
-    pub type SubChallenges<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Progress<T::AccountId>, ValueQuery>;
+    #[pallet::getter(fn get_sub_challenge)]
+    pub type SubChallenges<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, Progress<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
-	#[pallet::getter(fn get_path)]
-    pub type Paths<T: Config> = 
-    StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, T::AccountId, Path<T::AccountId>, ValueQuery>;
+    #[pallet::getter(fn get_path)]
+    pub type Paths<T: Config> = StorageDoubleMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        Twox64Concat,
+        T::AccountId,
+        Path<T::AccountId>,
+        ValueQuery,
+    >;
 
     #[pallet::event]
-	#[pallet::metadata(T::AccountId = "AccountId")]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
-	pub enum Event<T: Config> {
-		SomethingStored(u32, T::AccountId),
-	}
+    #[pallet::metadata(T::AccountId = "AccountId")]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    pub enum Event<T: Config> {
+        /// 发起了一个挑战 \[challenger, target, analyst, quantity\]
+        Challenged(T::AccountId, T::AccountId, T::AccountId, u32),
+        /// new path \[challenger, target\]
+        NewPath(T::AccountId, T::AccountId),
+        /// 发起了一个二次挑战 \[challenger, target, count\]
+        SubChallenged(T::AccountId, T::AccountId, u32),
+        /// 领取收益 \[who, target, is_proxy\]
+        ReceiveIncome(T::AccountId, T::AccountId, bool),
+    }
 
-	#[pallet::error]
-	pub enum Error<T> {
-		NoneValue,
-		StorageOverflow,
+    #[pallet::error]
+    pub enum Error<T> {
+        NoneValue,
+        StorageOverflow,
         NoPermission,
-	}
-    
+    }
+
     #[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
-    
-	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+    impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn start_challenge(origin: OriginFor<T>, target: T::AccountId, analyst: T::AccountId, quantity: u32) -> DispatchResultWithPostInfo {
+        pub fn start_challenge(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            analyst: T::AccountId,
+            quantity: u32,
+        ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             // TODO: 是否应该限制连续重复挑战？
-            ensure!(quantity < T::SeedsBase::get_seed_count(), Error::<T>::NoPermission);
+            ensure!(
+                quantity < T::SeedsBase::get_seed_count(),
+                Error::<T>::NoPermission
+            );
             let now_block_number = system::Module::<T>::block_number();
             Self::staking(&challenger, factor::CHALLENGE_STAKING_AMOUNT)?;
             let fee = T::StartChallenge::start(&target, &analyst)?;
-            <Challenges<T>>::mutate(
-                &target,
-                |_|
-                Challenge {
-                    pool: Pool {
-                        staking: factor::CHALLENGE_STAKING_AMOUNT,
-                        sub_staking: Zero::zero(),
-                        earnings: fee,
-                    },
-                    progress: Progress {
-                        owner: analyst,
-                        done: Zero::zero(),
-                        total: quantity,
-                    },
-                    beneficiary: challenger,
-                    last_update: now_block_number,
-                    score: Zero::zero(),
-                }
-            );
+            <Challenges<T>>::mutate(&target, |_| Challenge {
+                pool: Pool {
+                    staking: factor::CHALLENGE_STAKING_AMOUNT,
+                    sub_staking: Zero::zero(),
+                    earnings: fee,
+                },
+                progress: Progress {
+                    owner: &analyst,
+                    done: Zero::zero(),
+                    total: quantity,
+                },
+                beneficiary: &challenger,
+                last_update: now_block_number,
+                score: Zero::zero(),
+            });
             Self::after_upload(now_block_number)?;
+            Self::deposit_event(Event::Challenged(challenger, target, analyst, quantity));
             Ok(().into())
-		}
+        }
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn upload_path(
+        pub fn upload_path(
             origin: OriginFor<T>,
             target: T::AccountId,
             seeds: Vec<T::AccountId>,
             paths: Vec<Path<T::AccountId>>,
         ) -> DispatchResultWithPostInfo {
-
             let who = ensure_signed(origin)?;
             let count = seeds.len();
             ensure!(count == paths.len(), Error::<T>::NoPermission);
@@ -195,28 +220,42 @@ pub mod pallet {
                 let new_score = challenge.score;
 
                 let is_end = if <SubChallenges<T>>::contains_key(&target) {
-                    SubChallenges::<T>::try_mutate_exists(&target, |sub_challenge| -> Result<bool, DispatchError> {
-                        let sub_challenge = sub_challenge.as_mut().ok_or(Error::<T>::NoPermission)?;
-                        let progress_info = Self::get_new_progress(sub_challenge, &(count as u32), &who)?;
-                        challenge.score = Self::do_update_path_verify(&target, seeds, paths, new_score)?;
-                        sub_challenge.done = progress_info.0;
-                        Ok(progress_info.1)
-                    })?
+                    SubChallenges::<T>::try_mutate_exists(
+                        &target,
+                        |sub_challenge| -> Result<bool, DispatchError> {
+                            let sub_challenge =
+                                sub_challenge.as_mut().ok_or(Error::<T>::NoPermission)?;
+                            let progress_info =
+                                Self::get_new_progress(sub_challenge, &(count as u32), &who)?;
+                            challenge.score =
+                                Self::do_update_path_verify(&target, seeds, paths, new_score)?;
+                            sub_challenge.done = progress_info.0;
+                            Ok(progress_info.1)
+                        },
+                    )?
                 } else {
-                    let progress_info = Self::get_new_progress(&challenge.progress, &(count as u32), &who)?;
+                    let progress_info =
+                        Self::get_new_progress(&challenge.progress, &(count as u32), &who)?;
                     let score = Self::do_update_path(&target, &seeds, &paths, new_score)?;
                     challenge.score = score;
                     challenge.progress.done = progress_info.0;
                     progress_info.1
                 };
-                if is_end { challenge.beneficiary = who };
+                if is_end {
+                    challenge.beneficiary = who.clone()
+                };
                 Ok(())
             })?;
+            Self::deposit_event(Event::NewPath(who, target));
             Ok(().into())
-		}
+        }
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn start_sub_challenge(origin: OriginFor<T>, target: T::AccountId, quantity: u32) -> DispatchResultWithPostInfo {
+        pub fn start_sub_challenge(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            quantity: u32,
+        ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             let challenge = Self::get_challenge(&target);
             let now_block_number = system::Module::<T>::block_number();
@@ -225,21 +264,22 @@ pub mod pallet {
                     ensure!(
                         Self::allow_sub_challenge(
                             &challenge.progress.is_all_done(),
-                            &challenge.last_update,now_block_number
+                            &challenge.last_update,
+                            now_block_number
                         ),
                         Error::<T>::NoPermission
                     );
-                }else {
+                } else {
                     ensure!(
                         Self::allow_sub_challenge(
                             &sub_challenge.as_ref().unwrap().is_all_done(),
-                            &challenge.last_update,now_block_number
+                            &challenge.last_update,
+                            now_block_number
                         ),
                         Error::<T>::NoPermission
                     );
                 }
-                *sub_challenge = Some (
-                    Progress {
+                *sub_challenge = Some(Progress {
                     owner: who.clone(),
                     total: quantity,
                     done: Zero::zero(),
@@ -248,12 +288,15 @@ pub mod pallet {
             })?;
             Challenges::<T>::mutate(&target, |c| c.last_update = now_block_number);
             Self::after_upload(now_block_number)?;
+            Self::deposit_event(Event::SubChallenged(who, target, quantity));
             Ok(().into())
-		}
+        }
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn receiver_challenge(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
-
+        pub fn receive_income(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+        ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             let challenge = Self::get_challenge(&target);
 
@@ -267,21 +310,26 @@ pub mod pallet {
             let analyst = challenge.progress.owner;
 
             if old_ir != challenge.score {
-                T::Reputation::mutate_ir(&target,challenge.score);
+                T::Reputation::mutate_ir(&target, challenge.score);
             }
 
             if challenge.beneficiary != analyst && old_ir == challenge.score {
                 // 结算更新分成
-                let analyst_sub_amount = factor::ANALYST_RATIO.mul_floor(challenge.pool.sub_staking);
-                let analyst_amount = challenge.pool.earnings
+                let analyst_sub_amount =
+                    factor::ANALYST_RATIO.mul_floor(challenge.pool.sub_staking);
+                let analyst_amount = challenge
+                    .pool
+                    .earnings
                     .checked_add(challenge.pool.staking)
                     .and_then(|a| a.checked_add(analyst_sub_amount))
-                    .map(|a| Self::less_proxy(&a,is_proxy))
+                    .map(|a| Self::less_proxy(&a, is_proxy))
                     .ok_or(Error::<T>::NoPermission)?;
 
-                let challenger_amount = challenge.pool.sub_staking
+                let challenger_amount = challenge
+                    .pool
+                    .sub_staking
                     .checked_sub(analyst_sub_amount)
-                    .map(|a| Self::less_proxy(&a,is_proxy))
+                    .map(|a| Self::less_proxy(&a, is_proxy))
                     .ok_or(Error::<T>::NoPermission)?;
 
                 total_amount = total_amount
@@ -291,41 +339,42 @@ pub mod pallet {
 
                 Self::release(&analyst, analyst_amount)?;
                 Self::release(&challenge.beneficiary, challenger_amount)?;
-            }else {
-                let b_amount = Self::less_proxy(&total_amount,is_proxy);
+            } else {
+                let b_amount = Self::less_proxy(&total_amount, is_proxy);
                 total_amount = total_amount
                     .checked_sub(b_amount)
                     .ok_or(Error::<T>::NoPermission)?;
 
-                Self::release(&challenge.beneficiary, Self::less_proxy(&b_amount,is_proxy))?;
+                Self::release(
+                    &challenge.beneficiary,
+                    Self::less_proxy(&b_amount, is_proxy),
+                )?;
             }
 
             if is_proxy {
                 Self::release(&who, total_amount)?;
             }
 
+            Self::deposit_event(Event::ReceiveIncome(who, target, is_proxy));
             Ok(().into())
-		}
-	
+        }
     }
 }
 
 impl<T: Config> Pallet<T> {
-
     pub(crate) fn less_proxy(amount: &Balance, is_proxy: bool) -> Balance {
         if is_proxy {
             factor::PROXY_PICKUP_RATIO.mul_floor(amount.clone())
-        }else {
+        } else {
             amount.clone()
         }
     }
 
     pub(crate) fn get_dist(paths: &Path<T::AccountId>, seed: &T::AccountId) -> Option<u32> {
-
         if !paths.nodes.is_empty() && paths.check_nodes_leng() {
             let mut nodes = paths.nodes.clone();
-            nodes.insert(0,seed.clone());
-            if let Ok((dist,score)) = T::TrustBase::computed_path(&nodes) {
+            nodes.insert(0, seed.clone());
+            if let Ok((dist, score)) = T::TrustBase::computed_path(&nodes) {
                 if score == paths.score {
                     return Some(dist);
                 }
@@ -344,15 +393,20 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn checked_proxy(
         challenge: &Challenge<T::AccountId, T::BlockNumber>,
-        who : &T::AccountId
+        who: &T::AccountId,
     ) -> Result<bool, DispatchError> {
-
         let is_proxy = challenge.beneficiary != *who && challenge.progress.owner != *who;
         let now_block_number = system::Module::<T>::block_number();
         if is_proxy {
-            ensure!(challenge.last_update + T::ReceiverProtectionPeriod::get() > now_block_number, Error::<T>::NoPermission);
-        }else {
-            ensure!(challenge.last_update + T::ChallengePerior::get() > now_block_number, Error::<T>::NoPermission);
+            ensure!(
+                challenge.last_update + T::ReceiverProtectionPeriod::get() > now_block_number,
+                Error::<T>::NoPermission
+            );
+        } else {
+            ensure!(
+                challenge.last_update + T::ChallengePerior::get() > now_block_number,
+                Error::<T>::NoPermission
+            );
         }
         Ok(is_proxy)
     }
@@ -366,8 +420,8 @@ impl<T: Config> Pallet<T> {
     pub(crate) fn get_new_progress(
         progress: &Progress<T::AccountId>,
         count: &u32,
-        challenger: &T::AccountId
-    ) -> Result<(u32,bool), DispatchError> {
+        challenger: &T::AccountId,
+    ) -> Result<(u32, bool), DispatchError> {
         ensure!(*count <= MAX_UPDATE_COUNT, Error::<T>::NoPermission);
         let new_done = progress.done + count;
         ensure!(progress.owner == *challenger, Error::<T>::NoPermission);
@@ -378,7 +432,7 @@ impl<T: Config> Pallet<T> {
     pub(crate) fn allow_sub_challenge(
         update_end: &bool,
         last_update: &T::BlockNumber,
-        now_block_number: T::BlockNumber
+        now_block_number: T::BlockNumber,
     ) -> bool {
         if !update_end && *last_update + T::ChallengePerior::get() >= now_block_number {
             return false;
@@ -390,14 +444,18 @@ impl<T: Config> Pallet<T> {
         target: &T::AccountId,
         seeds: &Vec<T::AccountId>,
         paths: &Vec<Path<T::AccountId>>,
-        score: u32
+        score: u32,
     ) -> Result<u32, DispatchError> {
-        let new_score = seeds.iter()
+        let new_score = seeds
+            .iter()
             .zip(paths.iter())
-            .try_fold(score,|acc, (seed,path)| {
-                ensure!(!Paths::<T>::contains_key(seed, target), Error::<T>::NoPermission);
+            .try_fold(score, |acc, (seed, path)| {
+                ensure!(
+                    !Paths::<T>::contains_key(seed, target),
+                    Error::<T>::NoPermission
+                );
                 ensure!(path.exclude_zero(), Error::<T>::NoPermission);
-                Paths::<T>::insert(seed,target,path);
+                Paths::<T>::insert(seed, target, path);
                 acc.checked_add(path.score).ok_or(Error::<T>::NoPermission)
             })?;
         Ok(new_score.clone())
@@ -407,28 +465,31 @@ impl<T: Config> Pallet<T> {
         target: &T::AccountId,
         seeds: Vec<T::AccountId>,
         paths: Vec<Path<T::AccountId>>,
-        score: u32
-    ) ->Result<u32, DispatchError> {
-        let new_score = seeds.iter()
+        score: u32,
+    ) -> Result<u32, DispatchError> {
+        let new_score = seeds
+            .iter()
             .zip(paths.iter())
-            .try_fold(score, |acc, (seed,path)| {
-                Paths::<T>::try_mutate_exists(&seed, &target, |p| -> Result<u32, DispatchError> 
-                {
+            .try_fold(score, |acc, (seed, path)| {
+                Paths::<T>::try_mutate_exists(&seed, &target, |p| -> Result<u32, DispatchError> {
                     let dist_new = Self::get_dist(&path, seed).ok_or(Error::<T>::NoPermission)?;
                     let old_path = p.take().unwrap_or_default();
                     if let Some(old_dist) = Self::get_dist(&old_path, &seed) {
-                        ensure!(
-                            old_dist >= dist_new,
-                            Error::<T>::NoPermission);
+                        ensure!(old_dist >= dist_new, Error::<T>::NoPermission);
                         ensure!(
                             old_dist == dist_new && old_path.score > path.score,
                             Error::<T>::NoPermission
                         );
                     }
-                    let acc = acc.checked_sub(old_path.score)
+                    let acc = acc
+                        .checked_sub(old_path.score)
                         .and_then(|s| s.checked_add(path.score))
                         .ok_or(Error::<T>::NoPermission)?;
-                    *p = if path.score == 0 { None } else { Some(path.clone()) };
+                    *p = if path.score == 0 {
+                        None
+                    } else {
+                        Some(path.clone())
+                    };
                     Ok(acc)
                 })
             })?;
