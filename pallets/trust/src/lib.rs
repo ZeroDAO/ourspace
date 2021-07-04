@@ -74,7 +74,7 @@ pub mod module {
 		}
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn untrust(origin: OriginFor<T>, who: T::AccountId, target: T::AccountId) -> DispatchResultWithPostInfo {
+		pub fn untrust(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             Pallet::<T>::do_untrust(&who, &target)?;
             Ok(().into())

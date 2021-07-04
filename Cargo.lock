@@ -8438,6 +8438,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "zd-seeds"
+version = "0.0.1"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "zd-primitives",
+ "zd-traits",
+ "zd-utilities",
+]
+
+[[package]]
 name = "zd-tokens"
 version = "0.0.1"
 dependencies = [
