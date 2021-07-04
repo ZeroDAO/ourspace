@@ -4,7 +4,7 @@ use orml_utilities::OrderedSet;
 
 pub type UserSet<T> = OrderedSet<T>;
 
-trait UserSetExt<T> {
+pub trait UserSetExt<T> {
     fn len(&self) -> usize;
     fn sub_set(&mut self, value: &Vec<T>);
 }
