@@ -37,16 +37,19 @@ pub mod pallet {
 	#[pallet::metadata(T::AccountId = "AccountId")]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// Seed added. \[seed\]
 		SeedAdded(T::AccountId),
+		/// Seed removed. \[seed\]
+		SeedRemoved(T::AccountId),
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// 超过最大种子用户数
+		/// Exceeding the maximum number of seed users
 		SeedsLimitReached,
-		/// 种子用户已存在
+		/// Seed users already exist
 		AlreadySeedUser,
-		/// 不是种子用户
+		/// Not a seed user
 		NotSeedUser,
 	}
 
@@ -66,6 +69,8 @@ pub mod pallet {
 
 			SeedsCount::<T>::mutate(|c| *c += 1);
 
+			Self::deposit_event(Event::SeedAdded(new_seed));
+
 			Ok(().into())
 		}
 
@@ -74,10 +79,12 @@ pub mod pallet {
             ensure_root(origin)?;
 			let _ = T::Reputation::check_update_status(false);
 
-			ensure!(!<Seeds<T>>::contains_key(&seed), Error::<T>::SeedsLimitReached);
+			ensure!(!<Seeds<T>>::contains_key(&seed), Error::<T>::NotSeedUser);
 
 			<Seeds<T>>::remove(&seed);
 			SeedsCount::<T>::mutate(|c| *c -= 1);
+
+			Self::deposit_event(Event::SeedRemoved(seed));
 
 			Ok(().into())
 		}

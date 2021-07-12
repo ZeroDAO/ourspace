@@ -146,21 +146,42 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// 发起了一个挑战 \[challenger, target, analyst, quantity\]
+        /// Launched a challenge. \[challenger, target, analyst, quantity\]
         Challenged(T::AccountId, T::AccountId, T::AccountId, u32),
-        /// new path \[challenger, target\]
+        /// New path \[challenger, target\]
         NewPath(T::AccountId, T::AccountId),
-        /// 发起了一个二次挑战 \[challenger, target, count\]
+        /// Launched a secondary challenge. \[challenger, target, count\]
         SubChallenged(T::AccountId, T::AccountId, u32),
-        /// 领取收益 \[who, target, is_proxy\]
+        /// Receive benefits. \[who, target, is_proxy\]
         ReceiveIncome(T::AccountId, T::AccountId, bool),
     }
 
     #[pallet::error]
     pub enum Error<T> {
-        NoneValue,
-        StorageOverflow,
+        /// No permission.
         NoPermission,
+        /// Excessive number of seeds
+        ExcessiveBumberOfSeeds,
+        /// Paths and seeds do not match
+        NotMatch,
+        /// Calculation overflow.
+        Overflow,
+        /// No challenge allowed
+        NoChallengeAllowed,
+        /// Error getting user reputation
+        ReputationError,
+        /// Too soon
+        TooSoon,
+        /// Wrong progress
+        ErrProgress,
+        /// The path already exists
+        PathAlreadyExist,
+        /// Wrong path
+        WrongPath,
+        /// Error calculating dist
+        DistErr,
+        /// The dist is too long or score is too low.
+        DistTooLong,
     }
 
     #[pallet::hooks]
@@ -179,7 +200,7 @@ pub mod pallet {
             // TODO: 是否应该限制连续重复挑战？
             ensure!(
                 quantity < T::SeedsBase::get_seed_count(),
-                Error::<T>::NoPermission
+                Error::<T>::ExcessiveBumberOfSeeds
             );
             let now_block_number = system::Module::<T>::block_number();
             Self::staking(&challenger, factor::CHALLENGE_STAKING_AMOUNT)?;
@@ -213,10 +234,10 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             let count = seeds.len();
-            ensure!(count == paths.len(), Error::<T>::NoPermission);
+            ensure!(count == paths.len(), Error::<T>::NotMatch);
 
             Challenges::<T>::try_mutate_exists(&target, |challenge| -> DispatchResult {
-                let challenge = challenge.as_mut().ok_or(Error::<T>::NoPermission)?;
+                let challenge = challenge.as_mut().ok_or(Error::<T>::Overflow)?;
                 let new_score = challenge.score;
 
                 let is_end = if <SubChallenges<T>>::contains_key(&target) {
@@ -224,7 +245,7 @@ pub mod pallet {
                         &target,
                         |sub_challenge| -> Result<bool, DispatchError> {
                             let sub_challenge =
-                                sub_challenge.as_mut().ok_or(Error::<T>::NoPermission)?;
+                                sub_challenge.as_mut().ok_or(Error::<T>::Overflow)?;
                             let progress_info =
                                 Self::get_new_progress(sub_challenge, &(count as u32), &who)?;
                             challenge.score =
@@ -267,7 +288,7 @@ pub mod pallet {
                             &challenge.last_update,
                             now_block_number
                         ),
-                        Error::<T>::NoPermission
+                        Error::<T>::NoChallengeAllowed
                     );
                 } else {
                     ensure!(
@@ -276,7 +297,7 @@ pub mod pallet {
                             &challenge.last_update,
                             now_block_number
                         ),
-                        Error::<T>::NoPermission
+                        Error::<T>::NoChallengeAllowed
                     );
                 }
                 *sub_challenge = Some(Progress {
@@ -304,9 +325,10 @@ pub mod pallet {
 
             Self::remove(&target);
 
-            let mut total_amount = challenge.total_amount().ok_or(Error::<T>::NoPermission)?;
+            let mut total_amount = challenge.total_amount().ok_or(Error::<T>::Overflow)?;
 
-            let old_ir = T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::NoPermission)?;
+            let old_ir =
+                T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
             let analyst = challenge.progress.owner;
 
             if old_ir != challenge.score {
@@ -323,19 +345,19 @@ pub mod pallet {
                     .checked_add(challenge.pool.staking)
                     .and_then(|a| a.checked_add(analyst_sub_amount))
                     .map(|a| Self::less_proxy(&a, is_proxy))
-                    .ok_or(Error::<T>::NoPermission)?;
+                    .ok_or(Error::<T>::Overflow)?;
 
                 let challenger_amount = challenge
                     .pool
                     .sub_staking
                     .checked_sub(analyst_sub_amount)
                     .map(|a| Self::less_proxy(&a, is_proxy))
-                    .ok_or(Error::<T>::NoPermission)?;
+                    .ok_or(Error::<T>::Overflow)?;
 
                 total_amount = total_amount
                     .checked_sub(analyst_amount)
                     .and_then(|a| a.checked_sub(challenger_amount))
-                    .ok_or(Error::<T>::NoPermission)?;
+                    .ok_or(Error::<T>::Overflow)?;
 
                 Self::release(&analyst, analyst_amount)?;
                 Self::release(&challenge.beneficiary, challenger_amount)?;
@@ -343,7 +365,7 @@ pub mod pallet {
                 let b_amount = Self::less_proxy(&total_amount, is_proxy);
                 total_amount = total_amount
                     .checked_sub(b_amount)
-                    .ok_or(Error::<T>::NoPermission)?;
+                    .ok_or(Error::<T>::Overflow)?;
 
                 Self::release(
                     &challenge.beneficiary,
@@ -400,12 +422,12 @@ impl<T: Config> Pallet<T> {
         if is_proxy {
             ensure!(
                 challenge.last_update + T::ReceiverProtectionPeriod::get() > now_block_number,
-                Error::<T>::NoPermission
+                Error::<T>::TooSoon
             );
         } else {
             ensure!(
                 challenge.last_update + T::ChallengePerior::get() > now_block_number,
-                Error::<T>::NoPermission
+                Error::<T>::TooSoon
             );
         }
         Ok(is_proxy)
@@ -425,7 +447,7 @@ impl<T: Config> Pallet<T> {
         ensure!(*count <= MAX_UPDATE_COUNT, Error::<T>::NoPermission);
         let new_done = progress.done + count;
         ensure!(progress.owner == *challenger, Error::<T>::NoPermission);
-        ensure!(progress.total >= new_done, Error::<T>::NoPermission);
+        ensure!(progress.total >= new_done, Error::<T>::ErrProgress);
         Ok((new_done, progress.total == new_done))
     }
 
@@ -452,11 +474,11 @@ impl<T: Config> Pallet<T> {
             .try_fold(score, |acc, (seed, path)| {
                 ensure!(
                     !Paths::<T>::contains_key(seed, target),
-                    Error::<T>::NoPermission
+                    Error::<T>::PathAlreadyExist
                 );
-                ensure!(path.exclude_zero(), Error::<T>::NoPermission);
+                ensure!(path.exclude_zero(), Error::<T>::WrongPath);
                 Paths::<T>::insert(seed, target, path);
-                acc.checked_add(path.score).ok_or(Error::<T>::NoPermission)
+                acc.checked_add(path.score).ok_or(Error::<T>::Overflow)
             })?;
         Ok(new_score.clone())
     }
@@ -472,19 +494,19 @@ impl<T: Config> Pallet<T> {
             .zip(paths.iter())
             .try_fold(score, |acc, (seed, path)| {
                 Paths::<T>::try_mutate_exists(&seed, &target, |p| -> Result<u32, DispatchError> {
-                    let dist_new = Self::get_dist(&path, seed).ok_or(Error::<T>::NoPermission)?;
+                    let dist_new = Self::get_dist(&path, seed).ok_or(Error::<T>::DistErr)?;
                     let old_path = p.take().unwrap_or_default();
                     if let Some(old_dist) = Self::get_dist(&old_path, &seed) {
-                        ensure!(old_dist >= dist_new, Error::<T>::NoPermission);
+                        ensure!(old_dist >= dist_new, Error::<T>::DistTooLong);
                         ensure!(
                             old_dist == dist_new && old_path.score > path.score,
-                            Error::<T>::NoPermission
+                            Error::<T>::DistTooLong
                         );
                     }
                     let acc = acc
                         .checked_sub(old_path.score)
                         .and_then(|s| s.checked_add(path.score))
-                        .ok_or(Error::<T>::NoPermission)?;
+                        .ok_or(Error::<T>::Overflow)?;
                     *p = if path.score == 0 {
                         None
                     } else {
