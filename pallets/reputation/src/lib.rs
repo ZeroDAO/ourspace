@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
 use frame_support::{
     codec::{Decode, Encode},
@@ -7,17 +8,20 @@ use frame_support::{
     RuntimeDebug,
 };
 use frame_system::{self as system};
-use sp_runtime::DispatchResult;
+use sp_runtime::{traits::Zero, DispatchResult};
 use zd_traits::Reputation;
 
 pub use pallet::*;
+
+mod mock;
+mod tests;
 
 /// Maximum quantity for seeds
 pub const MAX_SEED: usize = 500;
 /// Seed user initializes reputation values
 pub const INIT_SEED_RANK: usize = 1000;
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, PartialEq, Default, Eq, RuntimeDebug)]
 pub struct OperationStatus<BlockNumber> {
     pub nonce: u32,
     pub last: BlockNumber,
@@ -74,6 +78,27 @@ pub mod pallet {
     pub type ReputationScores<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, [ReputationScore; 2], ValueQuery>;
 
+    #[pallet::genesis_config]
+    pub struct GenesisConfig<T: Config> {
+        pub period: T::BlockNumber,
+    }
+
+    impl<T: Config> Default for GenesisConfig<T> {
+        fn default() -> Self {
+            GenesisConfig {
+                period: Zero::zero(),
+            }
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+        fn build(&self) {
+            Pallet::<T>::do_set_period(self.period)
+                .expect("Create PERIOD for OperationStatus cannot fail while building genesis");
+        }
+    }
+
     #[pallet::event]
     #[pallet::metadata(T::AccountId = "AccountId", T::BlockNumber = "BlockNumber")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -90,12 +115,12 @@ pub mod pallet {
         AlreadyInUpdating,
         /// Setting disabled during reputation update.
         UnableToSetPeriod,
-		/// Reputation already updated.
-		ReputationAlreadyUpdated,
-		/// The challenge is not over yet.
-		ChallengeNotOverYet,
-		/// Too short an interval between renewal periods.
-		TooShortAnInterval,
+        /// Reputation already updated.
+        ReputationAlreadyUpdated,
+        /// The challenge is not over yet.
+        ChallengeNotOverYet,
+        /// Too short an interval between renewal periods.
+        TooShortAnInterval,
     }
 
     #[pallet::hooks]
@@ -179,7 +204,10 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber> for Pallet<T> {
     fn refresh_reputation(user_score: &(T::AccountId, u32), nonce: u32) -> DispatchResult {
         let who = &user_score.0;
         ReputationScores::<T>::try_mutate(&who, |reputation| -> DispatchResult {
-            ensure!(reputation[0].score < nonce, Error::<T>::ReputationAlreadyUpdated);
+            ensure!(
+                reputation[0].score < nonce,
+                Error::<T>::ReputationAlreadyUpdated
+            );
             let old = reputation[0].clone();
             *reputation = [
                 ReputationScore {
