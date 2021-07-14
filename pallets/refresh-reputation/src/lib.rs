@@ -115,7 +115,7 @@ pub mod pallet {
                 Error::<T>::QuantityLimitReached
             );
 
-            let nonce =
+            let _ =
                 T::Reputation::check_update_status(true).ok_or(Error::<T>::NoUpdatesAllowed)?;
 
             let amount = T::UpdateStakingAmount::get()
