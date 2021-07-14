@@ -147,7 +147,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn is_challenge_end(now: T::BlockNumber) -> bool {
-        Self::last_challenge() < now + T::ChallengePerior::get()
+        now > Self::last_challenge() + T::ChallengePerior::get()
     }
 
     pub(crate) fn set_last_challenge(now: &T::BlockNumber) {
@@ -242,21 +242,28 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber> for Pallet<T> {
 
     fn end_refresh() -> DispatchResult {
         let now = Self::now();
+
+        let operation_status = Self::system_info();
+
+        if !operation_status.updating {
+            return Ok(());
+        }
+
         ensure!(
             Self::is_challenge_end(now.clone()),
             Error::<T>::ChallengeNotOverYet
         );
-        let operation_status = Self::system_info();
+
         ensure!(
-            operation_status.last + T::ConfirmationPeriod::get() > now,
+            now > operation_status.last + T::ConfirmationPeriod::get(),
             Error::<T>::TooShortAnInterval
         );
-        if operation_status.updating {
-            SystemInfo::<T>::mutate(|operation_status| {
-                operation_status.last = now.clone();
-                operation_status.updating = false;
-            })
-        }
+
+        SystemInfo::<T>::mutate(|operation_status| {
+            operation_status.last = now.clone();
+            operation_status.updating = false;
+        });
+        
         Ok(())
     }
 }

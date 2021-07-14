@@ -50,19 +50,16 @@ fn new_round_should_work() {
 fn new_round_should_fail() {
     new_test_ext().execute_with(|| {
         assert_ok!(ZdReputation::new_round());
-        assert_noop!(
-            ZdReputation::new_round(),
-            Error::<Test>::AlreadyInUpdating
-        );
+        assert_noop!(ZdReputation::new_round(), Error::<Test>::AlreadyInUpdating);
     });
 }
 
 #[test]
 fn mutate_reputation_should_work() {
     new_test_ext().execute_with(|| {
-        assert_eq!(ZdReputation::mutate_reputation(&ALICE,21),());
+        assert_eq!(ZdReputation::mutate_reputation(&ALICE, 21), ());
 
-        assert_eq!(ZdReputation::get_reputation_new(&ALICE),Some(21));
+        assert_eq!(ZdReputation::get_reputation_new(&ALICE), Some(21));
     });
 }
 
@@ -70,9 +67,9 @@ fn mutate_reputation_should_work() {
 fn refresh_reputation_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(ZdReputation::new_round());
-        assert_ok!(ZdReputation::refresh_reputation(&(ALICE,18)));
+        assert_ok!(ZdReputation::refresh_reputation(&(ALICE, 18)));
 
-        assert_eq!(ZdReputation::get_reputation_new(&ALICE),Some(18));
+        assert_eq!(ZdReputation::get_reputation_new(&ALICE), Some(18));
     });
 }
 
@@ -80,10 +77,10 @@ fn refresh_reputation_should_work() {
 fn refresh_reputation_should_fail() {
     new_test_ext().execute_with(|| {
         assert_ok!(ZdReputation::new_round());
-        assert_ok!(ZdReputation::refresh_reputation(&(ALICE,18)));
+        assert_ok!(ZdReputation::refresh_reputation(&(ALICE, 18)));
 
         assert_noop!(
-            ZdReputation::refresh_reputation(&(ALICE,18)),
+            ZdReputation::refresh_reputation(&(ALICE, 18)),
             Error::<Test>::ReputationAlreadyUpdated
         );
     });
@@ -95,48 +92,57 @@ fn last_refresh_at_should_work() {
         assert_ok!(ZdReputation::new_round());
         ZdReputation::last_refresh_at();
 
-        assert_eq!(<SystemInfo<Test>>::get().last,1);
+        assert_eq!(<SystemInfo<Test>>::get().last, 1);
     });
 }
 
 #[test]
 fn check_update_status_should_work() {
     new_test_ext().execute_with(|| {
-        assert_eq!(ZdReputation::check_update_status(true),None);
-        assert_eq!(ZdReputation::check_update_status(false),Some(0));
+        assert_eq!(ZdReputation::check_update_status(true), None);
+        assert_eq!(ZdReputation::check_update_status(false), Some(0));
 
         assert_ok!(ZdReputation::new_round());
 
-        assert_eq!(ZdReputation::check_update_status(true),Some(1));
-        assert_eq!(ZdReputation::check_update_status(false),None);
+        assert_eq!(ZdReputation::check_update_status(true), Some(1));
+        assert_eq!(ZdReputation::check_update_status(false), None);
     });
 }
 
 #[test]
 fn last_challenge_at_should_work() {
     new_test_ext().execute_with(|| {
-        assert_eq!(ZdReputation::last_challenge(),0);
+        assert_eq!(ZdReputation::last_challenge(), 0);
         ZdReputation::last_challenge_at();
-        assert_eq!(ZdReputation::last_challenge(),1);
+        assert_eq!(ZdReputation::last_challenge(), 1);
     });
 }
 #[test]
 fn end_refresh_should_work() {
     new_test_ext().execute_with(|| {
-        ZdReputation::new_round();
+        assert_ok!(ZdReputation::new_round());
         System::set_block_number(101);
         assert_ok!(ZdReputation::end_refresh());
+
+        assert_eq!(<SystemInfo<Test>>::get().last, 101);
+        assert_eq!(<SystemInfo<Test>>::get().updating, false);
     });
 }
 
 #[test]
 fn end_refresh_should_fail() {
     new_test_ext().execute_with(|| {
-        ZdReputation::new_round();
-        assert_ok!(ZdReputation::end_refresh());
+        assert_ok!(ZdReputation::new_round());
+        assert_ok!(ZdReputation::refresh_reputation(&(ALICE, 18)));
+        System::set_block_number(50);
         assert_noop!(
-            ZdReputation::refresh_reputation(&(ALICE,18)),
-            Error::<Test>::ReputationAlreadyUpdated
+            ZdReputation::end_refresh(),
+            Error::<Test>::ChallengeNotOverYet
+        );
+        System::set_block_number(110);
+        assert_noop!(
+            ZdReputation::end_refresh(),
+            Error::<Test>::TooShortAnInterval
         );
     });
 }
