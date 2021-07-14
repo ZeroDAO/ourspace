@@ -9,8 +9,7 @@ pub trait Reputation<AccountId, BlockNumber> {
 
 	/// 更新声誉值
 	fn refresh_reputation(
-		user_score: &(AccountId,u32),
-		nonce: u32,
+		user_score: &(AccountId,u32)
 	) -> DispatchResult;
 
 	/// 设置最后更新时间

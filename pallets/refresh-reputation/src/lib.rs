@@ -129,7 +129,7 @@ pub mod pallet {
                 user_scores
                     .iter()
                     .try_fold(Zero::zero(), |acc_amount, user_score| {
-                        let fee = Self::do_renew(&analyst, &user_score, &nonce, &now_block_number)
+                        let fee = Self::do_renew(&analyst, &user_score, &now_block_number)
                             .ok_or(Error::<T>::ErrorFee)?;
                         fee.checked_add(acc_amount).ok_or(Error::<T>::Overflow)
                     })?;
@@ -161,10 +161,9 @@ impl<T: Config> Pallet<T> {
     pub(crate) fn do_renew(
         analyst: &T::AccountId,
         user_score: &(T::AccountId, u32),
-        nonce: &u32,
         update_at: &T::BlockNumber,
     ) -> Option<Balance> {
-        T::Reputation::refresh_reputation(&user_score, nonce.clone()).ok();
+        T::Reputation::refresh_reputation(&user_score).ok();
         let who = &user_score.0;
 
         let fee = Self::share(who.clone()).ok();

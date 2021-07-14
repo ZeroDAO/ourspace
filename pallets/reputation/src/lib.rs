@@ -96,6 +96,9 @@ pub mod pallet {
         fn build(&self) {
             Pallet::<T>::do_set_period(self.period)
                 .expect("Create PERIOD for OperationStatus cannot fail while building genesis");
+            SystemInfo::<T>::mutate(|operation_status| {
+                operation_status.nonce = 1;
+            })
         }
     }
 
@@ -166,6 +169,7 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> Reputation<T::AccountId, T::BlockNumber> for Pallet<T> {
+    // Low-level operation. Make changes directly to the latest nonce's REPUTATION
     fn mutate_reputation(target: &T::AccountId, ir: u32) {
         ReputationScores::<T>::mutate(&target, |x| x[0].score = ir);
     }
@@ -201,11 +205,12 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber> for Pallet<T> {
         }
     }
 
-    fn refresh_reputation(user_score: &(T::AccountId, u32), nonce: u32) -> DispatchResult {
+    fn refresh_reputation(user_score: &(T::AccountId, u32)) -> DispatchResult {
         let who = &user_score.0;
+        let nonce = Self::system_info().nonce;
         ReputationScores::<T>::try_mutate(&who, |reputation| -> DispatchResult {
             ensure!(
-                reputation[0].score < nonce,
+                reputation[0].nonce < nonce,
                 Error::<T>::ReputationAlreadyUpdated
             );
             let old = reputation[0].clone();
