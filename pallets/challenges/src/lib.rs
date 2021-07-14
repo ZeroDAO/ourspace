@@ -220,7 +220,7 @@ pub mod pallet {
                 last_update: now_block_number,
                 score: Zero::zero(),
             });
-            Self::after_upload(now_block_number)?;
+            Self::after_upload()?;
             Self::deposit_event(Event::Challenged(challenger, target, analyst, quantity));
             Ok(().into())
         }
@@ -308,7 +308,7 @@ pub mod pallet {
                 Ok(())
             })?;
             Challenges::<T>::mutate(&target, |c| c.last_update = now_block_number);
-            Self::after_upload(now_block_number)?;
+            Self::after_upload()?;
             Self::deposit_event(Event::SubChallenged(who, target, quantity));
             Ok(().into())
         }
@@ -518,8 +518,8 @@ impl<T: Config> Pallet<T> {
         Ok(new_score)
     }
 
-    pub(crate) fn after_upload(now: T::BlockNumber) -> DispatchResult {
-        T::Reputation::last_challenge_at(&now);
+    pub(crate) fn after_upload() -> DispatchResult {
+        T::Reputation::last_challenge_at();
         Ok(())
     }
 }

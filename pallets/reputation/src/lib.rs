@@ -96,9 +96,6 @@ pub mod pallet {
         fn build(&self) {
             Pallet::<T>::do_set_period(self.period)
                 .expect("Create PERIOD for OperationStatus cannot fail while building genesis");
-            SystemInfo::<T>::mutate(|operation_status| {
-                operation_status.nonce = 1;
-            })
         }
     }
 
@@ -145,6 +142,10 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+    pub(crate) fn now() -> T::BlockNumber {
+        system::Module::<T>::block_number()
+    }
+
     pub(crate) fn is_challenge_end(now: T::BlockNumber) -> bool {
         Self::last_challenge() < now + T::ChallengePerior::get()
     }
@@ -178,7 +179,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber> for Pallet<T> {
         // TODO：检查数据是否清空完毕
         // TODO: 设置代领机制
         // TODO：检查是否初始化
-        let now_block_number = system::Module::<T>::block_number();
+        let now_block_number = Self::now();
         <SystemInfo<T>>::try_mutate(|operation_status| {
             ensure!(!operation_status.updating, Error::<T>::AlreadyInUpdating);
             ensure!(
@@ -227,26 +228,27 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber> for Pallet<T> {
         })
     }
 
-    fn last_refresh_at(now: &T::BlockNumber) {
-        Self::set_last_refresh(now.clone());
+    fn last_refresh_at() {
+        Self::set_last_refresh(Self::now());
     }
 
     fn check_update_status(update_mode: bool) -> Option<u32> {
         Self::system_info().check_update_status(update_mode)
     }
 
-    fn last_challenge_at(now: &T::BlockNumber) {
-        Self::set_last_challenge(&now);
+    fn last_challenge_at() {
+        Self::set_last_challenge(&Self::now());
     }
 
-    fn end_refresh(now: &T::BlockNumber) -> DispatchResult {
+    fn end_refresh() -> DispatchResult {
+        let now = Self::now();
         ensure!(
             Self::is_challenge_end(now.clone()),
             Error::<T>::ChallengeNotOverYet
         );
         let operation_status = Self::system_info();
         ensure!(
-            operation_status.last + T::ConfirmationPeriod::get() > *now,
+            operation_status.last + T::ConfirmationPeriod::get() > now,
             Error::<T>::TooShortAnInterval
         );
         if operation_status.updating {

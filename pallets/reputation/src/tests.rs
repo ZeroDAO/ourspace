@@ -36,7 +36,7 @@ fn new_round_should_work() {
         assert_eq!(
             <SystemInfo<Test>>::get(),
             OperationStatus {
-                nonce: 0,
+                nonce: 1,
                 last: 1,
                 updating: true,
                 next: INIT_PERIOD + 1,
@@ -93,9 +93,9 @@ fn refresh_reputation_should_fail() {
 fn last_refresh_at_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(ZdReputation::new_round());
-        ZdReputation::last_refresh_at(&12);
+        ZdReputation::last_refresh_at();
 
-        assert_eq!(<SystemInfo<Test>>::get().last,12);
+        assert_eq!(<SystemInfo<Test>>::get().last,1);
     });
 }
 
@@ -109,5 +109,34 @@ fn check_update_status_should_work() {
 
         assert_eq!(ZdReputation::check_update_status(true),Some(1));
         assert_eq!(ZdReputation::check_update_status(false),None);
+    });
+}
+
+#[test]
+fn last_challenge_at_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_eq!(ZdReputation::last_challenge(),0);
+        ZdReputation::last_challenge_at();
+        assert_eq!(ZdReputation::last_challenge(),1);
+    });
+}
+#[test]
+fn end_refresh_should_work() {
+    new_test_ext().execute_with(|| {
+        ZdReputation::new_round();
+        System::set_block_number(101);
+        assert_ok!(ZdReputation::end_refresh());
+    });
+}
+
+#[test]
+fn end_refresh_should_fail() {
+    new_test_ext().execute_with(|| {
+        ZdReputation::new_round();
+        assert_ok!(ZdReputation::end_refresh());
+        assert_noop!(
+            ZdReputation::refresh_reputation(&(ALICE,18)),
+            Error::<Test>::ReputationAlreadyUpdated
+        );
     });
 }

@@ -135,7 +135,7 @@ pub mod pallet {
                     })?;
 
             Self::mutate_fee(&analyst, &total_fee)?;
-            T::Reputation::last_refresh_at(&now_block_number);
+            T::Reputation::last_refresh_at();
 
             Self::deposit_event(Event::ReputationRefreshed(analyst, user_count as u32));
 
@@ -144,8 +144,7 @@ pub mod pallet {
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn receiver_all(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-            let now_block_number = system::Module::<T>::block_number();
-            T::Reputation::end_refresh(&now_block_number)?;
+            T::Reputation::end_refresh()?;
 
             let analyst = ensure_signed(origin)?;
 
