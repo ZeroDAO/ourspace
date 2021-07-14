@@ -75,3 +75,39 @@ fn refresh_reputation_should_work() {
         assert_eq!(ZdReputation::get_reputation_new(&ALICE),Some(18));
     });
 }
+
+#[test]
+fn refresh_reputation_should_fail() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(ZdReputation::new_round());
+        assert_ok!(ZdReputation::refresh_reputation(&(ALICE,18)));
+
+        assert_noop!(
+            ZdReputation::refresh_reputation(&(ALICE,18)),
+            Error::<Test>::ReputationAlreadyUpdated
+        );
+    });
+}
+
+#[test]
+fn last_refresh_at_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(ZdReputation::new_round());
+        ZdReputation::last_refresh_at(&12);
+
+        assert_eq!(<SystemInfo<Test>>::get().last,12);
+    });
+}
+
+#[test]
+fn check_update_status_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_eq!(ZdReputation::check_update_status(true),None);
+        assert_eq!(ZdReputation::check_update_status(false),Some(0));
+
+        assert_ok!(ZdReputation::new_round());
+
+        assert_eq!(ZdReputation::check_update_status(true),Some(1));
+        assert_eq!(ZdReputation::check_update_status(false),None);
+    });
+}

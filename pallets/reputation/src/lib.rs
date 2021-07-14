@@ -186,6 +186,8 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber> for Pallet<T> {
                 Error::<T>::IntervalIsTooShort
             );
             let next = now_block_number + operation_status.period;
+            let old_nonce = operation_status.nonce;
+            operation_status.nonce = old_nonce + 1;
             operation_status.updating = true;
             operation_status.next = next;
             operation_status.last = now_block_number;
