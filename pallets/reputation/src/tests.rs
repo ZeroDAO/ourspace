@@ -121,10 +121,10 @@ fn last_challenge_at_should_work() {
 fn end_refresh_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(ZdReputation::new_round());
-        System::set_block_number(101);
+        System::set_block_number(150);
         assert_ok!(ZdReputation::end_refresh());
 
-        assert_eq!(<SystemInfo<Test>>::get().last, 101);
+        assert_eq!(<SystemInfo<Test>>::get().last, 150);
         assert_eq!(<SystemInfo<Test>>::get().updating, false);
     });
 }

@@ -10,15 +10,13 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use frame_system::ensure_root;
 
-	use zd_primitives::BlockNumber;
-
 	/// 种子用户初始化声誉值
 	pub const INIT_SEED_SCORE: u32 = 1000;
 	
     #[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-		type Reputation: Reputation<Self::AccountId, BlockNumber>;
+		type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
 	}
 
     #[pallet::pallet]

@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
 use frame_support::{
     codec::{Decode, Encode},
@@ -7,14 +8,17 @@ use frame_support::{
     RuntimeDebug,
 };
 use frame_system::{self as system, ensure_signed};
-use orml_traits::{MultiCurrencyExtended, SocialCurrency, StakingCurrency};
-use sp_runtime::{traits::Zero, DispatchError, Perbill};
+use orml_traits::{MultiCurrency, SocialCurrency, StakingCurrency};
+use sp_runtime::{traits::Zero, DispatchResult, DispatchError, Perbill};
 use sp_std::vec::Vec;
-use zd_primitives::{Amount, Balance};
+use zd_primitives::Balance;
 use zd_traits::{Reputation, StartChallenge, TrustBase};
 
+mod mock;
+mod tests;
+
 pub use pallet::*;
-// 声誉系统更新详情
+
 #[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
 pub struct Record<BlockNumber, Balance> {
     pub update_at: BlockNumber,
@@ -32,19 +36,15 @@ pub mod pallet {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
         type BaceToken: Get<Self::CurrencyId>;
-        type Currency: MultiCurrencyExtended<
-                Self::AccountId,
-                CurrencyId = Self::CurrencyId,
-                Balance = Balance,
-                Amount = Amount,
-            > + StakingCurrency<Self::AccountId>
+        type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::CurrencyId, Balance = Balance>
+            + StakingCurrency<Self::AccountId>
             + SocialCurrency<Self::AccountId>;
         type ShareRatio: Get<Perbill>;
         type FeeRation: Get<Perbill>;
         type SelfRation: Get<Perbill>;
         type MaxUpdateCount: Get<u32>;
         type UpdateStakingAmount: Get<Balance>;
-        type ConfirmationCycle: Get<Self::BlockNumber>;
+        type ConfirmationPeriod: Get<Self::BlockNumber>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
         type TrustBase: TrustBase<Self::AccountId>;
     }
@@ -54,8 +54,7 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn get_fees)]
-    pub type Fees<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, (u32, Balance), ValueQuery>;
+    pub type Fees<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Balance, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn update_record)]
@@ -73,8 +72,8 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// Some reputations have been updated. \[analyst, count\]
-        ReputationRefreshed(T::AccountId, u32),
+        /// Some reputations have been updated. \[analyst, count, fee\]
+        ReputationRefreshed(T::AccountId, u32, Balance),
     }
 
     #[pallet::error]
@@ -115,8 +114,7 @@ pub mod pallet {
                 Error::<T>::QuantityLimitReached
             );
 
-            let _ =
-                T::Reputation::check_update_status(true).ok_or(Error::<T>::NoUpdatesAllowed)?;
+            let _ = T::Reputation::check_update_status(true).ok_or(Error::<T>::NoUpdatesAllowed)?;
 
             let amount = T::UpdateStakingAmount::get()
                 .checked_mul(user_count as Balance)
@@ -125,19 +123,26 @@ pub mod pallet {
 
             let now_block_number = system::Module::<T>::block_number();
 
-            let total_fee =
-                user_scores
-                    .iter()
-                    .try_fold(Zero::zero(), |acc_amount, user_score| {
-                        let fee = Self::do_renew(&analyst, &user_score, &now_block_number)
-                            .ok_or(Error::<T>::ErrorFee)?;
-                        fee.checked_add(acc_amount).ok_or(Error::<T>::Overflow)
-                    })?;
+            let total_fee = user_scores
+                .iter()
+                .try_fold::<_, _, Result<Balance, DispatchError>>(
+                    Zero::zero(),
+                    |acc_amount, user_score| {
+                        let fee = Self::do_refresh(&analyst, &user_score, &now_block_number)?;
+                        acc_amount
+                            .checked_add(fee)
+                            .ok_or_else(|| Error::<T>::Overflow.into())
+                    },
+                )?;
 
             Self::mutate_fee(&analyst, &total_fee)?;
             T::Reputation::last_refresh_at();
 
-            Self::deposit_event(Event::ReputationRefreshed(analyst, user_count as u32));
+            Self::deposit_event(Event::ReputationRefreshed(
+                analyst,
+                user_count as u32,
+                total_fee,
+            ));
 
             Ok(().into())
         }
@@ -149,7 +154,7 @@ pub mod pallet {
             let analyst = ensure_signed(origin)?;
 
             let fee = Fees::<T>::take(&analyst);
-            T::Currency::release(T::BaceToken::get(), &analyst, fee.1)?;
+            T::Currency::release(T::BaceToken::get(), &analyst, fee)?;
             <Records<T>>::remove_prefix(&analyst);
             Ok(().into())
         }
@@ -157,27 +162,26 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-    pub(crate) fn do_renew(
+    pub(crate) fn do_refresh(
         analyst: &T::AccountId,
         user_score: &(T::AccountId, u32),
         update_at: &T::BlockNumber,
-    ) -> Option<Balance> {
-        T::Reputation::refresh_reputation(&user_score).ok();
+    ) -> Result<Balance, DispatchError> {
+        T::Reputation::refresh_reputation(&user_score)?;
         let who = &user_score.0;
 
-        let fee = Self::share(who.clone()).ok();
+        let fee = Self::share(who.clone())?;
         <Records<T>>::mutate(&analyst, &who, |_| Record { update_at, fee });
-        fee
+        Ok(fee)
     }
 
     pub(crate) fn mutate_fee(
         analyst: &T::AccountId,
         amount: &Balance,
-    ) -> Result<Balance, DispatchError> {
-        <Fees<T>>::try_mutate(&analyst, |f| -> Result<Balance, DispatchError> {
-            let new_amount = f.1.checked_add(*amount).ok_or(Error::<T>::Overflow)?;
-            f.1 = new_amount;
-            Ok(new_amount)
+    ) -> DispatchResult {
+        <Fees<T>>::try_mutate(&analyst, |f| -> DispatchResult {
+            *f = f.checked_add(*amount).ok_or(Error::<T>::Overflow)?;
+            Ok(())
         })
     }
 
@@ -210,14 +214,11 @@ impl<T: Config> StartChallenge<T::AccountId, Balance> for Pallet<T> {
         let record = <Records<T>>::take(&target, &analyst);
 
         ensure!(
-            record.update_at + T::ConfirmationCycle::get() > system::Module::<T>::block_number(),
+            record.update_at + T::ConfirmationPeriod::get() > system::Module::<T>::block_number(),
             Error::<T>::ChallengeTimeout
         );
 
-        Fees::<T>::mutate(&analyst, |f| {
-            f.0 -= 1;
-            f.1 = f.1.saturating_sub(record.fee);
-        });
+        Fees::<T>::mutate(&analyst, |f| f.saturating_sub(record.fee));
 
         Ok(record.fee)
     }
