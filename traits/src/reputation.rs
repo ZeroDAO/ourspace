@@ -12,8 +12,12 @@ pub trait Reputation<AccountId, BlockNumber> {
 		user_score: &(AccountId,u32)
 	) -> DispatchResult;
 
+	fn get_last_update_at() -> BlockNumber;
+
+	fn get_last_refresh_at() -> BlockNumber;
+
 	/// 设置最后更新时间
-	fn last_refresh_at();
+	fn set_last_refresh_at();
 
 	/// 检查更新状态与预期是否相符，并返回序号,
 	/// 与预期不同则返回 None

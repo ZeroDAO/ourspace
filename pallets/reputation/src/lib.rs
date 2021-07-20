@@ -177,9 +177,6 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber> for Pallet<T> {
     }
 
     fn new_round() -> DispatchResult {
-        // TODO：检查数据是否清空完毕
-        // TODO: 设置代领机制
-        // TODO：检查是否初始化
         let now_block_number = Self::now();
         <SystemInfo<T>>::try_mutate(|operation_status| {
             ensure!(!operation_status.updating, Error::<T>::AlreadyInUpdating);
@@ -229,7 +226,11 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber> for Pallet<T> {
         })
     }
 
-    fn last_refresh_at() {
+    fn get_last_refresh_at() -> T::BlockNumber {
+        Self::system_info().last
+    }
+
+    fn set_last_refresh_at() {
         Self::set_last_refresh(Self::now());
     }
 
@@ -239,6 +240,10 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber> for Pallet<T> {
 
     fn last_challenge_at() {
         Self::set_last_challenge(&Self::now());
+    }
+
+    fn get_last_update_at() -> T::BlockNumber {
+        Self::last_challenge().max(Self::system_info().last)
     }
 
     fn end_refresh() -> DispatchResult {

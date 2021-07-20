@@ -9,12 +9,14 @@ use frame_support::{
 };
 use frame_system::{self as system, ensure_signed};
 use orml_traits::{MultiCurrency, SocialCurrency, StakingCurrency};
-use sp_runtime::{traits::Zero, DispatchResult, DispatchError, Perbill};
+use sp_runtime::{traits::Zero, DispatchError, DispatchResult, Perbill};
 use sp_std::vec::Vec;
-use zd_primitives::Balance;
+use zd_primitives::{Balance,fee::ProxyFee};
 use zd_traits::{Reputation, StartChallenge, TrustBase};
 
+#[cfg(test)]
 mod mock;
+#[cfg(test)]
 mod tests;
 
 pub use pallet::*;
@@ -23,6 +25,20 @@ pub use pallet::*;
 pub struct Record<BlockNumber, Balance> {
     pub update_at: BlockNumber,
     pub fee: Balance,
+}
+
+#[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug)]
+pub struct Payroll<Balance> {
+    pub count: u32,
+    pub total_fee: Balance,
+}
+
+impl Payroll<Balance> {
+    fn total_amount<T: Config>(&self) -> Balance {
+        T::UpdateStakingAmount::get()
+            .saturating_mul(self.count.into())
+            .saturating_add(self.total_fee)
+    }
 }
 
 #[pallet]
@@ -39,11 +55,17 @@ pub mod pallet {
         type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::CurrencyId, Balance = Balance>
             + StakingCurrency<Self::AccountId>
             + SocialCurrency<Self::AccountId>;
+        #[pallet::constant]
         type ShareRatio: Get<Perbill>;
+        #[pallet::constant]
         type FeeRation: Get<Perbill>;
+        #[pallet::constant]
         type SelfRation: Get<Perbill>;
+        #[pallet::constant]
         type MaxUpdateCount: Get<u32>;
+        #[pallet::constant]
         type UpdateStakingAmount: Get<Balance>;
+        #[pallet::constant]
         type ConfirmationPeriod: Get<Self::BlockNumber>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
         type TrustBase: TrustBase<Self::AccountId>;
@@ -53,8 +75,9 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
-    #[pallet::getter(fn get_fees)]
-    pub type Fees<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Balance, ValueQuery>;
+    #[pallet::getter(fn get_payroll)]
+    pub type Payrolls<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, Payroll<Balance>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn update_record)]
@@ -97,7 +120,21 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn new_round(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-            ensure_root(origin)?;
+            let who = ensure_signed(origin)?;
+
+            // 确保所有更新都超过代领期限，这种情况一般不会发生
+            // 但不正常的参数设置有可能带来此种问题
+           // ensure!(
+           //     Reputation::get_last_refresh_at() ,
+           //     Error::<T>::ChallengeTimeout
+            //);
+            // Fees::<T>::drain().try_fold(Zero::zero(), |acc,fee| {
+                // 计算fee - 统一到某个pallet ，直接用工具就可以
+                // 将每个用户扣除代理金额后，打入
+            // });
+            // TODO： 检查reputation pallet 收益是否完毕
+            // 迭代 Fees
+            // TODO: 检查challenges pallet 是否领取完毕，没有领完则无法开始
             T::Reputation::new_round()?;
             Ok(().into())
         }
@@ -119,6 +156,7 @@ pub mod pallet {
             let amount = T::UpdateStakingAmount::get()
                 .checked_mul(user_count as Balance)
                 .ok_or(Error::<T>::Overflow)?;
+
             T::Currency::staking(T::BaceToken::get(), &analyst, amount)?;
 
             let now_block_number = system::Module::<T>::block_number();
@@ -135,8 +173,9 @@ pub mod pallet {
                     },
                 )?;
 
-            Self::mutate_fee(&analyst, &total_fee)?;
-            T::Reputation::last_refresh_at();
+            Self::mutate_payroll(&analyst, &total_fee, &(user_count as u32))?;
+
+            T::Reputation::set_last_refresh_at();
 
             Self::deposit_event(Event::ReputationRefreshed(
                 analyst,
@@ -153,8 +192,12 @@ pub mod pallet {
 
             let analyst = ensure_signed(origin)?;
 
-            let fee = Fees::<T>::take(&analyst);
-            T::Currency::release(T::BaceToken::get(), &analyst, fee)?;
+            let payroll = Payrolls::<T>::take(&analyst);
+
+            // TODO: 增加代理
+
+            T::Currency::release(T::BaceToken::get(), &analyst, payroll.total_amount::<T>())?;
+
             <Records<T>>::remove_prefix(&analyst);
             Ok(().into())
         }
@@ -175,12 +218,19 @@ impl<T: Config> Pallet<T> {
         Ok(fee)
     }
 
-    pub(crate) fn mutate_fee(
+    pub(crate) fn mutate_payroll(
         analyst: &T::AccountId,
         amount: &Balance,
+        count: &u32,
     ) -> DispatchResult {
-        <Fees<T>>::try_mutate(&analyst, |f| -> DispatchResult {
-            *f = f.checked_add(*amount).ok_or(Error::<T>::Overflow)?;
+        <Payrolls<T>>::try_mutate(&analyst, |f| -> DispatchResult {
+            let total_fee = f
+                .total_fee
+                .checked_add(*amount)
+                .ok_or(Error::<T>::Overflow)?;
+
+            let count = f.count.checked_add(*count).ok_or(Error::<T>::Overflow)?;
+            *f = Payroll { count, total_fee };
             Ok(())
         })
     }
@@ -218,7 +268,10 @@ impl<T: Config> StartChallenge<T::AccountId, Balance> for Pallet<T> {
             Error::<T>::ChallengeTimeout
         );
 
-        Fees::<T>::mutate(&analyst, |f| f.saturating_sub(record.fee));
+        Payrolls::<T>::mutate(&analyst, |f| Payroll {
+            total_fee: f.total_fee.saturating_sub(record.fee),
+            count: f.count.saturating_sub(1),
+        });
 
         Ok(record.fee)
     }

@@ -104,6 +104,9 @@ pub mod pallet {
         type SeedsBase: SeedsBase<Self::AccountId>;
         #[pallet::constant]
         type ReceiverProtectionPeriod: Get<Self::BlockNumber>;
+        #[pallet::constant]
+        type UpdateStakingAmount: Get<Balance>;
+        #[pallet::constant]
         type ChallengePerior: Get<Self::BlockNumber>;
     }
 
@@ -205,9 +208,10 @@ pub mod pallet {
             let now_block_number = system::Module::<T>::block_number();
             Self::staking(&challenger, factor::CHALLENGE_STAKING_AMOUNT)?;
             let fee = T::StartChallenge::start(&target, &analyst)?;
+            let total_staking = factor::CHALLENGE_STAKING_AMOUNT + T::UpdateStakingAmount::get();
             <Challenges<T>>::mutate(&target, |_| Challenge {
                 pool: Pool {
-                    staking: factor::CHALLENGE_STAKING_AMOUNT,
+                    staking: total_staking,
                     sub_staking: Zero::zero(),
                     earnings: fee,
                 },

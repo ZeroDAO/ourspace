@@ -3,12 +3,11 @@
 use sp_runtime::{
     generic,
     traits::{IdentifyAccount, Verify},
-    MultiSignature,
-    Perbill
+    MultiSignature, Perbill,
 };
 
 /// An index to a block.
-pub type BlockNumber = u32;
+pub type BlockNumber = u64;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -36,7 +35,7 @@ pub type DigestItem = generic::DigestItem<Hash>;
 pub type Amount = i128;
 
 pub mod factor {
-    use super::{BlockNumber, Balance, Perbill};
+    use super::{Balance, BlockNumber, Perbill};
 
     /// Challenge staking amount.
     pub const CHALLENGE_STAKING_AMOUNT: Balance = 5_000;
@@ -48,9 +47,36 @@ pub mod factor {
     pub const CHALLENGE_PERIOD: BlockNumber = 10_000;
 
     /// When other users receive their earnings, they receive that percentage of the earnings.
-    pub const PROXY_PICKUP_RATIO: Perbill = Perbill::from_percent(60);
+    pub const PROXY_PICKUP_RATIO: Perbill = Perbill::from_perthousand(20);
 
-    /// When the final reputation value obtained from the challenge is consistent with the 
+    pub const PROXY_PERIOD: BlockNumber = 20_000;
+
+    /// When the final reputation value obtained from the challenge is consistent with the
     /// original reputation value, the accountant divides it into percentage values.
     pub const ANALYST_RATIO: Perbill = Perbill::from_percent(10);
+}
+
+pub mod fee {
+    use super::*;
+
+    pub trait ProxyFee
+    where
+        Self: Sized,
+    {
+        fn check(last: BlockNumber,now: BlockNumber) -> bool;
+        fn checked_proxy_fee(&self, last: BlockNumber, now: BlockNumber) -> Option<Self>;
+    }
+
+    impl ProxyFee for Balance {
+        fn check(last: BlockNumber, now: BlockNumber) -> bool {
+            last + factor::PROXY_PERIOD < now
+        }
+
+        fn checked_proxy_fee(&self, last: BlockNumber, now: BlockNumber) -> Option<Self> {
+            match Self::check(last,now) {
+                true => Some(factor::PROXY_PICKUP_RATIO.mul_floor(*self)),
+                false => None,
+            }
+        }
+    }
 }

@@ -90,7 +90,7 @@ fn refresh_reputation_should_fail() {
 fn last_refresh_at_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(ZdReputation::new_round());
-        ZdReputation::last_refresh_at();
+        ZdReputation::set_last_refresh_at();
 
         assert_eq!(<SystemInfo<Test>>::get().last, 1);
     });
