@@ -23,8 +23,8 @@ zd-traits = {path = "../../traits", default-features = false, version = '0.0.1'}
 zd-utilities = {path = "../utilities", default-features = false, version = '0.0.1'}
 
 # orml extensions
-# orml-traits = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1'}
-orml-traits = {default-features = false, version = '0.4.0', path = "../../../open-runtime-module-library/traits"}
+orml-traits = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1'}
+# orml-traits = {default-features = false, version = '0.4.0', path = "../../../open-runtime-module-library/traits"}
 
 [dev-dependencies]
 pallet-balances = {default-features = false, version = '3.0.0'}
@@ -37,11 +37,12 @@ zd-reputation = {path = "../reputation", default-features = false, version = '0.
 zd-seeds = {path = "../seeds", default-features = false, version = '0.0.1'}
 # zd-tokens = {path = "../tokens", default-features = false, version = '0.0.1'}
 zd-trust = {path = "../trust", default-features = false, version = '0.0.1'}
+zd-challenges = {path = "../challenges", default-features = false, version = '0.0.1'}
 
-# orml-currencies = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1'}
-# orml-tokens = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1'}
-orml-currencies = {default-features = false, version = '0.4.0', path = "../../../open-runtime-module-library/currencies"}
-orml-tokens = {default-features = false, version = '0.4.0', path = "../../../open-runtime-module-library/tokens"}
+orml-currencies = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1'}
+orml-tokens = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1'}
+# orml-currencies = {default-features = false, version = '0.4.0', path = "../../../open-runtime-module-library/currencies"}
+# orml-tokens = {default-features = false, version = '0.4.0', path = "../../../open-runtime-module-library/tokens"}
 
 [features]
 default = ['std']

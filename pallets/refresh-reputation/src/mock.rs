@@ -74,6 +74,9 @@ parameter_types! {
     pub const DampingFactor: Perbill = Perbill::from_percent(80);
     pub const ExistentialDeposit: u128 = 500;
     pub const MaxLocks: u32 = 50;
+
+    pub const ReceiverProtectionPeriod: BlockNumber = 100;
+	pub const ChallengePerior: BlockNumber = 100;
 }
 
 impl zd_seeds::Config for Test {
@@ -107,7 +110,43 @@ impl zd_refresh_reputation::Config for Test {
     type ConfirmationPeriod = ConfirmationPeriod;
     type Reputation = ZdReputation;
     type TrustBase = ZdTrust;
+    type ChallengeInfo = ChallengeInfo;
 }
+
+impl zd_challenges::Config for Test {
+    type Event = Event;
+    type CurrencyId = CurrencyId;
+    type BaceToken = BaceToken;
+    type Currency = Tokens;
+    type Reputation = ZdReputation;
+    type TrustBase = ZdTrust;
+    type SeedsBase = ZdSeeds;
+    type ReceiverProtectionPeriod: ReceiverProtectionPeriod;
+    type UpdateStakingAmount: UpdateStakingAmount;
+    type ChallengePerior: ChallengePerior;
+}
+
+/*
+        type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+        type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
+        type BaceToken: Get<Self::CurrencyId>;
+        type Currency: MultiCurrencyExtended<
+                Self::AccountId,
+                CurrencyId = Self::CurrencyId,
+                Balance = Balance,
+                Amount = Amount,
+            > + StakingCurrency<Self::AccountId>;
+        type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
+        type StartChallenge: StartChallenge<Self::AccountId, Balance>;
+        type TrustBase: TrustBase<Self::AccountId>;
+        type SeedsBase: SeedsBase<Self::AccountId>;
+        #[pallet::constant]
+        type ReceiverProtectionPeriod: Get<Self::BlockNumber>;
+        #[pallet::constant]
+        type UpdateStakingAmount: Get<Balance>;
+        #[pallet::constant]
+        type ChallengePerior: Get<Self::BlockNumber>;
+*/
 
 impl orml_tokens::Config for Test {
     type Event = Event;
@@ -168,6 +207,7 @@ construct_runtime!(
         Currencies: orml_currencies::{Module, Event<T>},
         ZdTrust: zd_trust::{Module, Call, Event<T>},
         Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
+        ChallengeInfo: zd_challenges::{Module, Storage, Event<T>, Config<T>},
         // ZdToken: zd_tokens::{Module, Call, Event<T>},
     }
 );

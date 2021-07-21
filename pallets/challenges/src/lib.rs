@@ -11,7 +11,7 @@ use frame_support::{
 use frame_system::{self as system};
 use orml_traits::{MultiCurrencyExtended, StakingCurrency};
 use zd_primitives::{factor, Amount, Balance};
-use zd_traits::{Reputation, SeedsBase, StartChallenge, TrustBase};
+use zd_traits::{Reputation, SeedsBase, StartChallenge, TrustBase, ChallengeInfo};
 
 use sp_runtime::DispatchResult;
 use sp_runtime::{traits::Zero, DispatchError};
@@ -525,5 +525,11 @@ impl<T: Config> Pallet<T> {
     pub(crate) fn after_upload() -> DispatchResult {
         T::Reputation::last_challenge_at();
         Ok(())
+    }
+}
+
+impl<T: Config> ChallengeInfo for Pallet<T> {
+    fn is_all_harvest() -> bool {
+        <Challenges<T>>::iter().next().is_none()
     }
 }

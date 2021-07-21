@@ -18,7 +18,7 @@ fn new_round_should_work() {
 }
 
 #[test]
-fn refresh_reputation_should_work() {
+fn refresh_should_work() {
     new_test_ext().execute_with(|| {
         let user_scores = vec![(BOB, 12), (CHARLIE, 18), (DAVE, 1200)];
         let social_token_amount = 100;
@@ -32,7 +32,7 @@ fn refresh_reputation_should_work() {
         ));
 
         assert_eq!(Currencies::social_balance(ZDAO, &BOB), social_token_amount);
-        assert_ok!(ZdRefreshReputation::refresh_reputation(
+        assert_ok!(ZdRefreshReputation::refresh(
             Origin::signed(ALICE),
             user_scores
         ));
@@ -58,13 +58,13 @@ fn refresh_reputation_should_work() {
 }
 
 #[test]
-fn refresh_reputation_should_fail() {
+fn refresh_should_fail() {
     new_test_ext().execute_with(|| {
         let user_scores = vec![(BOB, 12), (CHARLIE, 18)];
         let user_scores_too_long = vec![(BOB, 12), (CHARLIE, 18), (DAVE, 1200),(EVE, 1223),(FERDIE, 322)];
         
         assert_noop!(
-            (ZdRefreshReputation::refresh_reputation(
+            (ZdRefreshReputation::refresh(
                 Origin::signed(ALICE),
                 user_scores
             )),
@@ -74,7 +74,7 @@ fn refresh_reputation_should_fail() {
         assert_ok!(ZdRefreshReputation::new_round(Origin::root()));
 
         assert_noop!(
-            (ZdRefreshReputation::refresh_reputation(
+            (ZdRefreshReputation::refresh(
                 Origin::signed(ALICE),
                 user_scores_too_long
             )),

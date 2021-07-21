@@ -2,12 +2,13 @@
 
 use sp_runtime::{
     generic,
-    traits::{IdentifyAccount, Verify},
+    traits::{AtLeast32BitUnsigned, IdentifyAccount, Verify},
     MultiSignature, Perbill,
 };
+use sp_std::{convert::TryInto};
 
 /// An index to a block.
-pub type BlockNumber = u64;
+pub type BlockNumber = u32;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -63,20 +64,31 @@ pub mod fee {
     where
         Self: Sized,
     {
-        fn check(last: BlockNumber,now: BlockNumber) -> bool;
-        fn checked_proxy_fee(&self, last: BlockNumber, now: BlockNumber) -> Option<Self>;
+        fn is_allowed_proxy<T: AtLeast32BitUnsigned>(last: T, now: T) -> bool;
+        fn checked_with_fee<T: AtLeast32BitUnsigned>(&self, last: T, now: T) -> Option<(Self,Self)>;
+        fn with_fee(&self) -> (Self,Self);
     }
 
     impl ProxyFee for Balance {
-        fn check(last: BlockNumber, now: BlockNumber) -> bool {
-            last + factor::PROXY_PERIOD < now
+
+        fn is_allowed_proxy<T: AtLeast32BitUnsigned>(last: T, now: T) -> bool {
+            let now_into = TryInto::<u32>::try_into(last).ok().unwrap();
+            let last_into = TryInto::<u32>::try_into(now).ok().unwrap();
+            last_into + factor::PROXY_PERIOD > now_into
         }
 
-        fn checked_proxy_fee(&self, last: BlockNumber, now: BlockNumber) -> Option<Self> {
-            match Self::check(last,now) {
-                true => Some(factor::PROXY_PICKUP_RATIO.mul_floor(*self)),
+        fn checked_with_fee<T: AtLeast32BitUnsigned>(&self, last: T, now: T) -> Option<(Self,Self)> {
+            match Balance::is_allowed_proxy(last, now) {
+                true => {
+                    Some(self.with_fee())
+                }
                 false => None,
             }
+        }
+
+        fn with_fee(&self) -> (Self,Self) {
+            let proxy_fee = factor::PROXY_PICKUP_RATIO.mul_floor(*self);
+            (proxy_fee, self.saturating_sub(proxy_fee))
         }
     }
 }
