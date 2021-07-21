@@ -37,7 +37,6 @@ zd-reputation = {path = "../reputation", default-features = false, version = '0.
 zd-seeds = {path = "../seeds", default-features = false, version = '0.0.1'}
 # zd-tokens = {path = "../tokens", default-features = false, version = '0.0.1'}
 zd-trust = {path = "../trust", default-features = false, version = '0.0.1'}
-zd-challenges = {path = "../challenges", default-features = false, version = '0.0.1'}
 
 orml-currencies = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1'}
 orml-tokens = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1'}
