@@ -69,7 +69,7 @@ pub mod pallet {
         type ConfirmationPeriod: Get<Self::BlockNumber>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
         type TrustBase: TrustBase<Self::AccountId>;
-        type ChallengeInfo: ChallengeInfo;
+        type Challenges: ChallengeInfo;
     }
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
@@ -130,7 +130,7 @@ pub mod pallet {
             T::Reputation::new_round()?;
 
             ensure!(
-                T::ChallengeInfo::is_all_harvest(),
+                T::Challenges::is_all_harvest(),
                 Error::<T>::ChallengeNotClaimed
             );
 

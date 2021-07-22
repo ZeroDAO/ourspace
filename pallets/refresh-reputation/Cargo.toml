@@ -23,7 +23,7 @@ zd-traits = {path = "../../traits", default-features = false, version = '0.0.1'}
 zd-utilities = {path = "../utilities", default-features = false, version = '0.0.1'}
 
 # orml extensions
-orml-traits = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1'}
+orml-traits = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao'}
 # orml-traits = {default-features = false, version = '0.4.0', path = "../../../open-runtime-module-library/traits"}
 
 [dev-dependencies]
@@ -38,8 +38,8 @@ zd-seeds = {path = "../seeds", default-features = false, version = '0.0.1'}
 # zd-tokens = {path = "../tokens", default-features = false, version = '0.0.1'}
 zd-trust = {path = "../trust", default-features = false, version = '0.0.1'}
 
-orml-currencies = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1'}
-orml-tokens = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1'}
+orml-currencies = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao'}
+orml-tokens = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao'}
 # orml-currencies = {default-features = false, version = '0.4.0', path = "../../../open-runtime-module-library/currencies"}
 # orml-tokens = {default-features = false, version = '0.4.0', path = "../../../open-runtime-module-library/tokens"}
 
@@ -58,6 +58,5 @@ std = [
   "zd-reputation/std",
   "zd-seeds/std", # "zd-tokens/std",
   "zd-trust/std",
-  "orml-currencies/std",
   "orml-tokens/std",
 ]

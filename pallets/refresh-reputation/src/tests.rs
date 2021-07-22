@@ -13,7 +13,7 @@ fn new_test_ext() -> sp_io::TestExternalities {
 #[test]
 fn new_round_should_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(ZdRefreshReputation::new_round(Origin::root()));
+        assert_ok!(ZdRefreshReputation::new_round(Origin::signed(ALICE)));
     });
 }
 
@@ -23,7 +23,7 @@ fn refresh_should_work() {
         let user_scores = vec![(BOB, 12), (CHARLIE, 18), (DAVE, 1200)];
         let social_token_amount = 100;
 
-        assert_ok!(ZdRefreshReputation::new_round(Origin::root()));
+        assert_ok!(ZdRefreshReputation::new_round(Origin::signed(BOB)));
         assert_ok!(Tokens::transfer_social(
             ZDAO,
             &ALICE,
@@ -37,23 +37,20 @@ fn refresh_should_work() {
             user_scores
         ));
 
-        let fee = <FeeRation>::get().mul_floor(social_token_amount);
+        let pathfinder_fee = <FeeRation>::get().mul_floor(social_token_amount);
+        let leave_self = <SelfRation>::get().mul_floor(social_token_amount);
 
-        let reputation_refreshed_event = Event::zd_refresh_reputation(crate::Event::ReputationRefreshed(ALICE, 3, fee));
+        let reputation_refreshed_event = Event::zd_refresh_reputation(crate::Event::ReputationRefreshed(ALICE, 3, pathfinder_fee));
         assert!(System::events()
             .iter()
             .any(|record| record.event == reputation_refreshed_event));
 
         assert_eq!(ZdRefreshReputation::get_payroll(ALICE), Payroll {
-            total_fee: fee,
-            count: 1,
+            total_fee: pathfinder_fee,
+            count: 3,
         });
 
-        assert_eq!(Currencies::social_balance(ZDAO, &BOB), social_token_amount);
-
-        // staking 是否正确
-        // 记录是否正确
-        // 获取声誉值是否正确
+        assert_eq!(Currencies::social_balance(ZDAO, &BOB), social_token_amount - pathfinder_fee - leave_self);
     });
 }
 
@@ -71,7 +68,7 @@ fn refresh_should_fail() {
             Error::<Test>::NoUpdatesAllowed
         );
 
-        assert_ok!(ZdRefreshReputation::new_round(Origin::root()));
+        assert_ok!(ZdRefreshReputation::new_round(Origin::signed(ALICE)));
 
         assert_noop!(
             (ZdRefreshReputation::refresh(
@@ -80,20 +77,5 @@ fn refresh_should_fail() {
             )),
             Error::<Test>::QuantityLimitReached
         );
-    });
-}
-
-
-#[test]
-fn receiver_all_should_work() {
-    new_test_ext().execute_with(|| {
-
-    });
-}
-
-#[test]
-fn receiver_all_should_fail() {
-    new_test_ext().execute_with(|| {
-        
     });
 }

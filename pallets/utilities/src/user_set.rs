@@ -47,8 +47,13 @@ mod tests {
 
     #[test]
     fn len() {
-        let set: UserSet<i32> = UserSet::from(vec![1, 2, 3, 4]);
-        assert_eq!(set.len(), 4);
+        let set_1: UserSet<i32> = UserSet::from(vec![1, 2, 3, 4]);
+        let set_2: UserSet<i32> = UserSet::from(vec![]);
+        let set_3: UserSet<i32> = UserSet::from(vec![1, 2, 2, 3, 4, 4, 4]);
+
+        assert_eq!(set_1.len(), 4);
+        assert_eq!(set_2.len(), 0);
+        assert_eq!(set_3.len(), 4);
     }
 
     #[test]

@@ -10,13 +10,12 @@ use frame_system as system;
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
-use sp_runtime::{traits::Zero,Perbill};
+use sp_runtime::{traits::Zero, Perbill};
+use zd_primitives::{Balance, BlockNumber};
 
 pub type Amount = i128;
 pub type AccountId = u64;
-pub type BlockNumber = u64;
 pub type CurrencyId = u128;
-pub type Balance = u128;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
@@ -109,7 +108,7 @@ impl zd_refresh_reputation::Config for Test {
     type ConfirmationPeriod = ConfirmationPeriod;
     type Reputation = ZdReputation;
     type TrustBase = ZdTrust;
-    type ChallengeInfo = ChallengeInfo;
+    type Challenges = Challenges;
 }
 
 impl zd_challenges::Config for Test {
@@ -135,14 +134,14 @@ impl orml_tokens::Config for Test {
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = ();
 }
-/* 
+/*
 impl zd_tokens::Config for Test {
-	type Event = Event;
-	type CurrencyId = CurrencyId;
-	type WeightInfo = ();
-	type Currency = Currencies;
-	type Balance = Balance;
-	type Amount = Amount;
+    type Event = Event;
+    type CurrencyId = CurrencyId;
+    type WeightInfo = ();
+    type Currency = Currencies;
+    type Balance = Balance;
+    type Amount = Amount;
 }
 */
 
@@ -185,7 +184,7 @@ construct_runtime!(
         Currencies: orml_currencies::{Module, Event<T>},
         ZdTrust: zd_trust::{Module, Call, Event<T>},
         Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
-        ChallengeInfo: zd_challenges::{Module, Storage, Event<T>},
+        Challenges: zd_challenges::{Module, Storage, Event<T>},
         // ZdToken: zd_tokens::{Module, Call, Event<T>},
     }
 );
@@ -202,7 +201,7 @@ impl Default for ExtBuilder {
                 (ALICE, ZDAO, 1000_000_000_000_000u128),
                 (BOB, ZDAO, 1000_000_000_000_000u128),
             ],
-            period: INIT_PERIOD
+            period: INIT_PERIOD,
         }
     }
 }
@@ -212,7 +211,7 @@ impl ExtBuilder {
         let mut t = frame_system::GenesisConfig::default()
             .build_storage::<Test>()
             .unwrap();
-            
+
         orml_tokens::GenesisConfig::<Test> {
             endowed_accounts: self.endowed_accounts,
         }

@@ -8,7 +8,7 @@ use sp_runtime::{
 use sp_std::{convert::TryInto};
 
 /// An index to a block.
-pub type BlockNumber = u32;
+pub type BlockNumber = u64;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
@@ -72,8 +72,8 @@ pub mod fee {
     impl ProxyFee for Balance {
 
         fn is_allowed_proxy<T: AtLeast32BitUnsigned>(last: T, now: T) -> bool {
-            let now_into = TryInto::<u32>::try_into(last).ok().unwrap();
-            let last_into = TryInto::<u32>::try_into(now).ok().unwrap();
+            let now_into = TryInto::<u64>::try_into(last).ok().unwrap();
+            let last_into = TryInto::<u64>::try_into(now).ok().unwrap();
             last_into + factor::PROXY_PERIOD > now_into
         }
 
