@@ -29,9 +29,9 @@ zd-primitives = { path = "../primitives", default-features = false, version = '0
 zd-tokens = { default-features = false, path = '../pallets/tokens', version = '0.0.1' }
 
 # orml extensions
-orml-tokens = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1' }
-orml-traits = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1' }
-orml-currencies = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', tag = '0.4.0.1' }
+orml-tokens = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao' }
+orml-traits = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao' }
+orml-currencies = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao' }
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '3.0.0' }

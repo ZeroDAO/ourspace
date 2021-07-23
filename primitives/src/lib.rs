@@ -1,5 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(test)]
+mod tests;
+
 use sp_runtime::{
     generic,
     traits::{AtLeast32BitUnsigned, IdentifyAccount, Verify},
