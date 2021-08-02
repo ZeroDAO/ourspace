@@ -38,6 +38,8 @@ pub type DigestItem = generic::DigestItem<Hash>;
 
 pub type Amount = i128;
 
+pub type AppId = [u8; 8];
+
 pub mod factor {
     use super::{Balance, BlockNumber, Perbill};
 

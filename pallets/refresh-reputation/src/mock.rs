@@ -108,7 +108,8 @@ impl zd_refresh_reputation::Config for Test {
     type ConfirmationPeriod = ConfirmationPeriod;
     type Reputation = ZdReputation;
     type TrustBase = ZdTrust;
-    type Challenges = Challenges;
+    type ChallengeBase = Challenges;
+    type SeedsBase = ZdSeeds;
 }
 
 impl zd_challenges::Config for Test {

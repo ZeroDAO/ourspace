@@ -98,4 +98,6 @@ impl<T: Config> SeedsBase<T::AccountId> for Pallet<T> {
 	fn is_seed(seed: &T::AccountId) -> bool {
 		Seeds::<T>::contains_key(seed)
 	}
+
+	// 更新seed
 }

@@ -17,6 +17,9 @@ sp-std = { version = "3.0.0", default-features = false }
 # Substrate pallets
 frame-system = { version = "3.0.0", default-features = false }
 
+[dev-dependencies]
+sp-io = { default-features = false, version = '3.0.0' }
+
 [features]
 default = ["std"]
 std = [

@@ -11,8 +11,8 @@ use frame_system::{self as system, ensure_signed};
 use orml_traits::{MultiCurrency, SocialCurrency, StakingCurrency};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult, Perbill};
 use sp_std::vec::Vec;
-use zd_primitives::{fee::ProxyFee, Balance};
-use zd_traits::{Reputation, StartChallenge, TrustBase, ChallengeInfo};
+use zd_primitives::{fee::ProxyFee, AppId, Balance};
+use zd_traits::{ChallengeBase, ChallengeInfo, Reputation, SeedsBase, StartChallenge, TrustBase};
 
 #[cfg(test)]
 mod mock;
@@ -20,6 +20,14 @@ mod mock;
 mod tests;
 
 pub use pallet::*;
+
+const APP_ID: AppId = *b"1       ";
+
+/// 有效路径最大数量
+const MAX_PATH_COUNT: u32 = 5;
+
+/// 单次最多长传路径
+const MAX_UPDATE_COUNT: u32 = 10;
 
 #[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
 pub struct Record<BlockNumber, Balance> {
@@ -38,6 +46,22 @@ impl Payroll<Balance> {
         T::UpdateStakingAmount::get()
             .saturating_mul(self.count.into())
             .saturating_add(self.total_fee)
+    }
+}
+
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
+pub struct Path<AccountId> {
+    pub nodes: Vec<AccountId>,
+    pub score: u32,
+}
+
+impl<AccountId> Path<AccountId> {
+    fn check_nodes_leng(&self) -> bool {
+        self.nodes.len() as u32 <= MAX_PATH_COUNT
+    }
+
+    fn exclude_zero(&self) -> bool {
+        self.nodes.len() as u32 <= MAX_PATH_COUNT && !self.nodes.is_empty() && !self.score.is_zero()
     }
 }
 
@@ -69,7 +93,8 @@ pub mod pallet {
         type ConfirmationPeriod: Get<Self::BlockNumber>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
         type TrustBase: TrustBase<Self::AccountId>;
-        type Challenges: ChallengeInfo;
+        type SeedsBase: SeedsBase<Self::AccountId>;
+        type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance>;
     }
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
@@ -89,6 +114,18 @@ pub mod pallet {
         Twox64Concat,
         T::AccountId,
         Record<T::BlockNumber, Balance>,
+        ValueQuery,
+    >;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_path)]
+    pub type Paths<T: Config> = StorageDoubleMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        Twox64Concat,
+        T::AccountId,
+        Path<T::AccountId>,
         ValueQuery,
     >;
 
@@ -116,6 +153,20 @@ pub mod pallet {
         FailedProxy,
         /// The presence of unharvested challenges.
         ChallengeNotClaimed,
+        /// Excessive number of seeds
+        ExcessiveBumberOfSeeds,
+        /// Error getting user reputation
+        ReputationError,
+        /// The path already exists
+        PathAlreadyExist,
+        /// Wrong path
+        WrongPath,
+        /// Error calculating dist
+        DistErr,
+        /// The dist is too long or score is too low.
+        DistTooLong,
+        /// Paths and seeds do not match
+        NotMatch,
     }
 
     #[pallet::hooks]
@@ -130,7 +181,7 @@ pub mod pallet {
             T::Reputation::new_round()?;
 
             ensure!(
-                T::Challenges::is_all_harvest(),
+                T::ChallengeBase::is_all_harvest(&APP_ID),
                 Error::<T>::ChallengeNotClaimed
             );
 
@@ -144,9 +195,7 @@ pub mod pallet {
                 .try_fold::<_, _, Result<Balance, DispatchError>>(
                     Zero::zero(),
                     |acc: Balance, (pathfinder, payroll)| {
-                        let (proxy_fee, without_fee) = payroll
-                            .total_amount::<T>()
-                            .with_fee();
+                        let (proxy_fee, without_fee) = payroll.total_amount::<T>().with_fee();
 
                         T::Currency::release(T::BaceToken::get(), &pathfinder, without_fee)?;
 
@@ -251,6 +300,99 @@ pub mod pallet {
 
             Ok(().into())
         }
+
+        // 新证据
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn new_challenge(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            pathfinder: T::AccountId,
+            quantity: u32,
+        ) -> DispatchResultWithPostInfo {
+            let challenger = ensure_signed(origin)?;
+
+            ensure!(
+                quantity < T::SeedsBase::get_seed_count(),
+                Error::<T>::ExcessiveBumberOfSeeds
+            );
+
+            let _ = T::Reputation::check_update_status(true).ok_or(Error::<T>::NoUpdatesAllowed)?;
+
+            let record = <Records<T>>::take(&target, &pathfinder);
+
+            ensure!(
+                record.update_at + T::ConfirmationPeriod::get()
+                    > system::Module::<T>::block_number(),
+                Error::<T>::ChallengeTimeout
+            );
+
+            Payrolls::<T>::mutate(&pathfinder, |f| Payroll {
+                total_fee: f.total_fee.saturating_sub(record.fee),
+                count: f.count.saturating_sub(1),
+            });
+
+            let reputation =
+                T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
+
+            T::ChallengeBase::new(
+                &APP_ID,
+                &challenger,
+                &pathfinder,
+                record.fee,
+                Zero::zero(),
+                &target,
+                quantity,
+                reputation,
+            )?;
+
+            Ok(().into())
+        }
+
+        // 新证据 - 实际上是二次挑战
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn new_evidence(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            quantity: u32,
+        ) -> DispatchResultWithPostInfo {
+            // 如何判断？只要上传完毕就可以
+            let who = ensure_signed(origin)?;
+
+            ensure!(
+                quantity < T::SeedsBase::get_seed_count(),
+                Error::<T>::ExcessiveBumberOfSeeds
+            );
+
+            Ok(().into())
+        }
+
+        // 上传路径
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn update(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            seeds: Vec<T::AccountId>,
+            paths: Vec<Path<T::AccountId>>,
+        ) -> DispatchResultWithPostInfo {
+
+            let challenger = ensure_signed(origin)?;
+            let count = seeds.len();
+            ensure!(count == paths.len(), Error::<T>::NotMatch);
+
+            T::ChallengeBase::next(
+                &APP_ID,
+                &challenger,
+                &target,
+                count as u32,
+                |verify, score| -> Result<u32, DispatchError> {
+                    match verify {
+                        true => Self::do_update_path(&target, &seeds, &paths, score),
+                        false => Self::do_update_path_verify(&target, seeds, paths, score),
+                    }
+                },
+            )?;
+            Ok(().into())
+        }
     }
 }
 
@@ -304,6 +446,75 @@ impl<T: Config> Pallet<T> {
         T::Currency::social_staking(T::BaceToken::get(), &user, actor_amount.clone())?;
 
         Ok(actor_amount)
+    }
+
+    pub(crate) fn get_dist(paths: &Path<T::AccountId>, seed: &T::AccountId) -> Option<u32> {
+        if !paths.nodes.is_empty() && paths.check_nodes_leng() {
+            let mut nodes = paths.nodes.clone();
+            nodes.insert(0, seed.clone());
+            if let Ok((dist, score)) = T::TrustBase::computed_path(&nodes) {
+                if score == paths.score {
+                    return Some(dist);
+                }
+            }
+        }
+        None
+    }
+
+    pub(crate) fn do_update_path(
+        target: &T::AccountId,
+        seeds: &Vec<T::AccountId>,
+        paths: &Vec<Path<T::AccountId>>,
+        score: u32,
+    ) -> Result<u32, DispatchError> {
+        let new_score = seeds
+            .iter()
+            .zip(paths.iter())
+            .try_fold(score, |acc, (seed, path)| {
+                ensure!(
+                    !Paths::<T>::contains_key(seed, target),
+                    Error::<T>::PathAlreadyExist
+                );
+                ensure!(path.exclude_zero(), Error::<T>::WrongPath);
+                Paths::<T>::insert(seed, target, path);
+                acc.checked_add(path.score).ok_or(Error::<T>::Overflow)
+            })?;
+        Ok(new_score.clone())
+    }
+
+    pub(crate) fn do_update_path_verify(
+        target: &T::AccountId,
+        seeds: Vec<T::AccountId>,
+        paths: Vec<Path<T::AccountId>>,
+        score: u32,
+    ) -> Result<u32, DispatchError> {
+        let new_score = seeds
+            .iter()
+            .zip(paths.iter())
+            .try_fold(score, |acc, (seed, path)| {
+                Paths::<T>::try_mutate_exists(&seed, &target, |p| -> Result<u32, DispatchError> {
+                    let dist_new = Self::get_dist(&path, seed).ok_or(Error::<T>::DistErr)?;
+                    let old_path = p.take().unwrap_or_default();
+                    if let Some(old_dist) = Self::get_dist(&old_path, &seed) {
+                        ensure!(old_dist >= dist_new, Error::<T>::DistTooLong);
+                        ensure!(
+                            old_dist == dist_new && old_path.score > path.score,
+                            Error::<T>::DistTooLong
+                        );
+                    }
+                    let acc = acc
+                        .checked_sub(old_path.score)
+                        .and_then(|s| s.checked_add(path.score))
+                        .ok_or(Error::<T>::Overflow)?;
+                    *p = if path.score == 0 {
+                        None
+                    } else {
+                        Some(path.clone())
+                    };
+                    Ok(acc)
+                })
+            })?;
+        Ok(new_score)
     }
 }
 

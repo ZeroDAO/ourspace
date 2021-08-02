@@ -4,7 +4,7 @@ pub use reputation::Reputation;
 pub use renew::StartChallenge;
 pub use trust::TrustBase;
 pub use seeds::SeedsBase;
-pub use challenges::ChallengeInfo;
+pub use challenges::{ChallengeInfo,ChallengeBase};
 
 pub mod reputation;
 pub mod renew;

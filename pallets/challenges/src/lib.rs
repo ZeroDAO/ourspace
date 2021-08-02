@@ -9,12 +9,12 @@ use frame_support::{
 };
 use frame_system::{self as system};
 use orml_traits::{MultiCurrencyExtended, StakingCurrency};
-use zd_primitives::{factor, Amount, Balance};
-use zd_traits::{Reputation, SeedsBase, StartChallenge, TrustBase, ChallengeInfo};
+use zd_primitives::{factor, Amount, AppId, Balance};
+use zd_traits::{ChallengeBase, Reputation, SeedsBase, StartChallenge, TrustBase};
 
-use sp_runtime::DispatchResult;
-use sp_runtime::{traits::Zero, DispatchError};
-use sp_std::vec::Vec;
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+use sp_runtime::{DispatchError, DispatchResult, SaturatedConversion, traits::{AtLeast32Bit, Zero}};
 
 pub use pallet::*;
 
@@ -44,37 +44,54 @@ impl<AccountId> Progress<AccountId> {
     }
 }
 
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum Status {
+    EXAMINE,
+    REPLY,
+    EVIDENCE,
+}
+
+impl Default for Status {
+    fn default() -> Self {
+        Status::EXAMINE
+    }
+}
+
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
-pub struct Challenge<AccountId, BlockNumber> {
+pub struct Metadata<AccountId, BlockNumber> {
     pub pool: Pool,
     pub beneficiary: AccountId,
     pub progress: Progress<AccountId>,
     pub last_update: BlockNumber,
-    pub score: u32,
+    pub examine_index: u32,
+    pub value: u32,
+    pub pathfinder: AccountId,
+    pub status: Status,
 }
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
-pub struct Path<AccountId> {
-    pub nodes: Vec<AccountId>,
-    pub score: u32,
-}
-
-impl<AccountId, BlockNumber> Challenge<AccountId, BlockNumber> {
+impl<AccountId, BlockNumber> Metadata<AccountId, BlockNumber>
+where
+    BlockNumber: Copy + AtLeast32Bit,
+{
     fn total_amount(&self) -> Option<Balance> {
         self.pool
             .staking
             .checked_add(self.pool.sub_staking)
             .and_then(|a| a.checked_add(self.pool.earnings))
     }
-}
 
-impl<AccountId> Path<AccountId> {
-    fn check_nodes_leng(&self) -> bool {
-        self.nodes.len() as u32 <= MAX_PATH_COUNT
-    }
+    fn is_allowed_evidence<ChallengePerior>(&self, now: BlockNumber) -> bool
+    where
+        ChallengePerior: Get<BlockNumber>,
+    {
+        let challenge_perior = ChallengePerior::get().saturated_into::<BlockNumber>();
 
-    fn exclude_zero(&self) -> bool {
-        self.nodes.len() as u32 <= MAX_PATH_COUNT && !self.nodes.is_empty() && !self.score.is_zero()
+        if !self.progress.is_all_done() && self.last_update + challenge_perior >= now {
+            return false;
+        }
+        self.last_update + challenge_perior < now
+
     }
 }
 
@@ -114,35 +131,20 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::storage]
-    #[pallet::getter(fn get_challenge)]
-    pub type Challenges<T: Config> = StorageMap<
+    #[pallet::getter(fn get_metadata)]
+    pub type Metadatas<T: Config> = StorageDoubleMap<
         _,
         Twox64Concat,
+        AppId,
+        Twox64Concat,
         T::AccountId,
-        Challenge<T::AccountId, T::BlockNumber>,
+        Metadata<T::AccountId, T::BlockNumber>,
         ValueQuery,
     >;
 
     #[pallet::storage]
     #[pallet::getter(fn last_update)]
     pub type LastUpdate<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn get_sub_challenge)]
-    pub type SubChallenges<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, Progress<T::AccountId>, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn get_path)]
-    pub type Paths<T: Config> = StorageDoubleMap<
-        _,
-        Twox64Concat,
-        T::AccountId,
-        Twox64Concat,
-        T::AccountId,
-        Path<T::AccountId>,
-        ValueQuery,
-    >;
 
     #[pallet::event]
     #[pallet::metadata(T::AccountId = "AccountId")]
@@ -162,8 +164,6 @@ pub mod pallet {
     pub enum Error<T> {
         /// No permission.
         NoPermission,
-        /// Excessive number of seeds
-        ExcessiveBumberOfSeeds,
         /// Paths and seeds do not match
         NotMatch,
         /// Calculation overflow.
@@ -176,6 +176,7 @@ pub mod pallet {
         TooSoon,
         /// Wrong progress
         ErrProgress,
+
         /// The path already exists
         PathAlreadyExist,
         /// Wrong path
@@ -192,141 +193,17 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn start_challenge(
-            origin: OriginFor<T>,
-            target: T::AccountId,
-            analyst: T::AccountId,
-            quantity: u32,
-        ) -> DispatchResultWithPostInfo {
-            let challenger = ensure_signed(origin)?;
-            // TODO: 是否应该限制连续重复挑战？
-            ensure!(
-                quantity < T::SeedsBase::get_seed_count(),
-                Error::<T>::ExcessiveBumberOfSeeds
-            );
-            let now_block_number = system::Module::<T>::block_number();
-            Self::staking(&challenger, factor::CHALLENGE_STAKING_AMOUNT)?;
-            let fee = T::StartChallenge::start(&target, &analyst)?;
-            let total_staking = factor::CHALLENGE_STAKING_AMOUNT + T::UpdateStakingAmount::get();
-            <Challenges<T>>::mutate(&target, |_| Challenge {
-                pool: Pool {
-                    staking: total_staking,
-                    sub_staking: Zero::zero(),
-                    earnings: fee,
-                },
-                progress: Progress {
-                    owner: &analyst,
-                    done: Zero::zero(),
-                    total: quantity,
-                },
-                beneficiary: &challenger,
-                last_update: now_block_number,
-                score: Zero::zero(),
-            });
-            Self::after_upload()?;
-            Self::deposit_event(Event::Challenged(challenger, target, analyst, quantity));
-            Ok(().into())
-        }
-
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn upload_path(
-            origin: OriginFor<T>,
-            target: T::AccountId,
-            seeds: Vec<T::AccountId>,
-            paths: Vec<Path<T::AccountId>>,
-        ) -> DispatchResultWithPostInfo {
-            let who = ensure_signed(origin)?;
-            let count = seeds.len();
-            ensure!(count == paths.len(), Error::<T>::NotMatch);
-
-            Challenges::<T>::try_mutate_exists(&target, |challenge| -> DispatchResult {
-                let challenge = challenge.as_mut().ok_or(Error::<T>::Overflow)?;
-                let new_score = challenge.score;
-
-                let is_end = if <SubChallenges<T>>::contains_key(&target) {
-                    SubChallenges::<T>::try_mutate_exists(
-                        &target,
-                        |sub_challenge| -> Result<bool, DispatchError> {
-                            let sub_challenge =
-                                sub_challenge.as_mut().ok_or(Error::<T>::Overflow)?;
-                            let progress_info =
-                                Self::get_new_progress(sub_challenge, &(count as u32), &who)?;
-                            challenge.score =
-                                Self::do_update_path_verify(&target, seeds, paths, new_score)?;
-                            sub_challenge.done = progress_info.0;
-                            Ok(progress_info.1)
-                        },
-                    )?
-                } else {
-                    let progress_info =
-                        Self::get_new_progress(&challenge.progress, &(count as u32), &who)?;
-                    let score = Self::do_update_path(&target, &seeds, &paths, new_score)?;
-                    challenge.score = score;
-                    challenge.progress.done = progress_info.0;
-                    progress_info.1
-                };
-                if is_end {
-                    challenge.beneficiary = who.clone()
-                };
-                Ok(())
-            })?;
-            Self::deposit_event(Event::NewPath(who, target));
-            Ok(().into())
-        }
-
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn start_sub_challenge(
-            origin: OriginFor<T>,
-            target: T::AccountId,
-            quantity: u32,
-        ) -> DispatchResultWithPostInfo {
-            let who = ensure_signed(origin)?;
-            let challenge = Self::get_challenge(&target);
-            let now_block_number = system::Module::<T>::block_number();
-            SubChallenges::<T>::try_mutate_exists(&target, |sub_challenge| -> DispatchResult {
-                if !sub_challenge.is_some() {
-                    ensure!(
-                        Self::allow_sub_challenge(
-                            &challenge.progress.is_all_done(),
-                            &challenge.last_update,
-                            now_block_number
-                        ),
-                        Error::<T>::NoChallengeAllowed
-                    );
-                } else {
-                    ensure!(
-                        Self::allow_sub_challenge(
-                            &sub_challenge.as_ref().unwrap().is_all_done(),
-                            &challenge.last_update,
-                            now_block_number
-                        ),
-                        Error::<T>::NoChallengeAllowed
-                    );
-                }
-                *sub_challenge = Some(Progress {
-                    owner: who.clone(),
-                    total: quantity,
-                    done: Zero::zero(),
-                });
-                Ok(())
-            })?;
-            Challenges::<T>::mutate(&target, |c| c.last_update = now_block_number);
-            Self::after_upload()?;
-            Self::deposit_event(Event::SubChallenged(who, target, quantity));
-            Ok(().into())
-        }
-
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn receive_income(
             origin: OriginFor<T>,
+            app_id: AppId,
             target: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
-            let challenge = Self::get_challenge(&target);
+            let challenge = Self::get_metadata(&app_id, &target);
 
             let is_proxy = Self::checked_proxy(&challenge, &who)?;
 
-            Self::remove(&target);
+            Self::remove(&app_id, &target);
 
             let mut total_amount = challenge.total_amount().ok_or(Error::<T>::Overflow)?;
 
@@ -334,14 +211,15 @@ pub mod pallet {
                 T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
             let analyst = challenge.progress.owner;
 
-            if old_ir != challenge.score {
-                T::Reputation::mutate_reputation(&target, challenge.score);
+            if old_ir != challenge.value {
+                T::Reputation::mutate_reputation(&target, challenge.value);
             }
 
-            if challenge.beneficiary != analyst && old_ir == challenge.score {
+            if challenge.beneficiary != analyst && old_ir == challenge.value {
                 // 结算更新分成
                 let analyst_sub_amount =
                     factor::ANALYST_RATIO.mul_floor(challenge.pool.sub_staking);
+
                 let analyst_amount = challenge
                     .pool
                     .earnings
@@ -381,6 +259,7 @@ pub mod pallet {
             }
 
             Self::deposit_event(Event::ReceiveIncome(who, target, is_proxy));
+
             Ok(().into())
         }
     }
@@ -395,19 +274,6 @@ impl<T: Config> Pallet<T> {
         }
     }
 
-    pub(crate) fn get_dist(paths: &Path<T::AccountId>, seed: &T::AccountId) -> Option<u32> {
-        if !paths.nodes.is_empty() && paths.check_nodes_leng() {
-            let mut nodes = paths.nodes.clone();
-            nodes.insert(0, seed.clone());
-            if let Ok((dist, score)) = T::TrustBase::computed_path(&nodes) {
-                if score == paths.score {
-                    return Some(dist);
-                }
-            }
-        }
-        None
-    }
-
     pub(crate) fn staking(who: &T::AccountId, amount: Balance) -> DispatchResult {
         T::Currency::staking(T::BaceToken::get(), who, amount)
     }
@@ -417,7 +283,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn checked_proxy(
-        challenge: &Challenge<T::AccountId, T::BlockNumber>,
+        challenge: &Metadata<T::AccountId, T::BlockNumber>,
         who: &T::AccountId,
     ) -> Result<bool, DispatchError> {
         let is_proxy = challenge.beneficiary != *who && challenge.progress.owner != *who;
@@ -436,10 +302,8 @@ impl<T: Config> Pallet<T> {
         Ok(is_proxy)
     }
 
-    pub(crate) fn remove(target: &T::AccountId) {
-        Challenges::<T>::remove(&target);
-        SubChallenges::<T>::remove(&target);
-        Paths::<T>::remove_prefix(&target);
+    pub(crate) fn remove(app_id: &AppId, target: &T::AccountId) {
+        Metadatas::<T>::remove(&app_id, &target);
     }
 
     pub(crate) fn get_new_progress(
@@ -454,81 +318,104 @@ impl<T: Config> Pallet<T> {
         Ok((new_done, progress.total == new_done))
     }
 
-    pub(crate) fn allow_sub_challenge(
-        update_end: &bool,
-        last_update: &T::BlockNumber,
-        now_block_number: T::BlockNumber,
-    ) -> bool {
-        if !update_end && *last_update + T::ChallengePerior::get() >= now_block_number {
-            return false;
-        }
-        *last_update + T::ChallengePerior::get() < now_block_number
-    }
-
-    pub(crate) fn do_update_path(
-        target: &T::AccountId,
-        seeds: &Vec<T::AccountId>,
-        paths: &Vec<Path<T::AccountId>>,
-        score: u32,
-    ) -> Result<u32, DispatchError> {
-        let new_score = seeds
-            .iter()
-            .zip(paths.iter())
-            .try_fold(score, |acc, (seed, path)| {
-                ensure!(
-                    !Paths::<T>::contains_key(seed, target),
-                    Error::<T>::PathAlreadyExist
-                );
-                ensure!(path.exclude_zero(), Error::<T>::WrongPath);
-                Paths::<T>::insert(seed, target, path);
-                acc.checked_add(path.score).ok_or(Error::<T>::Overflow)
-            })?;
-        Ok(new_score.clone())
-    }
-
-    pub(crate) fn do_update_path_verify(
-        target: &T::AccountId,
-        seeds: Vec<T::AccountId>,
-        paths: Vec<Path<T::AccountId>>,
-        score: u32,
-    ) -> Result<u32, DispatchError> {
-        let new_score = seeds
-            .iter()
-            .zip(paths.iter())
-            .try_fold(score, |acc, (seed, path)| {
-                Paths::<T>::try_mutate_exists(&seed, &target, |p| -> Result<u32, DispatchError> {
-                    let dist_new = Self::get_dist(&path, seed).ok_or(Error::<T>::DistErr)?;
-                    let old_path = p.take().unwrap_or_default();
-                    if let Some(old_dist) = Self::get_dist(&old_path, &seed) {
-                        ensure!(old_dist >= dist_new, Error::<T>::DistTooLong);
-                        ensure!(
-                            old_dist == dist_new && old_path.score > path.score,
-                            Error::<T>::DistTooLong
-                        );
-                    }
-                    let acc = acc
-                        .checked_sub(old_path.score)
-                        .and_then(|s| s.checked_add(path.score))
-                        .ok_or(Error::<T>::Overflow)?;
-                    *p = if path.score == 0 {
-                        None
-                    } else {
-                        Some(path.clone())
-                    };
-                    Ok(acc)
-                })
-            })?;
-        Ok(new_score)
-    }
-
     pub(crate) fn after_upload() -> DispatchResult {
         T::Reputation::last_challenge_at();
         Ok(())
     }
 }
 
-impl<T: Config> ChallengeInfo for Pallet<T> {
-    fn is_all_harvest() -> bool {
-        <Challenges<T>>::iter().next().is_none()
+impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
+    fn is_all_harvest(app_id: &AppId) -> bool {
+        <Metadatas<T>>::iter_prefix_values(app_id).next().is_none()
+    }
+
+    fn new(
+        app_id: &AppId,
+        who: &T::AccountId,
+        path_finder: &T::AccountId,
+        fee: Balance,
+        staking: Balance,
+        target: &T::AccountId,
+        quantity: u32,
+        value: u32,
+    ) -> DispatchResult {
+        let now_block_number = system::Module::<T>::block_number();
+
+        Self::staking(&who, factor::CHALLENGE_STAKING_AMOUNT)?;
+
+        <Metadatas<T>>::try_mutate(app_id, target, |m| -> DispatchResult {
+            // TODO 挑战未完成删除数据
+            ensure!(
+                m.is_allowed_evidence::<T::ChallengePerior>(now_block_number),
+                Error::<T>::NoChallengeAllowed
+            );
+
+            m.pool.staking = m
+                .pool
+                .staking
+                .checked_add(staking)
+                .ok_or(Error::<T>::Overflow)?;
+            m.pool.earnings = m
+                .pool
+                .earnings
+                .checked_add(fee)
+                .ok_or(Error::<T>::Overflow)?;
+            m.progress = Progress {
+                owner: who.clone(),
+                done: Zero::zero(),
+                total: quantity,
+            };
+            m.beneficiary = path_finder.clone();
+            m.last_update = now_block_number;
+            m.status = Status::EVIDENCE;
+            m.value = value;
+
+            Self::after_upload()?;
+
+            Ok(())
+        })?;
+
+        Self::deposit_event(Event::Challenged(
+            who.clone(),
+            target.clone(),
+            path_finder.clone(),
+            quantity,
+        ));
+
+        Ok(())
+    }
+
+    fn next(
+        app_id: &AppId,
+        who: &T::AccountId,
+        target: &T::AccountId,
+        count: u32,
+        up: impl FnOnce(bool, u32) -> Result<u32, DispatchError>,
+    ) -> DispatchResult {
+        Metadatas::<T>::try_mutate_exists(app_id, target, |challenge| -> DispatchResult {
+            let challenge = challenge.as_mut().ok_or(Error::<T>::Overflow)?;
+
+            let progress_info = Self::get_new_progress(&challenge.progress, &(count as u32), &who)?;
+
+            challenge.progress.done = progress_info.0;
+
+            if progress_info.1 {
+                challenge.beneficiary = who.clone()
+            };
+
+            // TODO 判断是否为首次
+
+            let is_first = true;
+
+            let value = up(is_first, challenge.value)?;
+
+            challenge.value = value;
+
+            Ok(())
+        })?;
+
+        Self::deposit_event(Event::NewPath(who.clone(), target.clone()));
+
+        Ok(())
     }
 }
