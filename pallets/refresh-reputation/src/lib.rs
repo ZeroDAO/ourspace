@@ -12,7 +12,7 @@ use orml_traits::{MultiCurrency, SocialCurrency, StakingCurrency};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult, Perbill};
 use sp_std::vec::Vec;
 use zd_primitives::{fee::ProxyFee, AppId, Balance};
-use zd_traits::{ChallengeBase, ChallengeInfo, Reputation, SeedsBase, StartChallenge, TrustBase};
+use zd_traits::{ChallengeBase, Reputation, SeedsBase, TrustBase};
 
 #[cfg(test)]
 mod mock;
@@ -25,9 +25,6 @@ const APP_ID: AppId = *b"1       ";
 
 /// 有效路径最大数量
 const MAX_PATH_COUNT: u32 = 5;
-
-/// 单次最多长传路径
-const MAX_UPDATE_COUNT: u32 = 10;
 
 #[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
 pub struct Record<BlockNumber, Balance> {
@@ -515,25 +512,5 @@ impl<T: Config> Pallet<T> {
                 })
             })?;
         Ok(new_score)
-    }
-}
-
-impl<T: Config> StartChallenge<T::AccountId, Balance> for Pallet<T> {
-    fn start(target: &T::AccountId, pathfinder: &T::AccountId) -> Result<Balance, DispatchError> {
-        let _ = T::Reputation::check_update_status(true).ok_or(Error::<T>::NoUpdatesAllowed)?;
-
-        let record = <Records<T>>::take(&target, &pathfinder);
-
-        ensure!(
-            record.update_at + T::ConfirmationPeriod::get() > system::Module::<T>::block_number(),
-            Error::<T>::ChallengeTimeout
-        );
-
-        Payrolls::<T>::mutate(&pathfinder, |f| Payroll {
-            total_fee: f.total_fee.saturating_sub(record.fee),
-            count: f.count.saturating_sub(1),
-        });
-
-        Ok(record.fee)
     }
 }

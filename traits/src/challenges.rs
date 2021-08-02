@@ -1,7 +1,4 @@
 use sp_runtime::{DispatchResult,DispatchError};
-pub trait ChallengeInfo {
-    
-}
 
 pub trait ChallengeBase<AccountId, AppId, Balance> {
     
@@ -24,5 +21,18 @@ pub trait ChallengeBase<AccountId, AppId, Balance> {
         target: &AccountId,
         count: u32,
         up: impl FnOnce(bool,u32) -> Result<u32, DispatchError>,
+    ) -> DispatchResult;
+
+    fn question(
+        app_id: &AppId,
+        who: AccountId,
+        target: &AccountId,
+        index: u32,
+    ) -> DispatchResult;
+
+    fn reply(
+        app_id: &AppId,
+        who: AccountId,
+        target: &AccountId,
     ) -> DispatchResult;
 }

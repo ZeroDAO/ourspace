@@ -9,7 +9,8 @@ use frame_support::{
 };
 use frame_system::{self as system};
 use orml_traits::{MultiCurrencyExtended, StakingCurrency};
-use zd_primitives::{factor, Amount, Balance};
+use zd_primitives::{Amount, AppId, Balance};
+use zd_traits::{ChallengeBase, Reputation, SeedsBase, TrustBase};
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -22,10 +23,19 @@ use sp_std::{convert::TryInto, vec::Vec};
 
 pub use pallet::*;
 
+const APP_ID: AppId = *b"seed    ";
+
+// Candidate
+#[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
+pub struct Candidate<AccountId> {
+    pub score: u64,
+    pub pathfinder: AccountId,
+}
+
 #[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
 pub struct ResultSet<BlockNumber> {
     pub order: u32,
-    pub score: u32,
+    pub score: u64,
     pub hash: BlockNumber,
 }
 
@@ -84,6 +94,10 @@ pub mod pallet {
                 Balance = Balance,
                 Amount = Amount,
             > + StakingCurrency<Self::AccountId>;
+        type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
+        type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance>;
+        #[pallet::constant]
+        type StakingAmount: Get<Balance>;
     }
 
     #[pallet::pallet]
@@ -94,6 +108,11 @@ pub mod pallet {
     #[pallet::getter(fn get_result_sets)]
     pub type ResultSets<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, ResultSet<T::BlockNumber>, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_candidate)]
+    pub type Candidates<T: Config> =
+        StorageMap<_, Twox64Concat, T::AccountId, Candidate<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn get_path)]
@@ -109,8 +128,12 @@ pub mod pallet {
 
     #[pallet::error]
     pub enum Error<T> {
-        // 已存在质询
+        // 已存在
         AlreadyExist,
+        //
+        NoUpdatesAllowed,
+        // 不存在对应数据
+        NotExist,
     }
 
     #[pallet::hooks]
@@ -118,13 +141,69 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        // 发起新的质询
+        // 增加新候选种子
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn new_examine(
+        pub fn add(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            score: u64,
+        ) -> DispatchResultWithPostInfo {
+            let pathfinder = ensure_signed(origin)?;
+            let _ = T::Reputation::check_update_status(true).ok_or(Error::<T>::NoUpdatesAllowed)?;
+
+            ensure!(
+                <Candidates<T>>::contains_key(target.clone()),
+                Error::<T>::AlreadyExist
+            );
+
+            T::Currency::staking(T::BaceToken::get(), &pathfinder, T::StakingAmount::get())?;
+
+            <Candidates<T>>::insert(target, Candidate { score, pathfinder });
+
+            T::Reputation::set_last_refresh_at();
+
+            Ok(().into())
+        }
+
+        // 新的挑战
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn new_challenge(
             origin: OriginFor<T>,
             target: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
+
+            let candidate = <Candidates<T>>::try_get(target.clone())
+                .map_err(|_err| Error::<T>::NoUpdatesAllowed)?;
+
+            T::ChallengeBase::new(
+                &APP_ID,
+                &challenger,
+                &candidate.pathfinder,
+                Zero::zero(),
+                T::StakingAmount::get(),
+                &target,
+                Zero::zero(),
+                Zero::zero(),
+            )?;
+
+            T::Reputation::set_last_refresh_at();
+
+            Ok(().into())
+        }
+
+        // 质询
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn question(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            index: u32,
+        ) -> DispatchResultWithPostInfo {
+            let challenger = ensure_signed(origin)?;
+
+            T::ChallengeBase::question(&APP_ID, challenger, &target, index)?;
+
+            T::Reputation::set_last_refresh_at();
 
             Ok(().into())
         }

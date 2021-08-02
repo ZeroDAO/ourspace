@@ -10,16 +10,16 @@ use frame_support::{
 use frame_system::{self as system};
 use orml_traits::{MultiCurrencyExtended, StakingCurrency};
 use zd_primitives::{factor, Amount, AppId, Balance};
-use zd_traits::{ChallengeBase, Reputation, SeedsBase, StartChallenge, TrustBase};
+use zd_traits::{ChallengeBase, Reputation, SeedsBase, TrustBase};
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use sp_runtime::{DispatchError, DispatchResult, SaturatedConversion, traits::{AtLeast32Bit, Zero}};
+use sp_runtime::{
+    traits::{AtLeast32Bit, Zero},
+    DispatchError, DispatchResult, SaturatedConversion,
+};
 
 pub use pallet::*;
-
-/// 有效路径最大数量
-const MAX_PATH_COUNT: u32 = 5;
 
 /// 单次最多长传路径
 const MAX_UPDATE_COUNT: u32 = 10;
@@ -64,10 +64,11 @@ pub struct Metadata<AccountId, BlockNumber> {
     pub beneficiary: AccountId,
     pub progress: Progress<AccountId>,
     pub last_update: BlockNumber,
-    pub examine_index: u32,
+    pub index: u32,
     pub value: u32,
     pub pathfinder: AccountId,
     pub status: Status,
+    pub challenger: AccountId,
 }
 
 impl<AccountId, BlockNumber> Metadata<AccountId, BlockNumber>
@@ -91,7 +92,6 @@ where
             return false;
         }
         self.last_update + challenge_perior < now
-
     }
 }
 
@@ -115,7 +115,6 @@ pub mod pallet {
                 Amount = Amount,
             > + StakingCurrency<Self::AccountId>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
-        type StartChallenge: StartChallenge<Self::AccountId, Balance>;
         type TrustBase: TrustBase<Self::AccountId>;
         type SeedsBase: SeedsBase<Self::AccountId>;
         #[pallet::constant]
@@ -176,15 +175,8 @@ pub mod pallet {
         TooSoon,
         /// Wrong progress
         ErrProgress,
-
-        /// The path already exists
-        PathAlreadyExist,
-        /// Wrong path
-        WrongPath,
-        /// Error calculating dist
-        DistErr,
-        /// The dist is too long or score is too low.
-        DistTooLong,
+        // Non-existent
+        NonExistent,
     }
 
     #[pallet::hooks]
@@ -318,6 +310,18 @@ impl<T: Config> Pallet<T> {
         Ok((new_done, progress.total == new_done))
     }
 
+    pub(crate) fn examine(
+        app_id: &AppId,
+        target: &T::AccountId,
+        mut f: impl FnMut(&mut Metadata<T::AccountId, T::BlockNumber>) -> DispatchResult,
+    ) -> DispatchResult {
+        Metadatas::<T>::try_mutate_exists(app_id, target, |challenge| -> DispatchResult {
+            let challenge = challenge.as_mut().ok_or(Error::<T>::NonExistent)?;
+            f(challenge)
+        })?;
+        Ok(())
+    }
+
     pub(crate) fn after_upload() -> DispatchResult {
         T::Reputation::last_challenge_at();
         Ok(())
@@ -393,7 +397,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
         up: impl FnOnce(bool, u32) -> Result<u32, DispatchError>,
     ) -> DispatchResult {
         Metadatas::<T>::try_mutate_exists(app_id, target, |challenge| -> DispatchResult {
-            let challenge = challenge.as_mut().ok_or(Error::<T>::Overflow)?;
+            let challenge = challenge.as_mut().ok_or(Error::<T>::NonExistent)?;
 
             let progress_info = Self::get_new_progress(&challenge.progress, &(count as u32), &who)?;
 
@@ -417,5 +421,43 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
         Self::deposit_event(Event::NewPath(who.clone(), target.clone()));
 
         Ok(())
+    }
+
+    fn question(
+        app_id: &AppId,
+        who: T::AccountId,
+        target: &T::AccountId,
+        index: u32,
+    ) -> DispatchResult {
+        Self::examine(app_id, target, |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
+            ensure!(
+                challenge.status == Status::REPLY && challenge.progress.is_all_done(),
+                Error::<T>::NoChallengeAllowed
+            );
+            ensure!(
+                challenge.challenger == who,
+                Error::<T>::NoChallengeAllowed
+            );
+            challenge.status = Status::EXAMINE;
+            challenge.index = index;
+            challenge.beneficiary = who.clone();
+            Ok(())
+        })
+    }
+
+    fn reply(
+        app_id: &AppId,
+        who: T::AccountId,
+        target: &T::AccountId,
+    ) -> DispatchResult {
+        Self::examine(app_id, target, |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
+            ensure!(
+                challenge.status == Status::EXAMINE,
+                Error::<T>::NoChallengeAllowed
+            );
+            challenge.status = Status::REPLY;
+            challenge.beneficiary = who.clone();
+            Ok(())
+        })
     }
 }

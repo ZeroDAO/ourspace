@@ -123,7 +123,6 @@ impl zd_challenges::Config for Test {
     type ReceiverProtectionPeriod = ReceiverProtectionPeriod;
     type UpdateStakingAmount = UpdateStakingAmount;
     type ChallengePerior = ChallengePerior;
-    type StartChallenge = ZdRefreshReputation;
 }
 
 impl orml_tokens::Config for Test {
