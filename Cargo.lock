@@ -6159,6 +6159,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha1"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
+
+[[package]]
 name = "sha2"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8489,12 +8495,14 @@ dependencies = [
  "orml-traits 0.4.0 (git+https://github.com/ZeroDAO/open-runtime-module-library.git?branch=feature-zerodao)",
  "parity-scale-codec",
  "serde",
+ "sha1",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
  "zd-primitives",
  "zd-traits",
+ "zd-utilities",
 ]
 
 [[package]]

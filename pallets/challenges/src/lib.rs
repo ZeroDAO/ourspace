@@ -73,6 +73,7 @@ pub struct Metadata<AccountId, BlockNumber> {
 
 impl<AccountId, BlockNumber> Metadata<AccountId, BlockNumber>
 where
+    AccountId: Ord,
     BlockNumber: Copy + AtLeast32Bit,
 {
     fn total_amount(&self) -> Option<Balance> {
@@ -88,10 +89,39 @@ where
     {
         let challenge_perior = ChallengePerior::get().saturated_into::<BlockNumber>();
 
-        if !self.progress.is_all_done() && self.last_update + challenge_perior >= now {
+        if !self.is_all_done() && self.last_update + challenge_perior >= now {
             return false;
         }
         self.last_update + challenge_perior < now
+    }
+
+    fn is_all_done(&self) -> bool {
+        self.progress.total == self.progress.done
+    }
+
+    fn check_progress(&self) -> bool {
+        self.progress.total >= self.progress.done
+    }
+
+    fn is_challenger(&self, who: &AccountId) -> bool {
+        self.challenger == *who
+    }
+
+    fn is_pathfinder(&self, who: &AccountId) -> bool {
+        self.pathfinder == *who
+    }
+
+    fn new_progress(&mut self, total: u32) -> &mut Self {
+        self.progress.total = total;
+        self
+    }
+
+    fn next(&mut self, count: u32, who: AccountId) -> &mut Self {
+        self.progress.done = self.progress.done.saturating_add(count);
+        if self.is_all_done() {
+            self.beneficiary = who
+        }
+        self
     }
 }
 
@@ -177,6 +207,8 @@ pub mod pallet {
         ErrProgress,
         // Non-existent
         NonExistent,
+        // Too many uploads
+        TooMany,
     }
 
     #[pallet::hooks]
@@ -429,35 +461,61 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
         target: &T::AccountId,
         index: u32,
     ) -> DispatchResult {
-        Self::examine(app_id, target, |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
-            ensure!(
-                challenge.status == Status::REPLY && challenge.progress.is_all_done(),
-                Error::<T>::NoChallengeAllowed
-            );
-            ensure!(
-                challenge.challenger == who,
-                Error::<T>::NoChallengeAllowed
-            );
-            challenge.status = Status::EXAMINE;
-            challenge.index = index;
-            challenge.beneficiary = who.clone();
-            Ok(())
-        })
+        Self::examine(
+            app_id,
+            target,
+            |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
+
+                ensure!(
+                    challenge.status == Status::REPLY && challenge.is_all_done(),
+                    Error::<T>::NoChallengeAllowed
+                );
+                ensure!(challenge.is_challenger(&who), Error::<T>::NoChallengeAllowed);
+
+                challenge.status = Status::EXAMINE;
+                challenge.index = index;
+                challenge.beneficiary = who.clone();
+
+                Ok(())
+            },
+        )
     }
 
     fn reply(
         app_id: &AppId,
         who: T::AccountId,
         target: &T::AccountId,
-    ) -> DispatchResult {
-        Self::examine(app_id, target, |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
-            ensure!(
-                challenge.status == Status::EXAMINE,
-                Error::<T>::NoChallengeAllowed
-            );
-            challenge.status = Status::REPLY;
-            challenge.beneficiary = who.clone();
-            Ok(())
-        })
+        total: u32,
+        count: u32,
+        up: impl Fn(bool,u32) -> DispatchResult,
+    ) -> DispatchResult { 
+        Self::examine(
+            app_id,
+            target,
+            |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
+                ensure!(challenge.is_pathfinder(&who), Error::<T>::NoPermission);
+                
+                ensure!(
+                    challenge.status == Status::EXAMINE,
+                    Error::<T>::NoPermission
+                );
+
+                ensure!(
+                    challenge
+                        .new_progress(total)
+                        .next(count, who.clone())
+                        .check_progress(),
+                    Error::<T>::TooMany
+                );
+
+                let is_all_done = challenge.is_all_done();
+
+                if !is_all_done {
+                    challenge.status = Status::REPLY;
+                }
+
+                up(is_all_done, challenge.index)
+            },
+        )
     }
 }

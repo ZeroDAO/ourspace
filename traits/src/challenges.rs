@@ -34,5 +34,8 @@ pub trait ChallengeBase<AccountId, AppId, Balance> {
         app_id: &AppId,
         who: AccountId,
         target: &AccountId,
+        total: u32,
+        count: u32,
+        up: impl Fn(bool,u32) -> DispatchResult,
     ) -> DispatchResult;
 }
