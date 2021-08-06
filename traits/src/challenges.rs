@@ -20,7 +20,7 @@ pub trait ChallengeBase<AccountId, AppId, Balance> {
         who: &AccountId,
         target: &AccountId,
         count: u32,
-        up: impl FnOnce(bool,u32) -> Result<u32, DispatchError>,
+        up: impl FnOnce(Balance,u32,bool) -> Result<u32, DispatchError>,
     ) -> DispatchResult;
 
     fn question(
@@ -37,5 +37,12 @@ pub trait ChallengeBase<AccountId, AppId, Balance> {
         total: u32,
         count: u32,
         up: impl Fn(bool,u32) -> DispatchResult,
+    ) -> DispatchResult;
+
+    fn new_evidence(
+        app_id: &AppId,
+        who: AccountId,
+        target: &AccountId,
+        up: impl Fn(u32) -> Result<bool, DispatchError>,
     ) -> DispatchResult;
 }

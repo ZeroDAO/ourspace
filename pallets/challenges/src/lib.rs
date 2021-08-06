@@ -64,8 +64,7 @@ pub struct Metadata<AccountId, BlockNumber> {
     pub beneficiary: AccountId,
     pub progress: Progress<AccountId>,
     pub last_update: BlockNumber,
-    pub index: u32,
-    pub value: u32,
+    pub remark: u32,
     pub pathfinder: AccountId,
     pub status: Status,
     pub challenger: AccountId,
@@ -235,11 +234,11 @@ pub mod pallet {
                 T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
             let analyst = challenge.progress.owner;
 
-            if old_ir != challenge.value {
-                T::Reputation::mutate_reputation(&target, challenge.value);
+            if old_ir != challenge.remark {
+                T::Reputation::mutate_reputation(&target, challenge.remark);
             }
 
-            if challenge.beneficiary != analyst && old_ir == challenge.value {
+            if challenge.beneficiary != analyst && old_ir == challenge.remark {
                 // 结算更新分成
                 let analyst_sub_amount =
                     factor::ANALYST_RATIO.mul_floor(challenge.pool.sub_staking);
@@ -404,7 +403,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
             m.beneficiary = path_finder.clone();
             m.last_update = now_block_number;
             m.status = Status::EVIDENCE;
-            m.value = value;
+            m.remark = value;
 
             Self::after_upload()?;
 
@@ -426,7 +425,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
         who: &T::AccountId,
         target: &T::AccountId,
         count: u32,
-        up: impl FnOnce(bool, u32) -> Result<u32, DispatchError>,
+        up: impl FnOnce(Balance, u32, bool) -> Result<u32, DispatchError>,
     ) -> DispatchResult {
         Metadatas::<T>::try_mutate_exists(app_id, target, |challenge| -> DispatchResult {
             let challenge = challenge.as_mut().ok_or(Error::<T>::NonExistent)?;
@@ -439,13 +438,9 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
                 challenge.beneficiary = who.clone()
             };
 
-            // TODO 判断是否为首次
+            let value = up(challenge.pool.staking, challenge.remark, progress_info.1)?;
 
-            let is_first = true;
-
-            let value = up(is_first, challenge.value)?;
-
-            challenge.value = value;
+            challenge.remark = value;
 
             Ok(())
         })?;
@@ -465,15 +460,17 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
             app_id,
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
-
                 ensure!(
                     challenge.status == Status::REPLY && challenge.is_all_done(),
                     Error::<T>::NoChallengeAllowed
                 );
-                ensure!(challenge.is_challenger(&who), Error::<T>::NoChallengeAllowed);
+                ensure!(
+                    challenge.is_challenger(&who),
+                    Error::<T>::NoChallengeAllowed
+                );
 
                 challenge.status = Status::EXAMINE;
-                challenge.index = index;
+                challenge.remark = index;
                 challenge.beneficiary = who.clone();
 
                 Ok(())
@@ -487,14 +484,14 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
         target: &T::AccountId,
         total: u32,
         count: u32,
-        up: impl Fn(bool,u32) -> DispatchResult,
-    ) -> DispatchResult { 
+        up: impl Fn(bool, u32) -> DispatchResult,
+    ) -> DispatchResult {
         Self::examine(
             app_id,
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
                 ensure!(challenge.is_pathfinder(&who), Error::<T>::NoPermission);
-                
+
                 ensure!(
                     challenge.status == Status::EXAMINE,
                     Error::<T>::NoPermission
@@ -514,7 +511,28 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
                     challenge.status = Status::REPLY;
                 }
 
-                up(is_all_done, challenge.index)
+                up(is_all_done, challenge.remark)
+            },
+        )
+    }
+
+    fn new_evidence(
+        app_id: &AppId,
+        who: T::AccountId,
+        target: &T::AccountId,
+        up: impl Fn(u32) -> Result<bool, DispatchError>,
+    ) -> DispatchResult {
+        Self::examine(
+            app_id,
+            target,
+            |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
+                ensure!(challenge.is_challenger(&who), Error::<T>::NoPermission);
+                ensure!(challenge.is_all_done(), Error::<T>::NoPermission);
+                let needs_review = up(challenge.remark)?;
+                // 需要审查和不需要审查的资产分配
+                // 可能有断点续传
+                // 状态修改为挑战
+                Ok(())
             },
         )
     }

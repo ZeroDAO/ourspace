@@ -7,7 +7,6 @@ use frame_support::{
     traits::Get,
     RuntimeDebug,
 };
-use frame_system::{self as system};
 use orml_traits::{MultiCurrencyExtended, StakingCurrency};
 use sha1::{Digest, Sha1};
 use zd_primitives::{Amount, AppId, Balance};
@@ -18,7 +17,7 @@ use zd_utilities::{UserSet, UserSetExt};
 use serde::{Deserialize, Serialize};
 
 use sp_runtime::{
-    traits::{AtLeast32BitUnsigned, Zero},
+    traits::{AtLeast32Bit, Zero},
     DispatchError, DispatchResult,
 };
 use sp_std::{cmp::Ordering, convert::TryInto, vec::Vec};
@@ -26,7 +25,6 @@ use sp_std::{cmp::Ordering, convert::TryInto, vec::Vec};
 pub use pallet::*;
 
 const APP_ID: AppId = *b"seed    ";
-
 const DEEP: u32 = 4;
 const RANGE: u32 = 100;
 
@@ -43,6 +41,8 @@ pub struct ResultHash {
     pub score: u64,
     pub hash: String,
 }
+
+// TODO binary_search_by_key & sort_by_key
 
 impl Eq for ResultHash {}
 
@@ -68,10 +68,10 @@ type PathId = u128;
 
 pub trait Convert<A>
 where
-    A: AtLeast32BitUnsigned,
+    A: AtLeast32Bit + Copy,
     Self: Sized,
 {
-    fn from_ids(start: A, stop: A) -> Self;
+    fn from_ids(start: &A, stop: &A) -> Self;
     fn to_ids(&self) -> (A, A);
 }
 
@@ -79,10 +79,11 @@ where
 /// |***...***||***...***|
 ///      |          |
 ///    start       end
-impl<A: AtLeast32BitUnsigned> Convert<A> for PathId {
-    fn from_ids(start: A, end: A) -> Self {
-        let start_into = TryInto::<u128>::try_into(start).ok().unwrap();
-        let end_into = TryInto::<u128>::try_into(end).ok().unwrap();
+impl<A: AtLeast32Bit + Copy> Convert<A> for PathId {
+    fn from_ids(start: &A, end: &A) -> Self {
+        // .saturated_into()
+        let start_into = TryInto::<u128>::try_into(*start).ok().unwrap();
+        let end_into = TryInto::<u128>::try_into(*end).ok().unwrap();
         (start_into << 64) | end_into
     }
 
@@ -96,10 +97,26 @@ impl<A: AtLeast32BitUnsigned> Convert<A> for PathId {
     }
 }
 
-#[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
+pub trait OrderHelper {
+    fn to_order(&self) -> u32;
+    fn does_math(&self, order: &u32) -> bool;
+}
+
+impl OrderHelper for PathId {
+    fn to_order(&self) -> u32 {
+        (self % (RANGE as u128)) as u32
+    }
+
+    fn does_math(&self, order: &u32) -> bool {
+        *self >= RANGE.saturating_mul(*order).into()
+            && *self < (RANGE + 1).saturating_mul(*order).into()
+    }
+}
+
+#[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug)]
 pub struct Path<AccountId> {
     pub id: PathId,
-    pub nodes: Option<Vec<AccountId>>,
+    pub nodes: Vec<AccountId>,
     pub total: u32,
 }
 
@@ -125,8 +142,15 @@ pub mod pallet {
             > + StakingCurrency<Self::AccountId>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
         type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance>;
+        type TrustBase: TrustBase<Self::AccountId>;
         #[pallet::constant]
         type StakingAmount: Get<Balance>;
+        type AccountIdForPathId: Member
+            + Parameter
+            + AtLeast32Bit
+            + Copy
+            + From<Self::AccountId>
+            + Into<Self::AccountId>;
     }
 
     #[pallet::pallet]
@@ -183,18 +207,13 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let pathfinder = ensure_signed(origin)?;
             let _ = T::Reputation::check_update_status(true).ok_or(Error::<T>::NoUpdatesAllowed)?;
-
             ensure!(
                 <Candidates<T>>::contains_key(target.clone()),
                 Error::<T>::AlreadyExist
             );
-
             T::Currency::staking(T::BaceToken::get(), &pathfinder, T::StakingAmount::get())?;
-
             <Candidates<T>>::insert(target, Candidate { score, pathfinder });
-
             T::Reputation::set_last_refresh_at();
-
             Ok(().into())
         }
 
@@ -205,10 +224,8 @@ pub mod pallet {
             target: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
-
             let candidate = <Candidates<T>>::try_get(target.clone())
                 .map_err(|_err| Error::<T>::NoUpdatesAllowed)?;
-
             T::ChallengeBase::new(
                 &APP_ID,
                 &challenger,
@@ -219,9 +236,7 @@ pub mod pallet {
                 Zero::zero(),
                 Zero::zero(),
             )?;
-
             T::Reputation::set_last_refresh_at();
-
             Ok(().into())
         }
 
@@ -233,11 +248,21 @@ pub mod pallet {
             index: u32,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
+            let result_hash_sets =
+                <ResultHashs<T>>::try_get(&target).map_err(|_| Error::<T>::DepthLimitExceeded)?;
 
-            T::ChallengeBase::question(&APP_ID, challenger, &target, index)?;
-
+            let result_hash_set = result_hash_sets.last().unwrap().clone();
+            ensure!(
+                (index + 1) as usize <= result_hash_set.len(),
+                Error::<T>::DepthLimitExceeded
+            );
+            T::ChallengeBase::question(
+                &APP_ID,
+                challenger,
+                &target,
+                result_hash_set.0[index as usize].order,
+            )?;
             T::Reputation::set_last_refresh_at();
-
             Ok(().into())
         }
 
@@ -247,64 +272,238 @@ pub mod pallet {
             origin: OriginFor<T>,
             target: T::AccountId,
             result_hashs: Vec<ResultHash>,
+            quantity: u32,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
-
             let count = result_hashs.len();
-
+            ensure!(quantity <= RANGE, Error::<T>::DepthLimitExceeded);
             let _ = T::ChallengeBase::reply(
                 &APP_ID,
                 challenger,
                 &target,
-                RANGE,
+                quantity,
                 count as u32,
                 |is_all_done, index| -> DispatchResult {
-                    let mut res_hash_set = Self::get_result_hash(&target);
+                    Self::update_result_hashs(&target, &result_hashs, is_all_done, index)
+                },
+            )?;
+            T::Reputation::set_last_refresh_at();
+            Ok(().into())
+        }
 
-                    let current_deep = res_hash_set.len();
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn reply_hash_next(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            result_hashs: Vec<ResultHash>,
+        ) -> DispatchResultWithPostInfo {
+            let challenger = ensure_signed(origin)?;
+            let count = result_hashs.len();
+            T::ChallengeBase::next(
+                &APP_ID,
+                &challenger,
+                &target,
+                count as u32,
+                |_, index, is_all_done| -> Result<u32, DispatchError> {
+                    Self::update_result_hashs(&target, &result_hashs, is_all_done, index)?;
+                    Ok(index)
+                },
+            )?;
+            Ok(().into())
+        }
 
-                    ensure!((current_deep as u32) < DEEP, Error::<T>::DepthLimitExceeded);
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn evidence_of_missing(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            nodes: Vec<T::AccountId>,
+        ) -> DispatchResultWithPostInfo {
+            let challenger = ensure_signed(origin)?;
+            Self::checked_path(&nodes, &target)?;
 
-                    let result_vec = UserSet::from(result_hashs.clone());
+            let mut mid_nodes = nodes.clone();
+            mid_nodes.remove(0);
+            mid_nodes.pop();
 
-                    res_hash_set.push(result_vec);
+            // path_id of nodes of challenger
+            let c_path_id = Self::to_path_id(&nodes[0], &nodes.last().unwrap());
 
-                    match is_all_done {
-                        true => Self::validate(&res_hash_set, index, &target),
-                        false => Ok(()),
+            let c_order = c_path_id.to_order();
+
+            T::ChallengeBase::new_evidence(
+                &APP_ID,
+                challenger,
+                &target,
+                |order| -> Result<bool, DispatchError> {
+                    match <Paths<T>>::try_get(&target) {
+                        Ok(path_vec) => {
+                            ensure!(c_path_id.does_math(&order), Error::<T>::DepthLimitExceeded);
+                            for p in path_vec {
+                                if p.id == c_path_id {
+                                    ensure!(
+                                        p.nodes.len() == mid_nodes.len(),
+                                        Error::<T>::DepthLimitExceeded
+                                    );
+                                    ensure!(p.nodes != mid_nodes, Error::<T>::DepthLimitExceeded);
+                                }
+                            }
+                            // TODO 需要存储路径，接受二次挑战
+                            Ok(true)
+                        }
+                        Err(_) => {
+                            let result_hash_set = <ResultHashs<T>>::try_get(&target)
+                                .map_err(|_| Error::<T>::DepthLimitExceeded)?;
+                            for result_hash in result_hash_set.last().unwrap().0.clone() {
+                                if result_hash.order == c_order {
+                                    break;
+                                }
+                            }
+                            // TODO 不需要存储路径，直接成功
+                            Ok(false)
+                        }
                     }
                 },
             )?;
 
-            T::Reputation::set_last_refresh_at();
+            Ok(().into())
+        }
 
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn evidence_of_shorter(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            index: u32,
+            path: Vec<T::AccountId>,
+        ) -> DispatchResultWithPostInfo {
+            let challenger = ensure_signed(origin)?;
+            Self::checked_path(&path, &target)?;
+            let p_path = Self::get_pathfinder_paths(&target, &index)?;
+            let path_id = Self::to_path_id(&path[0], &path.last().unwrap());
+            ensure!(path_id == p_path.id, Error::<T>::DepthLimitExceeded);
+            ensure!(
+                p_path.nodes.len() + 2 > path.len(),
+                Error::<T>::DepthLimitExceeded
+            );
+
+            T::ChallengeBase::new_evidence(
+                &APP_ID,
+                challenger,
+                &target,
+                |_| -> Result<bool, DispatchError> { Ok(true) },
+            )?;
+
+            Ok(().into())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn evidence_of_wrong_number(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            index: u32,
+            mid_paths: Vec<Vec<T::AccountId>>,
+        ) -> DispatchResultWithPostInfo {
+            let challenger = ensure_signed(origin)?;
+            let p_path = Self::get_pathfinder_paths(&target, &index)?;
+            let p_path_total = p_path.total as usize;
+            let p_path_len = p_path.nodes.len() + 2;
+
+            // TODO 去除重复
+
+            let (start, stop) = Self::get_ids(&p_path.id);
+
+            T::ChallengeBase::new_evidence(
+                &APP_ID,
+                challenger,
+                &target,
+                |_| -> Result<bool, DispatchError> { 
+                    for mid_path in mid_paths.clone() {
+                        let mut path = mid_path;
+                        path.insert(0, start.clone());
+                        path.insert(path.len(), stop.clone());
+                        Self::checked_path(&path, &target)?;
+                        if path.len() < p_path_len {
+                            return Ok(true);
+                        }
+                        ensure!(path.len() == p_path_len, Error::<T>::DepthLimitExceeded);
+                    };
+                    ensure!(mid_paths.len() > p_path_total, Error::<T>::DepthLimitExceeded);
+                    Ok(true)
+                 },
+            )?;
+            
             Ok(().into())
         }
     }
 }
 
 impl<T: Config> Pallet<T> {
+    pub(crate) fn get_pathfinder_paths(target: &T::AccountId,index: &u32) -> Result<Path<T::AccountId>, DispatchError> {
+        let paths =<Paths<T>>::try_get(&target).map_err(|_| Error::<T>::DepthLimitExceeded)?;
+        let index = *index as usize;
+        ensure!(paths.len() > index, Error::<T>::DepthLimitExceeded);
+        Ok(paths[index].clone())
+    }
+
+    pub(crate) fn get_ids(path_id: &PathId) -> (T::AccountId,T::AccountId) {
+        let (start, stop):(T::AccountIdForPathId,T::AccountIdForPathId) = path_id.to_ids();
+        (start.into(), stop.into())
+    }
+
     pub(crate) fn hash(data: &[u8]) -> Digest {
         let mut hasher = Sha1::new();
-
         hasher.update(data);
-
         hasher.digest()
     }
 
-    pub(crate) fn validate(
+    pub(crate) fn to_path_id(start: &T::AccountId, stop: &T::AccountId) -> PathId {
+        PathId::from_ids(
+            &T::AccountIdForPathId::from(start.clone()),
+            &T::AccountIdForPathId::from(stop.clone()),
+        )
+    }
+
+    pub(crate) fn checked_path(path: &Vec<T::AccountId>, target: &T::AccountId) -> DispatchResult {
+        ensure!(path.len() >= 2, Error::<T>::DepthLimitExceeded);
+        ensure!(path.contains(&target), Error::<T>::DepthLimitExceeded);
+        T::TrustBase::valid_nodes(&path)?;
+        Ok(())
+    }
+
+    pub(crate) fn update_result_hashs(
+        target: &T::AccountId,
+        result_hashs: &Vec<ResultHash>,
+        do_validate: bool,
+        index: u32,
+    ) -> DispatchResult {
+        let mut res_hash_set = Self::get_result_hash(&target);
+        let current_deep = res_hash_set.len();
+        ensure!((current_deep as u32) < DEEP, Error::<T>::DepthLimitExceeded);
+        let result_vec = UserSet::from(result_hashs.clone());
+        // TODO 判断是增加还是新建！或者放到上面去
+        // TODO is_ascii
+        res_hash_set.push(result_vec);
+        match do_validate {
+            true => Self::validate_result_hashs(&res_hash_set, index, &target),
+            false => Ok(()),
+        }
+
+        // TODO 上传
+    }
+
+    pub(crate) fn validate_path_hash() {
+
+    }
+
+    pub(crate) fn validate_result_hashs(
         result_hashs: &Vec<UserSet<ResultHash>>,
         index: u32,
         target: &T::AccountId,
     ) -> DispatchResult {
         let deep = result_hashs.len();
-
         if deep == 0 {
             return Ok(());
         }
-
         let mut data = "".to_string();
-
         let fold_score = result_hashs[deep - 1]
             .0
             .iter()
@@ -316,11 +515,8 @@ impl<T: Config> Pallet<T> {
                 acc.checked_add(r.score)
                     .ok_or_else(|| Error::<T>::Overflow.into())
             })?;
-
         let total_score = match deep {
-            1 => {
-                Self::get_candidate(&target).score
-            }
+            1 => Self::get_candidate(&target).score,
             _ => {
                 ensure!(
                     Self::hash(data.as_bytes()).to_string()
@@ -330,9 +526,7 @@ impl<T: Config> Pallet<T> {
                 result_hashs[deep - 2].0[index as usize].score
             }
         };
-
         ensure!(fold_score == total_score, Error::<T>::DepthLimitExceeded);
-
         Ok(())
     }
 }

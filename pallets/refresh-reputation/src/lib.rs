@@ -298,7 +298,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        // 新证据
+        // 新的挑战
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn new_challenge(
             origin: OriginFor<T>,
@@ -345,14 +345,14 @@ pub mod pallet {
             Ok(().into())
         }
 
-        // 新证据 - 实际上是二次挑战
+        // 新证据
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn new_evidence(
             origin: OriginFor<T>,
             target: T::AccountId,
             quantity: u32,
         ) -> DispatchResultWithPostInfo {
-            // 如何判断？只要上传完毕就可以
+            
             let who = ensure_signed(origin)?;
 
             ensure!(
@@ -381,11 +381,11 @@ pub mod pallet {
                 &challenger,
                 &target,
                 count as u32,
-                |verify, score| -> Result<u32, DispatchError> {
-                    match verify {
+                |staking, score, _| -> Result<u32, DispatchError> {
+                    match staking == T::UpdateStakingAmount::get() {
                         true => Self::do_update_path(&target, &seeds, &paths, score),
                         false => Self::do_update_path_verify(&target, seeds, paths, score),
-                    }
+                 }
                 },
             )?;
             Ok(().into())

@@ -158,6 +158,16 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
         <TrustedList<T>>::get(&who).contains(&target)
     }
 
+    fn valid_nodes(nodes: &Vec<T::AccountId>) -> DispatchResult {
+        for w in nodes.windows(2) {
+            ensure!(
+                Self::is_trust_old(&w[0], &w[1]),
+                Error::<T>::WrongPath
+            );
+        }
+        Ok(())
+    }
+
     fn is_trust_old(who: &T::AccountId, target: &T::AccountId) -> bool {
         let temp_list = <TrustTempList<T>>::get(who);
         temp_list.trust.contains(&target)
