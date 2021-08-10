@@ -10,7 +10,7 @@ use frame_support::{
 use frame_system::{self as system};
 use orml_traits::{MultiCurrencyExtended, StakingCurrency};
 use zd_primitives::{factor, Amount, AppId, Balance};
-use zd_traits::{ChallengeBase, Reputation, SeedsBase, TrustBase};
+use zd_traits::{ChallengeBase, Reputation};
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -38,18 +38,14 @@ pub struct Progress<AccountId> {
     pub done: u32,
 }
 
-impl<AccountId> Progress<AccountId> {
-    fn is_all_done(&self) -> bool {
-        self.total == self.done
-    }
-}
-
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum Status {
+    FREE,
     EXAMINE,
     REPLY,
     EVIDENCE,
+    ARBITRATION,
 }
 
 impl Default for Status {
@@ -62,9 +58,11 @@ impl Default for Status {
 pub struct Metadata<AccountId, BlockNumber> {
     pub pool: Pool,
     pub beneficiary: AccountId,
+    pub joint_benefits: bool,
     pub progress: Progress<AccountId>,
     pub last_update: BlockNumber,
     pub remark: u32,
+    pub score: u64,
     pub pathfinder: AccountId,
     pub status: Status,
     pub challenger: AccountId,
@@ -72,7 +70,7 @@ pub struct Metadata<AccountId, BlockNumber> {
 
 impl<AccountId, BlockNumber> Metadata<AccountId, BlockNumber>
 where
-    AccountId: Ord,
+    AccountId: Ord + Clone,
     BlockNumber: Copy + AtLeast32Bit,
 {
     fn total_amount(&self) -> Option<Balance> {
@@ -122,6 +120,18 @@ where
         }
         self
     }
+
+    fn set_status(&mut self, status: &Status) {
+        self.status = *status;
+    }
+
+    fn restart(&mut self, full_probative: bool) {
+        self.status = Status::FREE;
+        self.joint_benefits = false;
+        if full_probative {
+            self.pathfinder = self.challenger.clone();
+        }
+    }
 }
 
 #[pallet]
@@ -144,8 +154,6 @@ pub mod pallet {
                 Amount = Amount,
             > + StakingCurrency<Self::AccountId>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
-        type TrustBase: TrustBase<Self::AccountId>;
-        type SeedsBase: SeedsBase<Self::AccountId>;
         #[pallet::constant]
         type ReceiverProtectionPeriod: Get<Self::BlockNumber>;
         #[pallet::constant]
@@ -372,7 +380,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
         staking: Balance,
         target: &T::AccountId,
         quantity: u32,
-        value: u32,
+        score: u64,
     ) -> DispatchResult {
         let now_block_number = system::Module::<T>::block_number();
 
@@ -403,7 +411,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
             m.beneficiary = path_finder.clone();
             m.last_update = now_block_number;
             m.status = Status::EVIDENCE;
-            m.remark = value;
+            m.score = score;
 
             Self::after_upload()?;
 
@@ -480,7 +488,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
 
     fn reply(
         app_id: &AppId,
-        who: T::AccountId,
+        who: &T::AccountId,
         target: &T::AccountId,
         total: u32,
         count: u32,
@@ -518,20 +526,67 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
 
     fn new_evidence(
         app_id: &AppId,
-        who: T::AccountId,
+        who: &T::AccountId,
         target: &T::AccountId,
-        up: impl Fn(u32) -> Result<bool, DispatchError>,
+        up: impl Fn(u32, u64) -> Result<bool, DispatchError>,
+    ) -> Result<Option<u64>, DispatchError> {
+        let mut challenge =
+            <Metadatas<T>>::try_get(app_id, target).map_err(|_| Error::<T>::NoPermission)?;
+        ensure!(challenge.is_challenger(&who), Error::<T>::NoPermission);
+        ensure!(challenge.is_all_done(), Error::<T>::NoPermission);
+        let needs_arbitration = up(challenge.remark, challenge.score)?;
+        let score = challenge.score;
+        match needs_arbitration {
+            true => challenge.set_status(&Status::ARBITRATION),
+            false => {
+                challenge.restart(true);
+            }
+        };
+        <Metadatas<T>>::mutate(app_id, target, |m| *m = challenge);
+        Ok(match needs_arbitration {
+            false => Some(score),
+            true => None,
+        })
+    }
+
+    // 加上next
+    fn arbitral(
+        app_id: &AppId,
+        who: &T::AccountId,
+        target: &T::AccountId,
+        score: u64,
+        up: impl Fn(u32) -> Result<(bool, bool), DispatchError>,
     ) -> DispatchResult {
+        // 需要抵押
+        // 验证状态
         Self::examine(
             app_id,
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
-                ensure!(challenge.is_challenger(&who), Error::<T>::NoPermission);
                 ensure!(challenge.is_all_done(), Error::<T>::NoPermission);
-                let needs_review = up(challenge.remark)?;
-                // 需要审查和不需要审查的资产分配
-                // 可能有断点续传
-                // 状态修改为挑战
+
+                let (joint_benefits, restart) = up(challenge.remark)?;
+
+                match restart {
+                    true => {
+                        if joint_benefits {
+                            let arbitral_fee = challenge
+                                .pool
+                                .staking
+                                .checked_div(2)
+                                .ok_or(Error::<T>::Overflow)?;
+                            challenge.pool.staking -= arbitral_fee;
+                            Self::release(&who, arbitral_fee)?;
+                        }
+                        challenge.restart(!joint_benefits);
+                    }
+                    false => {
+                        if joint_benefits {
+                            challenge.joint_benefits = true;
+                        }
+                        challenge.score = score;
+                    }
+                }
                 Ok(())
             },
         )

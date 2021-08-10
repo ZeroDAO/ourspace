@@ -305,6 +305,7 @@ pub mod pallet {
             target: T::AccountId,
             pathfinder: T::AccountId,
             quantity: u32,
+            score: u32,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
 
@@ -314,6 +315,14 @@ pub mod pallet {
             );
 
             let _ = T::Reputation::check_update_status(true).ok_or(Error::<T>::NoUpdatesAllowed)?;
+
+            let reputation =
+            T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
+
+            ensure!(
+                score != reputation,
+                Error::<T>::ChallengeTimeout
+            );
 
             let record = <Records<T>>::take(&target, &pathfinder);
 
@@ -328,9 +337,6 @@ pub mod pallet {
                 count: f.count.saturating_sub(1),
             });
 
-            let reputation =
-                T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
-
             T::ChallengeBase::new(
                 &APP_ID,
                 &challenger,
@@ -339,7 +345,7 @@ pub mod pallet {
                 Zero::zero(),
                 &target,
                 quantity,
-                reputation,
+                reputation.into(),
             )?;
 
             Ok(().into())
@@ -363,7 +369,6 @@ pub mod pallet {
             Ok(().into())
         }
 
-        // 上传路径
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn update(
             origin: OriginFor<T>,

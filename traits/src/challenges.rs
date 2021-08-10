@@ -12,7 +12,7 @@ pub trait ChallengeBase<AccountId, AppId, Balance> {
         staking: Balance,
         target: &AccountId,
         quantity: u32,
-        value: u32,
+        score: u64,
     ) -> DispatchResult;
 
     fn next(
@@ -32,7 +32,7 @@ pub trait ChallengeBase<AccountId, AppId, Balance> {
 
     fn reply(
         app_id: &AppId,
-        who: AccountId,
+        who: &AccountId,
         target: &AccountId,
         total: u32,
         count: u32,
@@ -41,8 +41,16 @@ pub trait ChallengeBase<AccountId, AppId, Balance> {
 
     fn new_evidence(
         app_id: &AppId,
-        who: AccountId,
+        who: &AccountId,
         target: &AccountId,
-        up: impl Fn(u32) -> Result<bool, DispatchError>,
+        up: impl Fn(u32,u64) -> Result<bool, DispatchError>,
+    ) -> Result<Option<u64>, DispatchError>;
+
+    fn arbitral(
+        app_id: &AppId,
+        who: &AccountId,
+        target: &AccountId,
+        score: u64,
+        up: impl Fn(u32) -> Result<(bool,bool), DispatchError>,
     ) -> DispatchResult;
 }

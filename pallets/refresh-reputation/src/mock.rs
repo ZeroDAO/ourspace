@@ -118,8 +118,6 @@ impl zd_challenges::Config for Test {
     type BaceToken = BaceToken;
     type Currency = Tokens;
     type Reputation = ZdReputation;
-    type TrustBase = ZdTrust;
-    type SeedsBase = ZdSeeds;
     type ReceiverProtectionPeriod = ReceiverProtectionPeriod;
     type UpdateStakingAmount = UpdateStakingAmount;
     type ChallengePerior = ChallengePerior;
