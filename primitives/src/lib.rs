@@ -69,24 +69,24 @@ pub mod fee {
     where
         Self: Sized,
     {
-        fn is_allowed_proxy<T: AtLeast32BitUnsigned>(last: T, now: T) -> bool;
-        fn checked_with_fee<T: AtLeast32BitUnsigned>(&self, last: T, now: T) -> Option<(Self,Self)>;
+        fn is_allowed_proxy<B: AtLeast32BitUnsigned>(last: B, now: B) -> bool;
+        fn checked_with_fee<B: AtLeast32BitUnsigned>(&self, last: B, now: B) -> Option<(Self,Self)>;
         fn with_fee(&self) -> (Self,Self);
     }
 
     impl ProxyFee for Balance {
 
-        fn is_allowed_proxy<T: AtLeast32BitUnsigned>(last: T, now: T) -> bool {
+        fn is_allowed_proxy<B: AtLeast32BitUnsigned>(last: B, now: B) -> bool {
             let now_into = TryInto::<u64>::try_into(last).ok().unwrap();
             let last_into = TryInto::<u64>::try_into(now).ok().unwrap();
             last_into + factor::PROXY_PERIOD > now_into
         }
 
-        fn checked_with_fee<T: AtLeast32BitUnsigned>(&self, last: T, now: T) -> Option<(Self,Self)> {
+        fn checked_with_fee<B: AtLeast32BitUnsigned>(&self, last: B, now: B) -> Option<(Self,Self)> {
             match Balance::is_allowed_proxy(last, now) {
                 true => {
                     Some(self.with_fee())
-                }
+                },
                 false => None,
             }
         }

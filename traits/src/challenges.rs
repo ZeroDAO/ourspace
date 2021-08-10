@@ -53,4 +53,10 @@ pub trait ChallengeBase<AccountId, AppId, Balance> {
         score: u64,
         up: impl Fn(u32) -> Result<(bool,bool), DispatchError>,
     ) -> DispatchResult;
+
+    fn harvest(
+        who: &AccountId,
+        app_id: &AppId,
+        target: &AccountId,
+    ) -> Result<Option<u64>, DispatchError>;
 }

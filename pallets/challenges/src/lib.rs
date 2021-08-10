@@ -9,7 +9,7 @@ use frame_support::{
 };
 use frame_system::{self as system};
 use orml_traits::{MultiCurrencyExtended, StakingCurrency};
-use zd_primitives::{factor, Amount, AppId, Balance};
+use zd_primitives::{factor, fee::ProxyFee, Amount, AppId, Balance};
 use zd_traits::{ChallengeBase, Reputation};
 
 #[cfg(feature = "std")]
@@ -188,12 +188,6 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// Launched a challenge. \[challenger, target, analyst, quantity\]
         Challenged(T::AccountId, T::AccountId, T::AccountId, u32),
-        /// New path \[challenger, target\]
-        NewPath(T::AccountId, T::AccountId),
-        /// Launched a secondary challenge. \[challenger, target, count\]
-        SubChallenged(T::AccountId, T::AccountId, u32),
-        /// Receive benefits. \[who, target, is_proxy\]
-        ReceiveIncome(T::AccountId, T::AccountId, bool),
     }
 
     #[pallet::error]
@@ -222,89 +216,10 @@ pub mod pallet {
     impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {}
 
     #[pallet::call]
-    impl<T: Config> Pallet<T> {
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn receive_income(
-            origin: OriginFor<T>,
-            app_id: AppId,
-            target: T::AccountId,
-        ) -> DispatchResultWithPostInfo {
-            let who = ensure_signed(origin)?;
-            let challenge = Self::get_metadata(&app_id, &target);
-
-            let is_proxy = Self::checked_proxy(&challenge, &who)?;
-
-            Self::remove(&app_id, &target);
-
-            let mut total_amount = challenge.total_amount().ok_or(Error::<T>::Overflow)?;
-
-            let old_ir =
-                T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
-            let analyst = challenge.progress.owner;
-
-            if old_ir != challenge.remark {
-                T::Reputation::mutate_reputation(&target, challenge.remark);
-            }
-
-            if challenge.beneficiary != analyst && old_ir == challenge.remark {
-                // 结算更新分成
-                let analyst_sub_amount =
-                    factor::ANALYST_RATIO.mul_floor(challenge.pool.sub_staking);
-
-                let analyst_amount = challenge
-                    .pool
-                    .earnings
-                    .checked_add(challenge.pool.staking)
-                    .and_then(|a| a.checked_add(analyst_sub_amount))
-                    .map(|a| Self::less_proxy(&a, is_proxy))
-                    .ok_or(Error::<T>::Overflow)?;
-
-                let challenger_amount = challenge
-                    .pool
-                    .sub_staking
-                    .checked_sub(analyst_sub_amount)
-                    .map(|a| Self::less_proxy(&a, is_proxy))
-                    .ok_or(Error::<T>::Overflow)?;
-
-                total_amount = total_amount
-                    .checked_sub(analyst_amount)
-                    .and_then(|a| a.checked_sub(challenger_amount))
-                    .ok_or(Error::<T>::Overflow)?;
-
-                Self::release(&analyst, analyst_amount)?;
-                Self::release(&challenge.beneficiary, challenger_amount)?;
-            } else {
-                let b_amount = Self::less_proxy(&total_amount, is_proxy);
-                total_amount = total_amount
-                    .checked_sub(b_amount)
-                    .ok_or(Error::<T>::Overflow)?;
-
-                Self::release(
-                    &challenge.beneficiary,
-                    Self::less_proxy(&b_amount, is_proxy),
-                )?;
-            }
-
-            if is_proxy {
-                Self::release(&who, total_amount)?;
-            }
-
-            Self::deposit_event(Event::ReceiveIncome(who, target, is_proxy));
-
-            Ok(().into())
-        }
-    }
+    impl<T: Config> Pallet<T> {}
 }
 
 impl<T: Config> Pallet<T> {
-    pub(crate) fn less_proxy(amount: &Balance, is_proxy: bool) -> Balance {
-        if is_proxy {
-            factor::PROXY_PICKUP_RATIO.mul_floor(amount.clone())
-        } else {
-            amount.clone()
-        }
-    }
-
     pub(crate) fn staking(who: &T::AccountId, amount: Balance) -> DispatchResult {
         T::Currency::staking(T::BaceToken::get(), who, amount)
     }
@@ -313,24 +228,25 @@ impl<T: Config> Pallet<T> {
         T::Currency::release(T::BaceToken::get(), who, amount)
     }
 
-    pub(crate) fn checked_proxy(
+    pub(crate) fn checked_sweeper_fee(
         challenge: &Metadata<T::AccountId, T::BlockNumber>,
         who: &T::AccountId,
-    ) -> Result<bool, DispatchError> {
-        let is_proxy = challenge.beneficiary != *who && challenge.progress.owner != *who;
+        total_amount: &Balance,
+    ) -> Result<(Balance, Balance), DispatchError> {
+        let is_sweeper = challenge.challenger != *who && challenge.pathfinder != *who;
         let now_block_number = system::Module::<T>::block_number();
-        if is_proxy {
-            ensure!(
-                challenge.last_update + T::ReceiverProtectionPeriod::get() > now_block_number,
-                Error::<T>::TooSoon
-            );
+        if is_sweeper {
+            let (sweeper_fee, awards) = total_amount
+                .checked_with_fee(challenge.last_update, now_block_number)
+                .ok_or(Error::<T>::TooSoon)?;
+            Ok((sweeper_fee, awards))
         } else {
             ensure!(
                 challenge.last_update + T::ChallengePerior::get() > now_block_number,
                 Error::<T>::TooSoon
             );
+            Ok((Zero::zero(), *total_amount))
         }
-        Ok(is_proxy)
     }
 
     pub(crate) fn remove(app_id: &AppId, target: &T::AccountId) {
@@ -370,6 +286,49 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
     fn is_all_harvest(app_id: &AppId) -> bool {
         <Metadatas<T>>::iter_prefix_values(app_id).next().is_none()
+    }
+
+    fn harvest(
+        who: &T::AccountId,
+        app_id: &AppId,
+        target: &T::AccountId,
+    ) -> Result<Option<u64>, DispatchError> {
+        let challenge = Self::get_metadata(&app_id, &target);
+        let total_amount: Balance = challenge.total_amount().ok_or(Error::<T>::Overflow)?;
+        let (sweeper_fee, awards) = Self::checked_sweeper_fee(&challenge, &who, &total_amount)?;
+        let mut pathfinder_amount: Balance = Zero::zero();
+        let mut challenger_amount: Balance = Zero::zero();
+        let mut maybe_score: Option<u64> = None;
+        match challenge.status {
+            Status::FREE | Status::REPLY => {
+                pathfinder_amount = awards;
+            }
+            Status::EXAMINE | Status::EVIDENCE => {
+                challenger_amount = awards;
+                maybe_score = Some(challenge.score);
+            }
+            Status::ARBITRATION => match challenge.joint_benefits {
+                true => {
+                    pathfinder_amount = awards / 2;
+                    challenger_amount = awards.saturating_sub(pathfinder_amount);
+                }
+                false => {
+                    pathfinder_amount = awards;
+                    maybe_score = Some(challenge.score);
+                }
+            },
+        }
+        if sweeper_fee > 0 {
+            Self::release(&who, sweeper_fee)?;
+        }
+        if pathfinder_amount > 0 {
+            Self::release(&challenge.pathfinder, sweeper_fee)?;
+        }
+        if challenger_amount > 0 {
+            Self::release(&challenge.challenger, sweeper_fee)?;
+        };
+        Self::remove(&app_id, &target);
+        Ok(maybe_score)
     }
 
     fn new(
@@ -452,8 +411,6 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
 
             Ok(())
         })?;
-
-        Self::deposit_event(Event::NewPath(who.clone(), target.clone()));
 
         Ok(())
     }

@@ -425,11 +425,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             // TODO 检测重复
-            Self::do_reply_num(
-                &challenger,
-                &target,
-                &mid_paths,
-            )?;
+            Self::do_reply_num(&challenger, &target, &mid_paths)?;
             // TODO restart - 或者等待超时
             T::Reputation::set_last_refresh_at();
             Ok(().into())
@@ -449,11 +445,11 @@ pub mod pallet {
             let c_path_id = Self::to_path_id(&nodes[0], &nodes.last().unwrap());
             let c_order = c_path_id.to_order();
 
-            let maybe_score  = T::ChallengeBase::new_evidence(
+            let maybe_score = T::ChallengeBase::new_evidence(
                 &APP_ID,
                 &challenger,
                 &target,
-                |order,c_score| -> Result<bool, DispatchError> {
+                |order, c_score| -> Result<bool, DispatchError> {
                     match <Paths<T>>::try_get(&target) {
                         Ok(path_vec) => {
                             let mut have_path_id = false;
@@ -526,9 +522,7 @@ pub mod pallet {
                 &APP_ID,
                 &challenger,
                 &target,
-                |_,c_score| -> Result<bool, DispatchError> {
-                    Ok(false)
-                },
+                |_, c_score| -> Result<bool, DispatchError> { Ok(false) },
             )?;
             Self::restart(&target, &challenger, &maybe_score.unwrap_or_default());
             Ok(().into())
@@ -558,7 +552,7 @@ pub mod pallet {
                 &APP_ID,
                 &challenger,
                 &target,
-                |_,c_score| -> Result<bool, DispatchError> {
+                |_, c_score| -> Result<bool, DispatchError> {
                     for mid_path in mid_paths.clone() {
                         let path = Self::check_mid_path(&mid_path, &start, &stop, &target)?;
                         if path.len() < p_path_len {
@@ -606,7 +600,37 @@ pub mod pallet {
             Ok(().into())
         }
 
-        // TODO 获取收益
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn harvest_challenge(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+        ) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+            match T::ChallengeBase::harvest(&who, &APP_ID, &target)? {
+                Some(score) => {
+                    <Candidates<T>>::mutate(&target, |c| c.score = score);
+                }
+                None => (),
+            }
+            Self::remove_challenge(&target);
+            Ok(().into())
+        }
+
+        // 领取种子更新收益
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn harvest_seed(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            paths: Vec<T::AccountId>,
+            score: u64,
+        ) -> DispatchResultWithPostInfo {
+            let pathfinder = ensure_signed(origin)?;
+            ensure!(
+                T::ChallengeBase::is_all_harvest(&APP_ID),
+                Error::<T>::DepthLimitExceeded
+            );
+            Ok(().into())
+        }
     }
 }
 
@@ -662,6 +686,10 @@ impl<T: Config> Pallet<T> {
             c.score = *score;
             c.pathfinder = pathfinder.clone();
         });
+        Self::remove_challenge(&target)
+    }
+
+    pub(crate) fn remove_challenge(target: &T::AccountId) {
         <Paths<T>>::remove(&target);
         <ResultHashs<T>>::remove(&target);
         <MissedPaths<T>>::remove(&target);
@@ -788,7 +816,7 @@ impl<T: Config> Pallet<T> {
     }
 
     fn do_reply_num(
-        challenger:&T::AccountId,
+        challenger: &T::AccountId,
         target: &T::AccountId,
         mid_paths: &Vec<Vec<T::AccountId>>,
     ) -> DispatchResult {
