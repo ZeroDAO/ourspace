@@ -445,6 +445,8 @@ impl<T: Config> Pallet<T> {
             T::SelfRation::get().mul_floor(total_share),
         )?;
         let actor_amount = T::FeeRation::get().mul_floor(total_share);
+        // 销毁一部分
+        // 将一部分打入奖金池
         T::Currency::social_staking(T::BaceToken::get(), &user, actor_amount.clone())?;
 
         Ok(actor_amount)

@@ -146,7 +146,6 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
-        type BaceToken: Get<Self::CurrencyId>;
         type Currency: MultiCurrencyExtended<
                 Self::AccountId,
                 CurrencyId = Self::CurrencyId,
@@ -160,6 +159,8 @@ pub mod pallet {
         type UpdateStakingAmount: Get<Balance>;
         #[pallet::constant]
         type ChallengePerior: Get<Self::BlockNumber>;
+        #[pallet::constant]
+        type BaceToken: Get<Self::CurrencyId>;
     }
 
     #[pallet::pallet]

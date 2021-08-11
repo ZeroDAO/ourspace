@@ -8,11 +8,9 @@ use frame_support::{
     RuntimeDebug,
 };
 use orml_traits::{MultiCurrencyExtended, StakingCurrency};
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use zd_primitives::{Amount, AppId, Balance};
-use zd_traits::{ChallengeBase, Reputation, SeedsBase, TrustBase};
+use zd_traits::{ChallengeBase, Reputation, SeedsBase, TrustBase, MultiBaseToken};
 use zd_utilities::{UserSet, UserSetExt};
 
 use sp_runtime::{
@@ -83,10 +81,11 @@ where
     fn to_ids(&self) -> (A, A);
 }
 
-/// |<------PathId------>|
-/// |***...***||***...***|
-///      |          |
-///    start       end
+///  |<--- -PathId---->|
+///  +--------+--------+
+///  |  start |  stop  |
+///  +--------+--------+
+
 impl<A: AtLeast32Bit + Copy> Convert<A> for PathId {
     fn from_ids(start: &A, end: &A) -> Self {
         // .saturated_into()
@@ -156,8 +155,13 @@ pub mod pallet {
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
         type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance>;
         type TrustBase: TrustBase<Self::AccountId>;
+        type MultiBaseToken: MultiBaseToken<Self::AccountId, Balance>;
         #[pallet::constant]
         type StakingAmount: Get<Balance>;
+        #[pallet::constant]
+        type MaxSeedCount: Get<Balance>;
+        #[pallet::constant]
+        type HarvestPeriod: Get<Balance>;
         type AccountIdForPathId: Member
             + Parameter
             + AtLeast32Bit
@@ -182,6 +186,10 @@ pub mod pallet {
         StorageMap<_, Twox64Concat, T::AccountId, Candidate<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
+    #[pallet::getter(fn get_score_list)]
+    pub type ScoreList<T: Config> = StorageValue<_, Vec<u64>, ValueQuery>;
+
+    #[pallet::storage]
     #[pallet::getter(fn get_path)]
     pub type Paths<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, Vec<Path<T::AccountId>>, ValueQuery>;
@@ -190,6 +198,10 @@ pub mod pallet {
     #[pallet::getter(fn get_missed_paths)]
     pub type MissedPaths<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, Vec<T::AccountId>, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_last_refresh_at)]
+    pub type LastRefreshAt<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
 
     #[pallet::event]
     #[pallet::metadata(T::AccountId = "AccountId")]
@@ -231,7 +243,7 @@ pub mod pallet {
                 Error::<T>::AlreadyExist
             );
             T::Currency::staking(T::BaceToken::get(), &pathfinder, T::StakingAmount::get())?;
-            <Candidates<T>>::insert(target, Candidate { score, pathfinder });
+            Self::candidate_insert(&target, &pathfinder, &score);
             T::Reputation::set_last_refresh_at();
             Ok(().into())
         }
@@ -606,13 +618,9 @@ pub mod pallet {
             target: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
-            match T::ChallengeBase::harvest(&who, &APP_ID, &target)? {
-                Some(score) => {
-                    <Candidates<T>>::mutate(&target, |c| c.score = score);
-                }
-                None => (),
-            }
-            Self::remove_challenge(&target);
+
+            Self::do_harvest_challenge(&who, &target)?;
+
             Ok(().into())
         }
 
@@ -621,20 +629,48 @@ pub mod pallet {
         pub fn harvest_seed(
             origin: OriginFor<T>,
             target: T::AccountId,
-            paths: Vec<T::AccountId>,
-            score: u64,
         ) -> DispatchResultWithPostInfo {
             let pathfinder = ensure_signed(origin)?;
             ensure!(
                 T::ChallengeBase::is_all_harvest(&APP_ID),
                 Error::<T>::DepthLimitExceeded
             );
+            let mut score_list = Self::get_score_list();
+            // TODO 小于零则抛错
+            let max_seed_count = T::MaxSeedCount::get() as usize;
+            let mut len = score_list.len();
+            if len > max_seed_count {
+                score_list = score_list[(len - max_seed_count)..].to_vec();
+                len = max_seed_count;
+            }
+            let candidate = <Candidates<T>>::take(target);
+            ensure!(
+                candidate.pathfinder == pathfinder,
+                Error::<T>::DepthLimitExceeded
+            );
+            if candidate.score >= score_list[0] {
+                if let Ok(index) = score_list.binary_search(&candidate.score) {
+                    score_list.remove(index);
+                    let bonus = T::MultiBaseToken::get_bonus_amount();
+                    let amount = bonus / (len as Balance);
+                    T::MultiBaseToken::release(&pathfinder,&amount)?;
+                }
+            }
+            if score_list.is_empty() || Self::is_all_harvest() {
+                
+            }
+            <ScoreList<T>>::put(score_list);
             Ok(().into())
         }
     }
 }
 
 impl<T: Config> Pallet<T> {
+
+    fn is_all_harvest() -> bool {
+        <Candidates<T>>::iter_values().next().is_none()
+    }
+
     pub(crate) fn get_pathfinder_paths(
         target: &T::AccountId,
         index: &u32,
@@ -645,6 +681,23 @@ impl<T: Config> Pallet<T> {
         Ok(paths[index].clone())
     }
 
+    pub(crate) fn do_harvest_challenge<'a>(
+        who: &T::AccountId,
+        target: &'a T::AccountId,
+    ) -> DispatchResult {
+        match T::ChallengeBase::harvest(&who, &APP_ID, &target)? {
+            Some(score) => {
+                <Candidates<T>>::mutate(target, |c| {
+                    Self::mutate_score(&c.score, &score);
+                    c.score = score
+                });
+            }
+            None => (),
+        }
+        Self::remove_challenge(&target);
+        Ok(())
+    }
+
     pub(crate) fn get_ids<'a>(path: &'a Path<T::AccountId>) -> (&T::AccountId, &T::AccountId) {
         let stop = path.nodes.last().unwrap();
         (&path.nodes[0], stop)
@@ -653,6 +706,34 @@ impl<T: Config> Pallet<T> {
     pub(crate) fn get_path_id(path: &Path<T::AccountId>) -> PathId {
         let stop = path.nodes.last().unwrap();
         Self::to_path_id(&path.nodes[0], stop)
+    }
+
+    pub(crate) fn candidate_insert(targer: &T::AccountId, pathfinder: &T::AccountId, score: &u64) {
+        <Candidates<T>>::insert(
+            targer,
+            Candidate {
+                score: *score,
+                pathfinder: pathfinder.clone(),
+            },
+        );
+        let mut score_list = Self::get_score_list();
+        Self::score_list_insert(&mut score_list, score);
+    }
+
+    pub(crate) fn mutate_score(old_score: &u64, new_score: &u64) {
+        let mut score_list = Self::get_score_list();
+        if let Ok(index) = score_list.binary_search(old_score) {
+            score_list.remove(index);
+        }
+        Self::score_list_insert(&mut score_list, new_score);
+    }
+
+    pub fn score_list_insert(score_list: &mut Vec<u64>, score: &u64) {
+        let index = score_list
+            .binary_search(score)
+            .unwrap_or_else(|index| index);
+        score_list.insert(index, *score);
+        <ScoreList<T>>::put(score_list);
     }
 
     pub(crate) fn check_mid_path(
@@ -683,6 +764,7 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn restart(target: &T::AccountId, pathfinder: &T::AccountId, score: &u64) {
         <Candidates<T>>::mutate(&target, |c| {
+            Self::mutate_score(&c.score, score);
             c.score = *score;
             c.pathfinder = pathfinder.clone();
         });

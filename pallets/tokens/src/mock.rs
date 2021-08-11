@@ -122,7 +122,6 @@ impl zd_tokens::Config for Test {
 	type CurrencyId = CurrencyId;
 	type WeightInfo = ();
 	type Currency = Currencies;
-	type Balance = Balance;
 	type Amount = Amount;
 }
 

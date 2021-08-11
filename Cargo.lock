@@ -8553,6 +8553,8 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "zd-primitives",
+ "zd-traits",
 ]
 
 [[package]]
