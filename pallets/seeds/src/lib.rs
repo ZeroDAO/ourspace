@@ -2,6 +2,9 @@
 
 pub use pallet::*;
 use zd_traits::{Reputation, SeedsBase};
+use sp_runtime::{
+    traits::{Zero},
+};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -99,5 +102,14 @@ impl<T: Config> SeedsBase<T::AccountId> for Pallet<T> {
 		Seeds::<T>::contains_key(seed)
 	}
 
-	// 更新seed
+	fn remove_all() {
+		Seeds::<T>::remove_all();
+		SeedsCount::<T>::put(0u32);
+	}
+
+	fn add_seed(new_seed: &T::AccountId) {
+		Seeds::<T>::mutate(&new_seed,|s|*s = INIT_SEED_SCORE);
+		SeedsCount::<T>::mutate(|c| *c += 1);
+		Self::deposit_event(Event::SeedAdded(new_seed));
+	}
 }

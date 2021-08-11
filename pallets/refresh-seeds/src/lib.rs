@@ -156,6 +156,7 @@ pub mod pallet {
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
         type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance>;
         type TrustBase: TrustBase<Self::AccountId>;
+        type SeedsBase: SeedsBase<Self::AccountId>;
         type MultiBaseToken: MultiBaseToken<Self::AccountId, Balance>;
         #[pallet::constant]
         type StakingAmount: Get<Balance>;
@@ -628,21 +629,22 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn harvest_seed(
             origin: OriginFor<T>,
-            pathfinder: T::AccountId,
+            target: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             ensure!(
                 T::ChallengeBase::is_all_harvest(&APP_ID),
                 Error::<T>::DepthLimitExceeded
             );
-            let is_sweeper = who == pathfinder;
+            let is_sweeper = who == target;
             let mut score_list = Self::get_score_list();
             // TODO 小于零则抛错
             let len = Self::hand_first_time(&mut score_list);
 
-            let candidate = <Candidates<T>>::take(&pathfinder);
+            let candidate = <Candidates<T>>::take(&target);
             if !score_list.is_empty() && candidate.score >= score_list[0] {
                 if let Ok(index) = score_list.binary_search(&candidate.score) {
+                    T::SeedsBase::add_seed(&target);
                     score_list.remove(index);
                     let bonus = T::MultiBaseToken::get_bonus_amount();
                     let amount = bonus / (len as Balance);
@@ -653,11 +655,11 @@ pub mod pallet {
                             if let Some((s_amount, p_amount)) = amount
                                 .checked_with_fee(last, now_block_number) {
                                     T::MultiBaseToken::release(&who,&s_amount)?;
-                                    T::MultiBaseToken::release(&pathfinder,&p_amount)?;
+                                    T::MultiBaseToken::release(&candidate.pathfinder,&p_amount)?;
                                 }
                         },
                         false => {
-                            T::MultiBaseToken::release(&pathfinder,&amount)?;
+                            T::MultiBaseToken::release(&candidate.pathfinder,&amount)?;
                         },
                     }
                 }
@@ -686,6 +688,7 @@ impl<T: Config> Pallet<T> {
             *score_list = score_list[(len - max_seed_count)..].to_vec();
             len = max_seed_count;
         }
+        T::SeedsBase::remove_all();
         len
     }
 
