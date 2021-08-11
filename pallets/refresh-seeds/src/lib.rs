@@ -9,9 +9,10 @@ use frame_support::{
 };
 use orml_traits::{MultiCurrencyExtended, StakingCurrency};
 use sha1::{Digest, Sha1};
-use zd_primitives::{Amount, AppId, Balance};
+use zd_primitives::{fee::ProxyFee, Amount, AppId, Balance};
 use zd_traits::{ChallengeBase, Reputation, SeedsBase, TrustBase, MultiBaseToken};
 use zd_utilities::{UserSet, UserSetExt};
+use frame_system::{self as system};
 
 use sp_runtime::{
     traits::{AtLeast32Bit, Zero},
@@ -624,38 +625,44 @@ pub mod pallet {
             Ok(().into())
         }
 
-        // 领取种子更新收益
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn harvest_seed(
             origin: OriginFor<T>,
-            target: T::AccountId,
+            pathfinder: T::AccountId,
         ) -> DispatchResultWithPostInfo {
-            let pathfinder = ensure_signed(origin)?;
+            let who = ensure_signed(origin)?;
             ensure!(
                 T::ChallengeBase::is_all_harvest(&APP_ID),
                 Error::<T>::DepthLimitExceeded
             );
+            let is_sweeper = who == pathfinder;
             let mut score_list = Self::get_score_list();
             // TODO 小于零则抛错
-            let max_seed_count = T::MaxSeedCount::get() as usize;
-            let mut len = score_list.len();
-            if len > max_seed_count {
-                score_list = score_list[(len - max_seed_count)..].to_vec();
-                len = max_seed_count;
-            }
-            let candidate = <Candidates<T>>::take(target);
-            ensure!(
-                candidate.pathfinder == pathfinder,
-                Error::<T>::DepthLimitExceeded
-            );
-            if candidate.score >= score_list[0] {
+            let len = Self::hand_first_time(&mut score_list);
+
+            let candidate = <Candidates<T>>::take(&pathfinder);
+            if !score_list.is_empty() && candidate.score >= score_list[0] {
                 if let Ok(index) = score_list.binary_search(&candidate.score) {
                     score_list.remove(index);
                     let bonus = T::MultiBaseToken::get_bonus_amount();
                     let amount = bonus / (len as Balance);
-                    T::MultiBaseToken::release(&pathfinder,&amount)?;
+                    match is_sweeper {
+                        true => {
+                            let now_block_number = system::Module::<T>::block_number();
+                            let last = Self::get_last_refresh_at();
+                            if let Some((s_amount, p_amount)) = amount
+                                .checked_with_fee(last, now_block_number) {
+                                    T::MultiBaseToken::release(&who,&s_amount)?;
+                                    T::MultiBaseToken::release(&pathfinder,&p_amount)?;
+                                }
+                        },
+                        false => {
+                            T::MultiBaseToken::release(&pathfinder,&amount)?;
+                        },
+                    }
                 }
             }
+
             if score_list.is_empty() || Self::is_all_harvest() {
                 
             }
@@ -669,6 +676,17 @@ impl<T: Config> Pallet<T> {
 
     fn is_all_harvest() -> bool {
         <Candidates<T>>::iter_values().next().is_none()
+    }
+
+    fn hand_first_time(score_list: &mut Vec<u64>) -> usize {
+        let max_seed_count = T::MaxSeedCount::get() as usize;
+            
+        let mut len = score_list.len();
+        if len > max_seed_count {
+            *score_list = score_list[(len - max_seed_count)..].to_vec();
+            len = max_seed_count;
+        }
+        len
     }
 
     pub(crate) fn get_pathfinder_paths(

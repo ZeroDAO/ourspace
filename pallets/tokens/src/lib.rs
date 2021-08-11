@@ -108,12 +108,12 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
         Self::get_bonus()
     }
 
-    fn staking(who: &T::AccountId, amount: Balance) -> DispatchResult {
-        T::Currency::staking(T::BaceToken::get(), who, amount)
+    fn staking(who: &T::AccountId, amount: &Balance) -> DispatchResult {
+        T::Currency::staking(T::BaceToken::get(), who, *amount)
     }
 
-    fn release(who: &T::AccountId, amount: Balance) -> DispatchResult {
-        T::Currency::release(T::BaceToken::get(), who, amount)
+    fn release(who: &T::AccountId, amount: &Balance) -> DispatchResult {
+        T::Currency::release(T::BaceToken::get(), who, *amount)
     }
 
     // fn increase_bonus() -> DispatchResult {
