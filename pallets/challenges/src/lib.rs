@@ -9,7 +9,7 @@ use frame_support::{
 };
 use frame_system::{self as system};
 use orml_traits::{MultiCurrencyExtended, StakingCurrency};
-use zd_primitives::{factor, fee::ProxyFee, Amount, AppId, Balance};
+use zd_primitives::{factor, fee::ProxyFee, Amount, AppId, Balance, TIRStep};
 use zd_traits::{ChallengeBase, Reputation};
 
 #[cfg(feature = "std")]
@@ -138,8 +138,6 @@ where
 pub mod pallet {
     use super::*;
 
-    use frame_system::{ensure_signed, pallet_prelude::*};
-
     use frame_support::pallet_prelude::*;
 
     #[pallet::config]
@@ -152,7 +150,7 @@ pub mod pallet {
                 Balance = Balance,
                 Amount = Amount,
             > + StakingCurrency<Self::AccountId>;
-        type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
+        type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
         #[pallet::constant]
         type ReceiverProtectionPeriod: Get<Self::BlockNumber>;
         #[pallet::constant]
@@ -180,8 +178,8 @@ pub mod pallet {
     >;
 
     #[pallet::storage]
-    #[pallet::getter(fn last_update)]
-    pub type LastUpdate<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
+    #[pallet::getter(fn last_at)]
+    pub type LastAt<T: Config> = StorageMap<_, Twox64Concat, AppId, T::BlockNumber, ValueQuery>;
 
     #[pallet::event]
     #[pallet::metadata(T::AccountId = "AccountId")]
@@ -221,6 +219,10 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+    fn now() -> T::BlockNumber {
+        system::Module::<T>::block_number()
+    }
+
     pub(crate) fn staking(who: &T::AccountId, amount: Balance) -> DispatchResult {
         T::Currency::staking(T::BaceToken::get(), who, amount)
     }
@@ -278,15 +280,19 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    pub(crate) fn after_upload() -> DispatchResult {
-        T::Reputation::last_challenge_at();
-        Ok(())
+    pub(crate) fn after_upload(app_id: &AppId) {
+        <LastAt<T>>::mutate(*app_id,|l| Self::now());
     }
 }
 
-impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
+impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for Pallet<T> {
     fn is_all_harvest(app_id: &AppId) -> bool {
         <Metadatas<T>>::iter_prefix_values(app_id).next().is_none()
+    }
+
+    fn is_all_timeout(app_id: &AppId,now: &T::BlockNumber) -> bool {
+        let last = <LastAt<T>>::get(app_id);
+        *now > last + T::ChallengePerior::get()
     }
 
     fn harvest(
@@ -373,10 +379,10 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
             m.status = Status::EVIDENCE;
             m.score = score;
 
-            Self::after_upload()?;
-
             Ok(())
         })?;
+
+        Self::after_upload(&app_id);
 
         Self::deposit_event(Event::Challenged(
             who.clone(),
@@ -397,22 +403,16 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
     ) -> DispatchResult {
         Metadatas::<T>::try_mutate_exists(app_id, target, |challenge| -> DispatchResult {
             let challenge = challenge.as_mut().ok_or(Error::<T>::NonExistent)?;
-
             let progress_info = Self::get_new_progress(&challenge.progress, &(count as u32), &who)?;
-
             challenge.progress.done = progress_info.0;
-
             if progress_info.1 {
                 challenge.beneficiary = who.clone()
             };
-
             let value = up(challenge.pool.staking, challenge.remark, progress_info.1)?;
-
             challenge.remark = value;
-
             Ok(())
         })?;
-
+        Self::after_upload(&app_id);
         Ok(())
     }
 
@@ -439,6 +439,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
                 challenge.remark = index;
                 challenge.beneficiary = who.clone();
 
+                Self::after_upload(&app_id);
                 Ok(())
             },
         )
@@ -501,13 +502,13 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
             }
         };
         <Metadatas<T>>::mutate(app_id, target, |m| *m = challenge);
+        Self::after_upload(&app_id);
         Ok(match needs_arbitration {
             false => Some(score),
             true => None,
         })
     }
 
-    // 加上next
     fn arbitral(
         app_id: &AppId,
         who: &T::AccountId,
@@ -545,6 +546,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance> for Pallet<T> {
                         challenge.score = score;
                     }
                 }
+                Self::after_upload(&app_id);
                 Ok(())
             },
         )

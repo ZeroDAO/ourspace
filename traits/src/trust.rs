@@ -2,7 +2,7 @@ use sp_runtime::{DispatchError, DispatchResult};
 use sp_std::vec::Vec;
 
 pub trait TrustBase<AccountId> {
-    /// 低级别操作，直接覆盖最新声誉
+    fn remove_all_tmp();
     fn get_trust_count(who: &AccountId) -> usize;
     fn get_trust_count_old(who: &AccountId) -> usize;
     fn is_trust(who: &AccountId, target: &AccountId) -> bool;

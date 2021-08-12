@@ -1,8 +1,12 @@
 use sp_runtime::DispatchResult;
 
-pub trait Reputation<AccountId, BlockNumber> {
+pub trait Reputation<AccountId, BlockNumber, TIRStep> {
 	/// 低级别操作，直接覆盖最新声誉
 	fn mutate_reputation(target: &AccountId, ir: u32);
+
+	fn set_step(step: &TIRStep);
+
+	fn is_step(step: &TIRStep) -> bool;
 
 	/// 获取最新声誉，更新过程中会返回未经挑战的声誉值
 	fn get_reputation_new(target: &AccountId) -> Option<u32>;
@@ -27,7 +31,7 @@ pub trait Reputation<AccountId, BlockNumber> {
 	fn last_challenge_at();
 
 	/// 检查更新整体是否结束，未结束并符合结束条件则结束
-	fn end_refresh() -> DispatchResult;
+	fn set_free();
 
 	/// 开始新的一轮
 	fn new_round() -> DispatchResult;

@@ -2,6 +2,7 @@
 
 pub use pallet::*;
 use zd_traits::{Reputation, SeedsBase};
+use zd_primitives::TIRStep;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -16,7 +17,7 @@ pub mod pallet {
     #[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-		type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
+		type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
 	}
 
     #[pallet::pallet]

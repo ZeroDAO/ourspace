@@ -1,8 +1,10 @@
 use sp_runtime::{DispatchResult,DispatchError};
 
-pub trait ChallengeBase<AccountId, AppId, Balance> {
+pub trait ChallengeBase<AccountId, AppId, Balance,BlockNumber> {
     
     fn is_all_harvest(app_id: &AppId) -> bool;
+
+    fn is_all_timeout(app_id: &AppId,now: &BlockNumber) -> bool;
 
     fn new(
         app_id: &AppId,

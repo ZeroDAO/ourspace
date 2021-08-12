@@ -11,7 +11,7 @@ use frame_system::{self as system, ensure_signed};
 use orml_traits::{MultiCurrency, SocialCurrency, StakingCurrency};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult, Perbill};
 use sp_std::vec::Vec;
-use zd_primitives::{fee::ProxyFee, AppId, Balance};
+use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
 use zd_traits::{ChallengeBase, Reputation, SeedsBase, TrustBase};
 
 #[cfg(test)]
@@ -88,14 +88,20 @@ pub mod pallet {
         type UpdateStakingAmount: Get<Balance>;
         #[pallet::constant]
         type ConfirmationPeriod: Get<Self::BlockNumber>;
-        type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
+        #[pallet::constant]
+        type RefRepuTiomeOut: Get<Self::BlockNumber>;
+        type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
         type TrustBase: TrustBase<Self::AccountId>;
         type SeedsBase: SeedsBase<Self::AccountId>;
-        type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance>;
+        type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance, Self::BlockNumber>;
     }
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
+
+    #[pallet::storage]
+    #[pallet::getter(fn started_at)]
+    pub type StartedAt<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn get_payroll)]
@@ -172,10 +178,9 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn new_round(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+        pub fn start(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
-
-            T::Reputation::new_round()?;
+            Self::check_step()?;
 
             ensure!(
                 T::ChallengeBase::is_all_harvest(&APP_ID),
@@ -183,8 +188,10 @@ pub mod pallet {
             );
 
             let last = T::Reputation::get_last_refresh_at();
+            let now = system::Module::<T>::block_number();
+
             ensure!(
-                Balance::is_allowed_proxy(last, system::Module::<T>::block_number()),
+                Balance::is_allowed_proxy(last, now),
                 Error::<T>::ChallengeTimeout
             );
 
@@ -200,9 +207,8 @@ pub mod pallet {
                             .ok_or(Error::<T>::Overflow.into())
                     },
                 )?;
-
             T::Currency::release(T::BaceToken::get(), &who, total_fee)?;
-
+            <StartedAt<T>>::put(now);
             Ok(().into())
         }
 
@@ -217,17 +223,14 @@ pub mod pallet {
                 user_count as u32 <= T::MaxUpdateCount::get(),
                 Error::<T>::QuantityLimitReached
             );
-
-            let _ = T::Reputation::check_update_status(true).ok_or(Error::<T>::NoUpdatesAllowed)?;
+            Self::check_step()?;
+            let now_block_number = system::Module::<T>::block_number();
+            Self::check_timeout(&now_block_number)?;
 
             let amount = T::UpdateStakingAmount::get()
                 .checked_mul(user_count as Balance)
                 .ok_or(Error::<T>::Overflow)?;
-
             T::Currency::staking(T::BaceToken::get(), &pathfinder, amount)?;
-
-            let now_block_number = system::Module::<T>::block_number();
-
             let total_fee = user_scores
                 .iter()
                 .try_fold::<_, _, Result<Balance, DispatchError>>(
@@ -239,7 +242,6 @@ pub mod pallet {
                             .ok_or_else(|| Error::<T>::Overflow.into())
                     },
                 )?;
-
             Self::mutate_payroll(&pathfinder, &total_fee, &(user_count as u32))?;
 
             T::Reputation::set_last_refresh_at();
@@ -249,24 +251,23 @@ pub mod pallet {
                 user_count as u32,
                 total_fee,
             ));
-
             Ok(().into())
         }
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn harvest_ref_all(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let pathfinder = ensure_signed(origin)?;
-
-            T::Reputation::end_refresh()?;
-
+            Self::check_step()?;
+            // 每次领取挑战收益时，监测和更新 Free 态
+            // 但是有可能会出现没有挑战的情况
+            // 那么，是不是领取收益也计算进来？
+            T::Reputation::set_free();
             let payroll = Payrolls::<T>::take(&pathfinder);
-
             T::Currency::release(
                 T::BaceToken::get(),
                 &pathfinder,
                 payroll.total_amount::<T>(),
             )?;
-
             <Records<T>>::remove_prefix(&pathfinder);
             Ok(().into())
         }
@@ -277,24 +278,18 @@ pub mod pallet {
             pathfinder: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             let proxy = ensure_signed(origin)?;
-
-            T::Reputation::end_refresh()?;
-
+            Self::check_step()?;
+            // 挑战是否全部结束，是否不为更新状态
+            T::Reputation::set_free();
             let last = T::Reputation::get_last_update_at();
-
             let payroll = Payrolls::<T>::take(&pathfinder);
-
             let (proxy_fee, without_fee) = payroll
                 .total_amount::<T>()
                 .checked_with_fee(last, system::Module::<T>::block_number())
                 .ok_or(Error::<T>::FailedProxy)?;
-
             <Records<T>>::remove_prefix(&pathfinder);
-
             T::Currency::release(T::BaceToken::get(), &proxy, proxy_fee)?;
-
             T::Currency::release(T::BaceToken::get(), &pathfinder, without_fee)?;
-
             Ok(().into())
         }
 
@@ -304,7 +299,7 @@ pub mod pallet {
             target: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
-
+            Self::check_step()?;
             if let Some(score) = T::ChallengeBase::harvest(&who, &APP_ID, &target)? {
                 T::Reputation::refresh_reputation(&(target, score as u32))?;
             }
@@ -322,13 +317,11 @@ pub mod pallet {
             score: u32,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
-
+            Self::check_step()?;
             ensure!(
                 quantity < T::SeedsBase::get_seed_count(),
                 Error::<T>::ExcessiveBumberOfSeeds
             );
-
-            let _ = T::Reputation::check_update_status(true).ok_or(Error::<T>::NoUpdatesAllowed)?;
 
             let reputation =
                 T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
@@ -370,7 +363,7 @@ pub mod pallet {
             quantity: u32,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
-
+            Self::check_step()?;
             ensure!(
                 quantity < T::SeedsBase::get_seed_count(),
                 Error::<T>::ExcessiveBumberOfSeeds
@@ -387,6 +380,7 @@ pub mod pallet {
             paths: Vec<Path<T::AccountId>>,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
+            Self::check_step()?;
             let count = seeds.len();
             ensure!(count == paths.len(), Error::<T>::NotMatch);
 
@@ -396,6 +390,7 @@ pub mod pallet {
                 &target,
                 count as u32,
                 |staking, score, _| -> Result<u32, DispatchError> {
+                    // TODO 将最新分数更新到系统
                     match staking == T::UpdateStakingAmount::get() {
                         true => Self::do_update_path(&target, &seeds, &paths, score),
                         false => Self::do_update_path_verify(&target, seeds, paths, score),
@@ -408,6 +403,34 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+    fn check_step() -> DispatchResult {
+        ensure!(
+            T::Reputation::is_step(&TIRStep::REPUTATION),
+            Error::<T>::DistTooLong
+        );
+        Ok(())
+    }
+
+    fn next_step() {
+        let now = system::Module::<T>::block_number();
+        let is_ref_timeout = Self::check_timeout(&now).is_err();
+        let is_last_ref_timeout = T::Reputation::get_last_refresh_at() + T::ConfirmationPeriod::get() > now;
+        let is_cha_all_timeout = T::ChallengeBase::is_all_timeout(&APP_ID,&now);
+        if (is_last_ref_timeout || is_ref_timeout) && is_cha_all_timeout {
+            T::TrustBase::remove_all_tmp();
+            T::Reputation::set_free();
+        }
+    }
+
+    // next setp
+    fn check_timeout(now: &T::BlockNumber) -> DispatchResult {
+        ensure!(
+            *now < <StartedAt<T>>::get() + T::RefRepuTiomeOut::get() ,
+            Error::<T>::DistTooLong
+        );
+        Ok(())
+    }
+
     pub(crate) fn do_refresh(
         pathfinder: &T::AccountId,
         user_score: &(T::AccountId, u32),

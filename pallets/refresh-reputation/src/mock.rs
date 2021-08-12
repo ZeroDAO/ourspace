@@ -75,6 +75,7 @@ parameter_types! {
     pub const MaxLocks: u32 = 50;
 
     pub const ReceiverProtectionPeriod: BlockNumber = 100;
+    pub const RefRepuTiomeOut: BlockNumber = 100;
 }
 
 impl zd_seeds::Config for Test {
@@ -110,6 +111,7 @@ impl zd_refresh_reputation::Config for Test {
     type TrustBase = ZdTrust;
     type ChallengeBase = Challenges;
     type SeedsBase = ZdSeeds;
+    type RefRepuTiomeOut = RefRepuTiomeOut;
 }
 
 impl zd_challenges::Config for Test {

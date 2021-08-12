@@ -16,6 +16,7 @@ sp-std = { version = "3.0.0", default-features = false }
 
 # Substrate pallets
 frame-system = { version = "3.0.0", default-features = false }
+frame-support = { default-features = false, version = '3.0.0' }
 
 [dev-dependencies]
 sp-io = { default-features = false, version = '3.0.0' }
@@ -24,7 +25,7 @@ sp-io = { default-features = false, version = '3.0.0' }
 default = ["std"]
 std = [
     "codec/std",
-    "serde/std",
+    "serde",
     "sp-core/std",
     "sp-runtime/std",
     "sp-std/std",

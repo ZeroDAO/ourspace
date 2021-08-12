@@ -10,6 +10,7 @@ use frame_support::{
 use frame_system::{self as system};
 use sp_runtime::{traits::Zero, DispatchResult};
 use zd_traits::Reputation;
+use zd_primitives::TIRStep;
 
 pub use pallet::*;
 
@@ -28,6 +29,7 @@ pub struct OperationStatus<BlockNumber> {
     pub updating: bool,
     pub next: BlockNumber,
     pub period: BlockNumber,
+    pub step: TIRStep,
 }
 
 #[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
@@ -170,23 +172,30 @@ impl<T: Config> Pallet<T> {
     }
 }
 
-impl<T: Config> Reputation<T::AccountId, T::BlockNumber> for Pallet<T> {
+impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> {
     // Low-level operation. Make changes directly to the latest nonce's REPUTATION
     fn mutate_reputation(target: &T::AccountId, ir: u32) {
         ReputationScores::<T>::mutate(&target, |x| x[0].score = ir);
     }
 
+    fn set_step(step: &TIRStep) {
+        <SystemInfo<T>>::mutate(|operation_status|operation_status.step = *step);
+    }
+
+    fn is_step(step: &TIRStep) -> bool{
+        *step == <SystemInfo<T>>::get().step
+    }
+
     fn new_round() -> DispatchResult {
         let now_block_number = Self::now();
         <SystemInfo<T>>::try_mutate(|operation_status| {
-            ensure!(!operation_status.updating, Error::<T>::AlreadyInUpdating);
+            ensure!(operation_status.step == TIRStep::FREE, Error::<T>::AlreadyInUpdating);
             ensure!(
                 now_block_number >= operation_status.next,
                 Error::<T>::IntervalIsTooShort
             );
             let next = now_block_number + operation_status.period;
-            let old_nonce = operation_status.nonce;
-            operation_status.nonce = old_nonce + 1;
+            operation_status.nonce += 1;
             operation_status.updating = true;
             operation_status.next = next;
             operation_status.last = now_block_number;
@@ -246,30 +255,16 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber> for Pallet<T> {
         Self::last_challenge().max(Self::system_info().last)
     }
 
-    fn end_refresh() -> DispatchResult {
+    fn set_free() {
         let now = Self::now();
-
         let operation_status = Self::system_info();
-
-        if !operation_status.updating {
-            return Ok(());
+        if operation_status.step == TIRStep::FREE {
+            return;
         }
-
-        ensure!(
-            Self::is_challenge_end(now.clone()),
-            Error::<T>::ChallengeNotOverYet
-        );
-
-        ensure!(
-            now > operation_status.last + T::ConfirmationPeriod::get(),
-            Error::<T>::TooShortAnInterval
-        );
 
         SystemInfo::<T>::mutate(|operation_status| {
             operation_status.last = now.clone();
-            operation_status.updating = false;
+            operation_status.step = TIRStep::FREE;
         });
-        
-        Ok(())
     }
 }

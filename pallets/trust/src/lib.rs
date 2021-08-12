@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![allow(clippy::unused_unit)]
 
 use frame_support::{
     codec::{Decode, Encode},
@@ -12,6 +11,7 @@ use sp_runtime::{DispatchError, DispatchResult, Perbill};
 use sp_std::vec::Vec;
 use zd_traits::{Reputation, SeedsBase, TrustBase};
 use zd_utilities::{UserSet, UserSetExt};
+use zd_primitives::TIRStep;
 
 pub use module::*;
 
@@ -32,7 +32,7 @@ pub mod module {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
+        type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
         type SeedsBase: SeedsBase<Self::AccountId>;
         type DampingFactor: Get<Perbill>;
     }
@@ -145,6 +145,10 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
+    fn remove_all_tmp() {
+        <TrustTempList<T>>::remove_all();
+    }
+
     fn get_trust_count(who: &T::AccountId) -> usize {
         Pallet::<T>::trust_list(&who).len()
     }

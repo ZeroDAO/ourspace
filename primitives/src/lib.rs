@@ -9,6 +9,13 @@ use sp_runtime::{
     MultiSignature, Perbill,
 };
 use sp_std::{convert::TryInto};
+use frame_support::{
+    codec::{Decode, Encode},
+    RuntimeDebug,
+};
+
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 
 /// An index to a block.
 pub type BlockNumber = u64;
@@ -62,11 +69,19 @@ pub mod factor {
     pub const ANALYST_RATIO: Perbill = Perbill::from_percent(10);
 }
 
-// pub enum SystemStatus {
-//     FREE,
-//     SEED,
-//     REPUTATION,
-// } 
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum TIRStep {
+    FREE,
+    SEED,
+    REPUTATION,
+}
+
+impl Default for TIRStep {
+	fn default() -> TIRStep {
+		TIRStep::FREE
+	}
+}
 
 pub mod fee {
     use super::*;

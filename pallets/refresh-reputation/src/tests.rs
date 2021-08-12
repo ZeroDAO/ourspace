@@ -13,7 +13,7 @@ fn new_test_ext() -> sp_io::TestExternalities {
 #[test]
 fn new_round_should_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(ZdRefreshReputation::new_round(Origin::signed(ALICE)));
+        assert_ok!(ZdRefreshReputation::start(Origin::signed(ALICE)));
     });
 }
 
@@ -23,7 +23,7 @@ fn refresh_should_work() {
         let user_scores = vec![(BOB, 12), (CHARLIE, 18), (DAVE, 1200)];
         let social_token_amount = 100;
 
-        assert_ok!(ZdRefreshReputation::new_round(Origin::signed(BOB)));
+        assert_ok!(ZdRefreshReputation::start(Origin::signed(BOB)));
         assert_ok!(Tokens::transfer_social(
             ZDAO,
             &ALICE,
@@ -68,7 +68,7 @@ fn refresh_should_fail() {
             Error::<Test>::NoUpdatesAllowed
         );
 
-        assert_ok!(ZdRefreshReputation::new_round(Origin::signed(ALICE)));
+        assert_ok!(ZdRefreshReputation::start(Origin::signed(ALICE)));
 
         assert_noop!(
             (ZdRefreshReputation::refresh(

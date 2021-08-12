@@ -8451,6 +8451,7 @@ dependencies = [
 name = "zd-primitives"
 version = "0.0.1"
 dependencies = [
+ "frame-support",
  "frame-system",
  "parity-scale-codec",
  "primitive-types 0.8.0",
@@ -8516,6 +8517,7 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+ "zd-primitives",
  "zd-traits",
 ]
 
@@ -8584,6 +8586,7 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sr-std",
+ "zd-primitives",
  "zd-traits",
  "zd-utilities",
 ]

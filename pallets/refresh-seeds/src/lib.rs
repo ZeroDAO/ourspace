@@ -7,12 +7,12 @@ use frame_support::{
     traits::Get,
     RuntimeDebug,
 };
+use frame_system::{self as system};
 use orml_traits::{MultiCurrencyExtended, StakingCurrency};
 use sha1::{Digest, Sha1};
-use zd_primitives::{fee::ProxyFee, Amount, AppId, Balance};
-use zd_traits::{ChallengeBase, Reputation, SeedsBase, TrustBase, MultiBaseToken};
+use zd_primitives::{fee::ProxyFee, Amount, AppId, Balance, TIRStep};
+use zd_traits::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 use zd_utilities::{UserSet, UserSetExt};
-use frame_system::{self as system};
 
 use sp_runtime::{
     traits::{AtLeast32Bit, Zero},
@@ -153,8 +153,8 @@ pub mod pallet {
                 Balance = Balance,
                 Amount = Amount,
             > + StakingCurrency<Self::AccountId>;
-        type Reputation: Reputation<Self::AccountId, Self::BlockNumber>;
-        type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance>;
+        type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
+        type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance, Self::BlockNumber>;
         type TrustBase: TrustBase<Self::AccountId>;
         type SeedsBase: SeedsBase<Self::AccountId>;
         type MultiBaseToken: MultiBaseToken<Self::AccountId, Balance>;
@@ -231,7 +231,13 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        // 增加新候选种子
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn start(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+            let _ = ensure_signed(origin)?;
+            T::Reputation::new_round()?;
+            Ok(().into())
+        }
+
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn add(
             origin: OriginFor<T>,
@@ -239,7 +245,7 @@ pub mod pallet {
             score: u64,
         ) -> DispatchResultWithPostInfo {
             let pathfinder = ensure_signed(origin)?;
-            let _ = T::Reputation::check_update_status(true).ok_or(Error::<T>::NoUpdatesAllowed)?;
+            Self::check_step()?;
             ensure!(
                 <Candidates<T>>::contains_key(target.clone()),
                 Error::<T>::AlreadyExist
@@ -257,6 +263,7 @@ pub mod pallet {
             score: u64,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
+            Self::check_step()?;
             let candidate = <Candidates<T>>::try_get(target.clone())
                 .map_err(|_err| Error::<T>::NoUpdatesAllowed)?;
             T::ChallengeBase::new(
@@ -280,6 +287,7 @@ pub mod pallet {
             index: u32,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
+            Self::check_step()?;
             let result_hash_sets =
                 <ResultHashs<T>>::try_get(&target).map_err(|_| Error::<T>::DepthLimitExceeded)?;
             let remark: u32;
@@ -313,6 +321,7 @@ pub mod pallet {
             quantity: u32,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
+            Self::check_step()?;
             let count = result_hashs.len();
             ensure!(quantity <= RANGE, Error::<T>::DepthLimitExceeded);
             let _ = T::ChallengeBase::reply(
@@ -336,6 +345,7 @@ pub mod pallet {
             result_hashs: Vec<ResultHash>,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
+            Self::check_step()?;
             let count = result_hashs.len();
             T::ChallengeBase::next(
                 &APP_ID,
@@ -358,6 +368,7 @@ pub mod pallet {
             quantity: u32,
         ) -> DispatchResultWithPostInfo {
             let pathfinder = ensure_signed(origin)?;
+            Self::check_step()?;
             let count = paths.len();
             ensure!(
                 <Paths<T>>::try_get(&target).is_err(),
@@ -401,6 +412,7 @@ pub mod pallet {
             paths: Vec<Path<T::AccountId>>,
         ) -> DispatchResultWithPostInfo {
             let pathfinder = ensure_signed(origin)?;
+            Self::check_step()?;
             let count = paths.len();
             T::ChallengeBase::next(
                 &APP_ID,
@@ -438,6 +450,7 @@ pub mod pallet {
             mid_paths: Vec<Vec<T::AccountId>>,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
+            Self::check_step()?;
             // TODO 检测重复
             Self::do_reply_num(&challenger, &target, &mid_paths)?;
             // TODO restart - 或者等待超时
@@ -452,7 +465,7 @@ pub mod pallet {
             nodes: Vec<T::AccountId>,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
-
+            Self::check_step()?;
             Self::checked_nodes(&nodes, &target)?;
 
             // path_id of nodes of challenger
@@ -520,6 +533,7 @@ pub mod pallet {
             path: Vec<T::AccountId>,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
+            Self::check_step()?;
             Self::checked_nodes(&path, &target)?;
             let p_path = Self::get_pathfinder_paths(&target, &index)?;
             let path_id = Self::to_path_id(&path[0], &path.last().unwrap());
@@ -550,6 +564,7 @@ pub mod pallet {
             mid_paths: Vec<Vec<T::AccountId>>,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
+            Self::check_step()?;
             let p_path = Self::get_pathfinder_paths(&target, &index)?;
             let p_path_total = p_path.total as usize;
             let p_path_len = p_path.nodes.len() + 2;
@@ -593,6 +608,7 @@ pub mod pallet {
             score: u64,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
+            Self::check_step()?;
             let missed_path =
                 <MissedPaths<T>>::try_get(&target).map_err(|_| Error::<T>::DepthLimitExceeded)?;
             ensure!(
@@ -620,6 +636,7 @@ pub mod pallet {
             target: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
+            Self::check_step()?;
 
             Self::do_harvest_challenge(&who, &target)?;
 
@@ -632,6 +649,7 @@ pub mod pallet {
             target: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
+            Self::check_step()?;
             ensure!(
                 T::ChallengeBase::is_all_harvest(&APP_ID),
                 Error::<T>::DepthLimitExceeded
@@ -652,22 +670,21 @@ pub mod pallet {
                         true => {
                             let now_block_number = system::Module::<T>::block_number();
                             let last = Self::get_last_refresh_at();
-                            if let Some((s_amount, p_amount)) = amount
-                                .checked_with_fee(last, now_block_number) {
-                                    T::MultiBaseToken::release(&who,&s_amount)?;
-                                    T::MultiBaseToken::release(&candidate.pathfinder,&p_amount)?;
-                                }
-                        },
+                            if let Some((s_amount, p_amount)) =
+                                amount.checked_with_fee(last, now_block_number)
+                            {
+                                T::MultiBaseToken::release(&who, &s_amount)?;
+                                T::MultiBaseToken::release(&candidate.pathfinder, &p_amount)?;
+                            }
+                        }
                         false => {
-                            T::MultiBaseToken::release(&candidate.pathfinder,&amount)?;
-                        },
+                            T::MultiBaseToken::release(&candidate.pathfinder, &amount)?;
+                        }
                     }
                 }
             }
 
-            if score_list.is_empty() || Self::is_all_harvest() {
-                
-            }
+            if score_list.is_empty() || Self::is_all_harvest() {}
             <ScoreList<T>>::put(score_list);
             Ok(().into())
         }
@@ -675,14 +692,21 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-
     fn is_all_harvest() -> bool {
         <Candidates<T>>::iter_values().next().is_none()
     }
 
+    fn check_step() -> DispatchResult {
+        ensure!(
+            T::Reputation::is_step(&TIRStep::SEED),
+            Error::<T>::DepthLimitExceeded
+        );
+        Ok(())
+    }
+
     fn hand_first_time(score_list: &mut Vec<u64>) -> usize {
         let max_seed_count = T::MaxSeedCount::get() as usize;
-            
+
         let mut len = score_list.len();
         if len > max_seed_count {
             *score_list = score_list[(len - max_seed_count)..].to_vec();

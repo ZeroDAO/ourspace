@@ -20,6 +20,8 @@ pub type Balance = u128;
 pub type CurrencyId = u128;
 pub type BlockNumber = u64;
 
+pub const ZDAO: CurrencyId = 1;
+
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 pub const DOT: CurrencyId = 1;
@@ -105,6 +107,7 @@ impl orml_currencies::Config for Test {
 parameter_types! {
     pub const ExistentialDeposit: u128 = 500;
     pub const MaxLocks: u32 = 50;
+    pub const BaceToken: CurrencyId = ZDAO;
 }
 
 impl pallet_balances::Config for Test {
@@ -123,6 +126,7 @@ impl zd_tokens::Config for Test {
 	type WeightInfo = ();
 	type Currency = Currencies;
 	type Amount = Amount;
+    type BaceToken = BaceToken;
 }
 
 pub struct ExtBuilder {
