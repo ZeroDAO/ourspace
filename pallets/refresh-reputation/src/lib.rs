@@ -21,7 +21,7 @@ mod tests;
 
 pub use pallet::*;
 
-const APP_ID: AppId = *b"1       ";
+const APP_ID: AppId = *b"repu    ";
 
 /// 有效路径最大数量
 const MAX_PATH_COUNT: u32 = 5;
@@ -254,7 +254,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn receiver_all(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+        pub fn harvest_ref_all(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let pathfinder = ensure_signed(origin)?;
 
             T::Reputation::end_refresh()?;
@@ -272,7 +272,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn receiver_all_proxy(
+        pub fn harvest_ref_all_proxy(
             origin: OriginFor<T>,
             pathfinder: T::AccountId,
         ) -> DispatchResultWithPostInfo {
@@ -298,6 +298,20 @@ pub mod pallet {
             Ok(().into())
         }
 
+        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        pub fn harvest_challenge(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+        ) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+
+            if let Some(score) = T::ChallengeBase::harvest(&who, &APP_ID, &target)? {
+                T::Reputation::refresh_reputation(&(target, score as u32))?;
+            }
+
+            Ok(().into())
+        }
+
         // 新的挑战
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn new_challenge(
@@ -317,12 +331,9 @@ pub mod pallet {
             let _ = T::Reputation::check_update_status(true).ok_or(Error::<T>::NoUpdatesAllowed)?;
 
             let reputation =
-            T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
+                T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
 
-            ensure!(
-                score != reputation,
-                Error::<T>::ChallengeTimeout
-            );
+            ensure!(score != reputation, Error::<T>::ChallengeTimeout);
 
             let record = <Records<T>>::take(&target, &pathfinder);
 
@@ -358,7 +369,6 @@ pub mod pallet {
             target: T::AccountId,
             quantity: u32,
         ) -> DispatchResultWithPostInfo {
-            
             let who = ensure_signed(origin)?;
 
             ensure!(
@@ -376,7 +386,6 @@ pub mod pallet {
             seeds: Vec<T::AccountId>,
             paths: Vec<Path<T::AccountId>>,
         ) -> DispatchResultWithPostInfo {
-
             let challenger = ensure_signed(origin)?;
             let count = seeds.len();
             ensure!(count == paths.len(), Error::<T>::NotMatch);
@@ -390,7 +399,7 @@ pub mod pallet {
                     match staking == T::UpdateStakingAmount::get() {
                         true => Self::do_update_path(&target, &seeds, &paths, score),
                         false => Self::do_update_path_verify(&target, seeds, paths, score),
-                 }
+                    }
                 },
             )?;
             Ok(().into())

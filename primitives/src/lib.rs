@@ -62,6 +62,12 @@ pub mod factor {
     pub const ANALYST_RATIO: Perbill = Perbill::from_percent(10);
 }
 
+// pub enum SystemStatus {
+//     FREE,
+//     SEED,
+//     REPUTATION,
+// } 
+
 pub mod fee {
     use super::*;
 
