@@ -11,7 +11,6 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use frame_system::ensure_root;
 
-	/// 种子用户初始化声誉值
 	pub const INIT_SEED_SCORE: u32 = 1000;
 	
     #[pallet::config]

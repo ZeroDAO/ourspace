@@ -258,9 +258,6 @@ pub mod pallet {
         pub fn harvest_ref_all(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let pathfinder = ensure_signed(origin)?;
             Self::check_step()?;
-            // 每次领取挑战收益时，监测和更新 Free 态
-            // 但是有可能会出现没有挑战的情况
-            // 那么，是不是领取收益也计算进来？
             T::Reputation::set_free();
             let payroll = Payrolls::<T>::take(&pathfinder);
             T::Currency::release(
@@ -279,7 +276,6 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let proxy = ensure_signed(origin)?;
             Self::check_step()?;
-            // 挑战是否全部结束，是否不为更新状态
             T::Reputation::set_free();
             let last = T::Reputation::get_last_update_at();
             let payroll = Payrolls::<T>::take(&pathfinder);
@@ -300,16 +296,12 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             Self::check_step()?;
-            if let Some(score) = T::ChallengeBase::harvest(&who, &APP_ID, &target)? {
-                T::Reputation::refresh_reputation(&(target, score as u32))?;
-            }
-
+            T::ChallengeBase::harvest(&who, &APP_ID, &target)?;
             Ok(().into())
         }
 
-        // 新的挑战
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn new_challenge(
+        pub fn challenge(
             origin: OriginFor<T>,
             target: T::AccountId,
             pathfinder: T::AccountId,
@@ -322,10 +314,8 @@ pub mod pallet {
                 quantity < T::SeedsBase::get_seed_count(),
                 Error::<T>::ExcessiveBumberOfSeeds
             );
-
             let reputation =
                 T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
-
             ensure!(score != reputation, Error::<T>::ChallengeTimeout);
 
             let record = <Records<T>>::take(&target, &pathfinder);
@@ -355,25 +345,35 @@ pub mod pallet {
             Ok(().into())
         }
 
-        // 新证据
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn new_evidence(
+        pub fn arbitral(
             origin: OriginFor<T>,
             target: T::AccountId,
-            quantity: u32,
+            seeds: Vec<T::AccountId>,
+            paths: Vec<Path<T::AccountId>>,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             Self::check_step()?;
-            ensure!(
-                quantity < T::SeedsBase::get_seed_count(),
-                Error::<T>::ExcessiveBumberOfSeeds
-            );
+            let count = seeds.len();
+            ensure!(count == paths.len(), Error::<T>::NotMatch);
+            T::ChallengeBase::arbitral(
+                &APP_ID,
+                &who,
+                &target,
+                |score| -> Result<(bool, bool, u64), _> {
+                    let score = score as u32;
+                    let new_score =
+                        Self::do_update_path_verify(&target, &seeds, &paths, score)?;
+                    T::Reputation::mutate_reputation(&target, &new_score);
+                    Ok((new_score == score, false, new_score.into()))
+                },
+            )?;
 
             Ok(().into())
         }
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn update(
+        pub fn challenge_update(
             origin: OriginFor<T>,
             target: T::AccountId,
             seeds: Vec<T::AccountId>,
@@ -388,13 +388,13 @@ pub mod pallet {
                 &APP_ID,
                 &challenger,
                 &target,
-                count as u32,
-                |staking, score, _| -> Result<u32, DispatchError> {
-                    // TODO 将最新分数更新到系统
-                    match staking == T::UpdateStakingAmount::get() {
-                        true => Self::do_update_path(&target, &seeds, &paths, score),
-                        false => Self::do_update_path_verify(&target, seeds, paths, score),
+                &(count as u32),
+                |score, remark, is_all_done| -> Result<(u64, u32), DispatchError> {
+                    let new_score = Self::do_update_path(&target, &seeds, &paths, score as u32)?;
+                    if is_all_done {
+                        T::Reputation::mutate_reputation(&target, &new_score);
                     }
+                    Ok((new_score as u64, remark))
                 },
             )?;
             Ok(().into())
@@ -414,18 +414,18 @@ impl<T: Config> Pallet<T> {
     fn next_step() {
         let now = system::Module::<T>::block_number();
         let is_ref_timeout = Self::check_timeout(&now).is_err();
-        let is_last_ref_timeout = T::Reputation::get_last_refresh_at() + T::ConfirmationPeriod::get() > now;
-        let is_cha_all_timeout = T::ChallengeBase::is_all_timeout(&APP_ID,&now);
+        let is_last_ref_timeout =
+            T::Reputation::get_last_refresh_at() + T::ConfirmationPeriod::get() > now;
+        let is_cha_all_timeout = T::ChallengeBase::is_all_timeout(&APP_ID, &now);
         if (is_last_ref_timeout || is_ref_timeout) && is_cha_all_timeout {
             T::TrustBase::remove_all_tmp();
             T::Reputation::set_free();
         }
     }
 
-    // next setp
     fn check_timeout(now: &T::BlockNumber) -> DispatchResult {
         ensure!(
-            *now < <StartedAt<T>>::get() + T::RefRepuTiomeOut::get() ,
+            *now < <StartedAt<T>>::get() + T::RefRepuTiomeOut::get(),
             Error::<T>::DistTooLong
         );
         Ok(())
@@ -477,8 +477,6 @@ impl<T: Config> Pallet<T> {
             T::SelfRation::get().mul_floor(total_share),
         )?;
         let actor_amount = T::FeeRation::get().mul_floor(total_share);
-        // 销毁一部分
-        // 将一部分打入奖金池
         T::Currency::social_staking(T::BaceToken::get(), &user, actor_amount.clone())?;
 
         Ok(actor_amount)
@@ -520,8 +518,8 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn do_update_path_verify(
         target: &T::AccountId,
-        seeds: Vec<T::AccountId>,
-        paths: Vec<Path<T::AccountId>>,
+        seeds: &Vec<T::AccountId>,
+        paths: &Vec<Path<T::AccountId>>,
         score: u32,
     ) -> Result<u32, DispatchError> {
         let new_score = seeds

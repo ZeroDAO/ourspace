@@ -174,8 +174,8 @@ impl<T: Config> Pallet<T> {
 
 impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> {
     // Low-level operation. Make changes directly to the latest nonce's REPUTATION
-    fn mutate_reputation(target: &T::AccountId, ir: u32) {
-        ReputationScores::<T>::mutate(&target, |x| x[0].score = ir);
+    fn mutate_reputation(target: &T::AccountId, ir: &u32) {
+        ReputationScores::<T>::mutate(&target, |x| x[0].score = *ir);
     }
 
     fn set_step(step: &TIRStep) {

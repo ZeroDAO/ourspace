@@ -102,7 +102,7 @@ pub mod module {
 
 impl<T: Config> Pallet<T> {
     pub(crate) fn do_trust(who: &T::AccountId, target: &T::AccountId) -> DispatchResult {
-        // TODO: 限制大小
+        // TODO: Limit size
         ensure!(who != target, Error::<T>::UnableTrustYourself);
 
         <TrustedList<T>>::try_mutate(&who, |t| -> DispatchResult {
@@ -187,7 +187,7 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
     }
 
     fn computed_path(users: &Vec<T::AccountId>) -> Result<(u32, u32), DispatchError> {
-        // TODO: 最小 trust count
+        // TODO: Minimum trust count
         ensure!(T::SeedsBase::is_seed(&users[0]), Error::<T>::NotSeed);
         let mut start_ir = INIT_SEED_RANK as u32;
         let users_v = &users;
@@ -210,7 +210,7 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
                 |acc, d| {
                     ensure!(d.is_some(), Error::<T>::WrongPath);
                     let dist = d.unwrap();
-                    // TODO 获取 trust_count
+                    // TODO get trust_count
                     let trust_count = 10u32;
                     let item_score =
                         T::DampingFactor::get().mul_floor(acc.1) / trust_count.max(100) / dist;

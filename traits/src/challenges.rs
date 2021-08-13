@@ -1,6 +1,6 @@
 use sp_runtime::{DispatchResult,DispatchError};
 
-pub trait ChallengeBase<AccountId, AppId, Balance,BlockNumber> {
+pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
     
     fn is_all_harvest(app_id: &AppId) -> bool;
 
@@ -21,11 +21,11 @@ pub trait ChallengeBase<AccountId, AppId, Balance,BlockNumber> {
         app_id: &AppId,
         who: &AccountId,
         target: &AccountId,
-        count: u32,
-        up: impl FnOnce(Balance,u32,bool) -> Result<u32, DispatchError>,
+        count: &u32,
+        up: impl FnMut(u64,u32,bool) -> Result<(u64, u32), DispatchError>,
     ) -> DispatchResult;
 
-    fn question(
+    fn examine(
         app_id: &AppId,
         who: AccountId,
         target: &AccountId,
@@ -41,7 +41,7 @@ pub trait ChallengeBase<AccountId, AppId, Balance,BlockNumber> {
         up: impl Fn(bool,u32) -> DispatchResult,
     ) -> DispatchResult;
 
-    fn new_evidence(
+    fn evidence(
         app_id: &AppId,
         who: &AccountId,
         target: &AccountId,
@@ -52,8 +52,7 @@ pub trait ChallengeBase<AccountId, AppId, Balance,BlockNumber> {
         app_id: &AppId,
         who: &AccountId,
         target: &AccountId,
-        score: u64,
-        up: impl Fn(u32) -> Result<(bool,bool), DispatchError>,
+        up: impl Fn(u64) -> Result<(bool, bool, u64), DispatchError>,
     ) -> DispatchResult;
 
     fn harvest(
@@ -61,4 +60,12 @@ pub trait ChallengeBase<AccountId, AppId, Balance,BlockNumber> {
         app_id: &AppId,
         target: &AccountId,
     ) -> Result<Option<u64>, DispatchError>;
+
+    fn settle(
+        app_id: &AppId,
+        target: &AccountId,
+        joint_benefits: bool,
+        restart: bool,
+        score: u64,
+    ) -> DispatchResult;
 }

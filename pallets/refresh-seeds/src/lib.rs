@@ -214,11 +214,10 @@ pub mod pallet {
 
     #[pallet::error]
     pub enum Error<T> {
-        // 已存在
+        // Already exists
         AlreadyExist,
-        //
         NoUpdatesAllowed,
-        // 不存在对应数据
+        // No corresponding data exists
         NotExist,
         // Depth limit exceeded
         DepthLimitExceeded,
@@ -281,7 +280,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn question(
+        pub fn examine(
             origin: OriginFor<T>,
             target: T::AccountId,
             index: u32,
@@ -308,7 +307,7 @@ pub mod pallet {
                     remark = result_hash_set.0[index as usize].order;
                 }
             }
-            T::ChallengeBase::question(&APP_ID, challenger, &target, remark)?;
+            T::ChallengeBase::examine(&APP_ID, challenger, &target, remark)?;
             T::Reputation::set_last_refresh_at();
             Ok(().into())
         }
@@ -351,10 +350,10 @@ pub mod pallet {
                 &APP_ID,
                 &challenger,
                 &target,
-                count as u32,
-                |_, index, is_all_done| -> Result<u32, DispatchError> {
+                &(count as u32),
+                |_, index, is_all_done| -> Result<(u64, u32), DispatchError> {
                     Self::update_result_hashs(&target, &result_hashs, is_all_done, index)?;
-                    Ok(index)
+                    Ok((Zero::zero(), index))
                 },
             )?;
             Ok(().into())
@@ -418,8 +417,8 @@ pub mod pallet {
                 &APP_ID,
                 &pathfinder,
                 &target,
-                count as u32,
-                |_, index, is_all_done| -> Result<u32, DispatchError> {
+                &(count as u32),
+                |score, index, is_all_done| -> Result<(u64, u32), DispatchError> {
                     let r_hashs =
                         <ResultHashs<T>>::get(&target).last().unwrap().0[index as usize].clone();
                     let (uper_limit, lower_limit) = r_hashs.limit();
@@ -435,7 +434,7 @@ pub mod pallet {
                     }
                     <Paths<T>>::mutate(&target, |p| *p = full_paths);
                     // TODO 如果全部结束，则修改返回值为 uper limit
-                    Ok(index)
+                    Ok((score, index))
                 },
             )?;
 
@@ -451,9 +450,9 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
-            // TODO 检测重复
+            // TODO Detection of duplication
             Self::do_reply_num(&challenger, &target, &mid_paths)?;
-            // TODO restart - 或者等待超时
+            // TODO restart or timeout
             T::Reputation::set_last_refresh_at();
             Ok(().into())
         }
@@ -472,7 +471,7 @@ pub mod pallet {
             let c_path_id = Self::to_path_id(&nodes[0], &nodes.last().unwrap());
             let c_order = c_path_id.to_order();
 
-            let maybe_score = T::ChallengeBase::new_evidence(
+            let maybe_score = T::ChallengeBase::evidence(
                 &APP_ID,
                 &challenger,
                 &target,
@@ -546,7 +545,7 @@ pub mod pallet {
                 Error::<T>::DepthLimitExceeded
             );
             let mut score: u64;
-            let maybe_score = T::ChallengeBase::new_evidence(
+            let maybe_score = T::ChallengeBase::evidence(
                 &APP_ID,
                 &challenger,
                 &target,
@@ -574,10 +573,10 @@ pub mod pallet {
                 Error::<T>::DepthLimitExceeded
             );
 
-            // TODO 去除重复
+            // TODO Removal of duplicates
 
             let (start, stop) = Self::get_ids(&p_path);
-            let maybe_score = T::ChallengeBase::new_evidence(
+            let maybe_score = T::ChallengeBase::evidence(
                 &APP_ID,
                 &challenger,
                 &target,
@@ -621,8 +620,7 @@ pub mod pallet {
                 &APP_ID,
                 &challenger,
                 &target,
-                score,
-                |_| -> Result<(bool, bool), DispatchError> { Ok((afer_target, true)) },
+                |_| -> Result<(bool, bool, u64), DispatchError> { Ok((afer_target, true, score)) },
             )?;
             if afer_target {
                 Self::restart(&target, &challenger, &score);
@@ -656,7 +654,7 @@ pub mod pallet {
             );
             let is_sweeper = who == target;
             let mut score_list = Self::get_score_list();
-            // TODO 小于零则抛错
+            // TODO Throwing error if less than zero
             let len = Self::hand_first_time(&mut score_list);
 
             let candidate = <Candidates<T>>::take(&target);
@@ -862,7 +860,7 @@ impl<T: Config> Pallet<T> {
         let current_deep = res_hash_set.len();
         ensure!((current_deep as u32) < DEEP, Error::<T>::DepthLimitExceeded);
         let result_vec = UserSet::from(result_hashs.clone());
-        // TODO 判断是增加还是新建！或者放到上面去
+        // TODO Determine if it is an addition or a new one!
         // TODO is_ascii
         res_hash_set.push(result_vec);
 
@@ -871,7 +869,7 @@ impl<T: Config> Pallet<T> {
             false => Ok(()),
         }
 
-        // TODO 上传
+        // TODO update
     }
 
     pub(crate) fn verify_paths(
@@ -902,7 +900,7 @@ impl<T: Config> Pallet<T> {
             .collect::<Vec<String>>()
             .join("-");
         let hash = Self::hash(list_str.as_bytes()).to_string();
-        // TODO 验证分数和hash
+        // TODO Validating scores and hashes
         Ok(())
     }
 

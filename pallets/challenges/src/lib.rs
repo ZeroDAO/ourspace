@@ -21,7 +21,6 @@ use sp_runtime::{
 
 pub use pallet::*;
 
-/// 单次最多长传路径
 const MAX_UPDATE_COUNT: u32 = 10;
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
@@ -256,19 +255,35 @@ impl<T: Config> Pallet<T> {
         Metadatas::<T>::remove(&app_id, &target);
     }
 
-    pub(crate) fn get_new_progress(
-        progress: &Progress<T::AccountId>,
-        count: &u32,
-        challenger: &T::AccountId,
-    ) -> Result<(u32, bool), DispatchError> {
-        ensure!(*count <= MAX_UPDATE_COUNT, Error::<T>::NoPermission);
-        let new_done = progress.done + count;
-        ensure!(progress.owner == *challenger, Error::<T>::NoPermission);
-        ensure!(progress.total >= new_done, Error::<T>::ErrProgress);
-        Ok((new_done, progress.total == new_done))
+    pub(crate) fn do_settle(
+        challenge: &mut Metadata<T::AccountId, T::BlockNumber>,
+        restart: &bool,
+        joint_benefits: &bool,
+        score: &u64,
+    ) -> DispatchResult {
+        match restart {
+            true => {
+                if *joint_benefits {
+                    let arbitral_fee = challenge
+                        .pool
+                        .staking
+                        .checked_div(2)
+                        .ok_or(Error::<T>::Overflow)?;
+                    challenge.pool.staking -= arbitral_fee;
+                    Self::release(&challenge.challenger, arbitral_fee)?;
+                }
+                challenge.restart(!joint_benefits);
+                Ok(())
+            }
+            false => {
+                challenge.joint_benefits = *joint_benefits;
+                challenge.score = *score;
+                Ok(())
+            }
+        }
     }
 
-    pub(crate) fn examine(
+    pub(crate) fn mutate_metadata(
         app_id: &AppId,
         target: &T::AccountId,
         mut f: impl FnMut(&mut Metadata<T::AccountId, T::BlockNumber>) -> DispatchResult,
@@ -281,7 +296,12 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn after_upload(app_id: &AppId) {
-        <LastAt<T>>::mutate(*app_id,|l| Self::now());
+        <LastAt<T>>::mutate(*app_id, |l| Self::now());
+    }
+
+    fn is_challenge_timeout(challenge: &Metadata<T::AccountId, T::BlockNumber>) -> bool {
+        let now_block_number = system::Module::<T>::block_number();
+        now_block_number > challenge.last_update + T::ChallengePerior::get()
     }
 }
 
@@ -290,7 +310,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         <Metadatas<T>>::iter_prefix_values(app_id).next().is_none()
     }
 
-    fn is_all_timeout(app_id: &AppId,now: &T::BlockNumber) -> bool {
+    fn is_all_timeout(app_id: &AppId, now: &T::BlockNumber) -> bool {
         let last = <LastAt<T>>::get(app_id);
         *now > last + T::ChallengePerior::get()
     }
@@ -376,7 +396,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             };
             m.beneficiary = path_finder.clone();
             m.last_update = now_block_number;
-            m.status = Status::EVIDENCE;
+            m.status = Status::EXAMINE;
             m.score = score;
 
             Ok(())
@@ -398,31 +418,40 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         app_id: &AppId,
         who: &T::AccountId,
         target: &T::AccountId,
-        count: u32,
-        up: impl FnOnce(Balance, u32, bool) -> Result<u32, DispatchError>,
+        count: &u32,
+        mut up: impl FnMut(u64, u32, bool) -> Result<(u64, u32), DispatchError>,
     ) -> DispatchResult {
-        Metadatas::<T>::try_mutate_exists(app_id, target, |challenge| -> DispatchResult {
-            let challenge = challenge.as_mut().ok_or(Error::<T>::NonExistent)?;
-            let progress_info = Self::get_new_progress(&challenge.progress, &(count as u32), &who)?;
-            challenge.progress.done = progress_info.0;
-            if progress_info.1 {
-                challenge.beneficiary = who.clone()
-            };
-            let value = up(challenge.pool.staking, challenge.remark, progress_info.1)?;
-            challenge.remark = value;
-            Ok(())
-        })?;
-        Self::after_upload(&app_id);
-        Ok(())
+        Self::mutate_metadata(
+            app_id,
+            target,
+            |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
+                ensure!(*count <= MAX_UPDATE_COUNT, Error::<T>::NoPermission);
+
+                ensure!(
+                    challenge.is_challenger(&who),
+                    Error::<T>::NoChallengeAllowed
+                );
+                ensure!(
+                    challenge.next(*count, who.clone()).check_progress(),
+                    Error::<T>::TooMany
+                );
+                let is_all_done = challenge.is_all_done();
+                let (score, remark) = up(challenge.score, challenge.remark, is_all_done)?;
+                challenge.remark = remark;
+                challenge.score = score;
+                Self::after_upload(&app_id);
+                Ok(())
+            },
+        )
     }
 
-    fn question(
+    fn examine(
         app_id: &AppId,
         who: T::AccountId,
         target: &T::AccountId,
         index: u32,
     ) -> DispatchResult {
-        Self::examine(
+        Self::mutate_metadata(
             app_id,
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
@@ -453,7 +482,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         count: u32,
         up: impl Fn(bool, u32) -> DispatchResult,
     ) -> DispatchResult {
-        Self::examine(
+        Self::mutate_metadata(
             app_id,
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
@@ -483,7 +512,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         )
     }
 
-    fn new_evidence(
+    fn evidence(
         app_id: &AppId,
         who: &T::AccountId,
         target: &T::AccountId,
@@ -493,6 +522,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             <Metadatas<T>>::try_get(app_id, target).map_err(|_| Error::<T>::NoPermission)?;
         ensure!(challenge.is_challenger(&who), Error::<T>::NoPermission);
         ensure!(challenge.is_all_done(), Error::<T>::NoPermission);
+        // TODO 权限检查，非质询状态下
         let needs_arbitration = up(challenge.remark, challenge.score)?;
         let score = challenge.score;
         match needs_arbitration {
@@ -513,41 +543,39 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         app_id: &AppId,
         who: &T::AccountId,
         target: &T::AccountId,
-        score: u64,
-        up: impl Fn(u32) -> Result<(bool, bool), DispatchError>,
+        up: impl Fn(u64) -> Result<(bool, bool, u64), DispatchError>,
     ) -> DispatchResult {
-        // 需要抵押
-        // 验证状态
-        Self::examine(
+        Self::mutate_metadata(
             app_id,
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
                 ensure!(challenge.is_all_done(), Error::<T>::NoPermission);
-
-                let (joint_benefits, restart) = up(challenge.remark)?;
-
-                match restart {
-                    true => {
-                        if joint_benefits {
-                            let arbitral_fee = challenge
-                                .pool
-                                .staking
-                                .checked_div(2)
-                                .ok_or(Error::<T>::Overflow)?;
-                            challenge.pool.staking -= arbitral_fee;
-                            Self::release(&who, arbitral_fee)?;
-                        }
-                        challenge.restart(!joint_benefits);
-                    }
-                    false => {
-                        if joint_benefits {
-                            challenge.joint_benefits = true;
-                        }
-                        challenge.score = score;
-                    }
+                if !challenge.is_challenger(&who) {
+                    ensure!(Self::is_challenge_timeout(&challenge), Error::<T>::NoPermission);
+                    Self::staking(&who, factor::CHALLENGE_STAKING_AMOUNT)?;
+                    challenge.challenger = who.clone();
                 }
+                let (joint_benefits, restart, score) = up(challenge.score)?;
+                Self::do_settle(challenge, &restart, &joint_benefits, &score)?;
                 Self::after_upload(&app_id);
                 Ok(())
+            },
+        )
+    }
+
+    fn settle(
+        app_id: &AppId,
+        target: &T::AccountId,
+        joint_benefits: bool,
+        restart: bool,
+        score: u64,
+    ) -> DispatchResult {
+        Self::mutate_metadata(
+            app_id,
+            target,
+            |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
+                ensure!(challenge.is_all_done(), Error::<T>::NoPermission);
+                Self::do_settle(challenge, &restart, &joint_benefits, &score)
             },
         )
     }

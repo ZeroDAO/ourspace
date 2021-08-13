@@ -58,7 +58,7 @@ fn new_round_should_fail() {
 #[test]
 fn mutate_reputation_should_work() {
     new_test_ext().execute_with(|| {
-        assert_eq!(ZdReputation::mutate_reputation(&ALICE, 21), ());
+        assert_eq!(ZdReputation::mutate_reputation(&ALICE, &21), ());
 
         assert_eq!(ZdReputation::get_reputation_new(&ALICE), Some(21));
     });
