@@ -56,7 +56,6 @@ impl Default for Status {
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
 pub struct Metadata<AccountId, BlockNumber> {
     pub pool: Pool,
-    pub beneficiary: AccountId,
     pub joint_benefits: bool,
     pub progress: Progress<AccountId>,
     pub last_update: BlockNumber,
@@ -114,9 +113,6 @@ where
 
     fn next(&mut self, count: u32, who: AccountId) -> &mut Self {
         self.progress.done = self.progress.done.saturating_add(count);
-        if self.is_all_done() {
-            self.beneficiary = who
-        }
         self
     }
 
@@ -370,35 +366,36 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
     ) -> DispatchResult {
         let now_block_number = system::Module::<T>::block_number();
 
-        Self::staking(&who, factor::CHALLENGE_STAKING_AMOUNT)?;
+        let mut challenge = <Metadatas<T>>::try_get(app_id, target)
+            .map_err(|_err| Error::<T>::NoChallengeAllowed)?;
+
+        ensure!(
+            challenge.is_allowed_evidence::<T::ChallengePerior>(now_block_number),
+            Error::<T>::NoChallengeAllowed
+        );
+
+        challenge.pool.staking = challenge
+            .pool
+            .staking
+            .checked_add(staking)
+            .ok_or(Error::<T>::Overflow)?;
+        challenge.pool.earnings = challenge
+            .pool
+            .earnings
+            .checked_add(fee)
+            .ok_or(Error::<T>::Overflow)?;
+        challenge.progress = Progress {
+            owner: who.clone(),
+            done: Zero::zero(),
+            total: quantity,
+        };
+        challenge.last_update = now_block_number;
+        challenge.status = Status::EXAMINE;
+        challenge.score = score;
 
         <Metadatas<T>>::try_mutate(app_id, target, |m| -> DispatchResult {
-            // TODO 挑战未完成删除数据
-            ensure!(
-                m.is_allowed_evidence::<T::ChallengePerior>(now_block_number),
-                Error::<T>::NoChallengeAllowed
-            );
-
-            m.pool.staking = m
-                .pool
-                .staking
-                .checked_add(staking)
-                .ok_or(Error::<T>::Overflow)?;
-            m.pool.earnings = m
-                .pool
-                .earnings
-                .checked_add(fee)
-                .ok_or(Error::<T>::Overflow)?;
-            m.progress = Progress {
-                owner: who.clone(),
-                done: Zero::zero(),
-                total: quantity,
-            };
-            m.beneficiary = path_finder.clone();
-            m.last_update = now_block_number;
-            m.status = Status::EXAMINE;
-            m.score = score;
-
+            *m = challenge;
+            Self::staking(&who, factor::CHALLENGE_STAKING_AMOUNT)?;
             Ok(())
         })?;
 
@@ -466,7 +463,6 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
 
                 challenge.status = Status::EXAMINE;
                 challenge.remark = index;
-                challenge.beneficiary = who.clone();
 
                 Self::after_upload(&app_id);
                 Ok(())
@@ -551,7 +547,10 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
                 ensure!(challenge.is_all_done(), Error::<T>::NoPermission);
                 if !challenge.is_challenger(&who) {
-                    ensure!(Self::is_challenge_timeout(&challenge), Error::<T>::NoPermission);
+                    ensure!(
+                        Self::is_challenge_timeout(&challenge),
+                        Error::<T>::NoPermission
+                    );
                     Self::staking(&who, factor::CHALLENGE_STAKING_AMOUNT)?;
                     challenge.challenger = who.clone();
                 }
