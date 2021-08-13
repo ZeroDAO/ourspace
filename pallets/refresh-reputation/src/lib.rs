@@ -257,7 +257,7 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn harvest_ref_all(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let pathfinder = ensure_signed(origin)?;
-            Self::check_step()?;
+            Self::next_step();
             T::Reputation::set_free();
             let payroll = Payrolls::<T>::take(&pathfinder);
             T::Currency::release(
@@ -275,8 +275,7 @@ pub mod pallet {
             pathfinder: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             let proxy = ensure_signed(origin)?;
-            Self::check_step()?;
-            T::Reputation::set_free();
+            Self::next_step();
             let last = T::Reputation::get_last_update_at();
             let payroll = Payrolls::<T>::take(&pathfinder);
             let (proxy_fee, without_fee) = payroll
@@ -295,7 +294,7 @@ pub mod pallet {
             target: T::AccountId,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
-            Self::check_step()?;
+            Self::next_step();
             T::ChallengeBase::harvest(&who, &APP_ID, &target)?;
             Ok(().into())
         }
