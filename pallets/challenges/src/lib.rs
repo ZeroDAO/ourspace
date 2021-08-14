@@ -26,13 +26,11 @@ const MAX_UPDATE_COUNT: u32 = 10;
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
 pub struct Pool {
     pub staking: Balance,
-    pub sub_staking: Balance,
     pub earnings: Balance,
 }
 
 #[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, Default, RuntimeDebug)]
-pub struct Progress<AccountId> {
-    pub owner: AccountId,
+pub struct Progress {
     pub total: u32,
     pub done: u32,
 }
@@ -57,7 +55,7 @@ impl Default for Status {
 pub struct Metadata<AccountId, BlockNumber> {
     pub pool: Pool,
     pub joint_benefits: bool,
-    pub progress: Progress<AccountId>,
+    pub progress: Progress,
     pub last_update: BlockNumber,
     pub remark: u32,
     pub score: u64,
@@ -74,8 +72,7 @@ where
     fn total_amount(&self) -> Option<Balance> {
         self.pool
             .staking
-            .checked_add(self.pool.sub_staking)
-            .and_then(|a| a.checked_add(self.pool.earnings))
+            .checked_add(self.pool.earnings)
     }
 
     fn is_allowed_evidence<ChallengePerior>(&self, now: BlockNumber) -> bool
@@ -385,7 +382,6 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             .checked_add(fee)
             .ok_or(Error::<T>::Overflow)?;
         challenge.progress = Progress {
-            owner: who.clone(),
             done: Zero::zero(),
             total: quantity,
         };
