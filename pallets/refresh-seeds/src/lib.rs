@@ -153,8 +153,6 @@ pub mod pallet {
         type StakingAmount: Get<Balance>;
         #[pallet::constant]
         type MaxSeedCount: Get<Balance>;
-        #[pallet::constant]
-        type HarvestPeriod: Get<Balance>;
         type AccountIdForPathId: Member
             + Parameter
             + AtLeast32Bit

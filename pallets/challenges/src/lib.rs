@@ -142,10 +142,6 @@ pub mod pallet {
             > + StakingCurrency<Self::AccountId>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
         #[pallet::constant]
-        type ReceiverProtectionPeriod: Get<Self::BlockNumber>;
-        #[pallet::constant]
-        type UpdateStakingAmount: Get<Balance>;
-        #[pallet::constant]
         type ChallengePerior: Get<Self::BlockNumber>;
         #[pallet::constant]
         type BaceToken: Get<Self::CurrencyId>;
