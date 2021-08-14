@@ -70,9 +70,7 @@ where
     BlockNumber: Copy + AtLeast32Bit,
 {
     fn total_amount(&self) -> Option<Balance> {
-        self.pool
-            .staking
-            .checked_add(self.pool.earnings)
+        self.pool.staking.checked_add(self.pool.earnings)
     }
 
     fn is_allowed_evidence<ChallengePerior>(&self, now: BlockNumber) -> bool
@@ -215,6 +213,13 @@ impl<T: Config> Pallet<T> {
         system::Module::<T>::block_number()
     }
 
+    fn get_metadata_exist(
+        app_id: &AppId,
+        target: &T::AccountId,
+    ) -> Result<Metadata<T::AccountId, T::BlockNumber>, Error<T>> {
+        <Metadatas<T>>::try_get(&app_id, &target).map_err(|_err| Error::<T>::NonExistent)
+    }
+
     pub(crate) fn staking(who: &T::AccountId, amount: Balance) -> DispatchResult {
         T::Currency::staking(T::BaceToken::get(), who, amount)
     }
@@ -313,19 +318,41 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         app_id: &AppId,
         target: &T::AccountId,
     ) -> Result<Option<u64>, DispatchError> {
-        let challenge = Self::get_metadata(&app_id, &target);
+        let challenge = Self::get_metadata_exist(&app_id, &target)?;
         let total_amount: Balance = challenge.total_amount().ok_or(Error::<T>::Overflow)?;
         let (sweeper_fee, awards) = Self::checked_sweeper_fee(&challenge, &who, &total_amount)?;
         let mut pathfinder_amount: Balance = Zero::zero();
         let mut challenger_amount: Balance = Zero::zero();
         let mut maybe_score: Option<u64> = None;
+        let is_all_done = challenge.is_all_done();
         match challenge.status {
-            Status::FREE | Status::REPLY => {
+            Status::FREE => {
                 pathfinder_amount = awards;
             }
-            Status::EXAMINE | Status::EVIDENCE => {
+            Status::REPLY => {
+                match is_all_done {
+                    true => {
+                        pathfinder_amount = awards;
+                    },
+                    false => {
+                        challenger_amount = awards;
+                    },
+                }
+            }
+            Status::EXAMINE => {
                 challenger_amount = awards;
                 maybe_score = Some(challenge.score);
+            }
+            Status::EVIDENCE => {
+                maybe_score = Some(challenge.score);
+                match is_all_done {
+                    true => {
+                        challenger_amount = awards;
+                    },
+                    false => {
+                        pathfinder_amount = awards;
+                    },
+                }
             }
             Status::ARBITRATION => match challenge.joint_benefits {
                 true => {
@@ -363,8 +390,18 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
     ) -> DispatchResult {
         let now_block_number = system::Module::<T>::block_number();
 
-        let mut challenge = <Metadatas<T>>::try_get(app_id, target)
-            .map_err(|_err| Error::<T>::NoChallengeAllowed)?;
+        let mut challenge = match <Metadatas<T>>::try_get(app_id, target) {
+            Ok(challenge_storage) => {
+                ensure!(
+                    challenge_storage.status == Status::FREE,
+                    Error::<T>::NoChallengeAllowed
+                );
+                challenge_storage
+            },
+            Err(_) => {
+                Metadata::default()
+            },
+        };
 
         ensure!(
             challenge.is_allowed_evidence::<T::ChallengePerior>(now_block_number),
