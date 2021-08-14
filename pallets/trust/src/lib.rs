@@ -85,7 +85,7 @@ pub mod module {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn trust(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
-            Pallet::<T>::do_trust(&who, &target)?;
+            Self::do_trust(&who, &target)?;
             Self::deposit_event(Event::Trusted(who, target));
             Ok(().into())
         }
@@ -93,7 +93,7 @@ pub mod module {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn untrust(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
-            Pallet::<T>::do_untrust(&who, &target)?;
+            Self::do_untrust(&who, &target)?;
             Self::deposit_event(Event::Untrusted(who, target));
             Ok(().into())
         }

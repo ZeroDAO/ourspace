@@ -69,6 +69,26 @@ pub mod factor {
     pub const ANALYST_RATIO: Perbill = Perbill::from_percent(10);
 }
 
+pub mod per_social_currency {
+    use super::Perbill;
+    
+    pub const MIN_TRUST_COUNT: u32 = 150;
+    /// Reserve the owner's free balance. The percentage can be adjusted by the community.
+    pub const PRE_RESERVED: Perbill = Perbill::from_percent(10);
+
+    /// Transfer to the social currency of users trusted by the owner.
+    pub const PRE_SHARE: Perbill = Perbill::from_percent(10);
+
+    /// Share to all users.
+    pub const PRE_BURN: Perbill = Perbill::from_percent(10);
+
+    /// Pathfinder's fee
+    pub const PRE_FEE: Perbill = Perbill::from_percent(10);
+
+    // Used to solve the verifier's Dilemma and refresh seed.
+    // pub const PRE_REWARD: Perbill = Perbill::from_percent(10);
+}
+
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum TIRStep {
