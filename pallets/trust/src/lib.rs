@@ -15,8 +15,8 @@ use zd_primitives::TIRStep;
 
 pub use module::*;
 
-/// 种子用户初始化声誉值
 pub const INIT_SEED_RANK: usize = 1000;
+pub const MIN_TRUST_COUNT: u32 = 5;
 
 #[derive(Encode, Decode, Clone, Eq, PartialEq, Default)]
 pub struct TrustTemp<AccountId> {
@@ -155,6 +155,7 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
 
     fn get_trust_count_old(who: &T::AccountId) -> usize {
         let trust_temp = Self::trust_temp_list(&who);
+        // must be greater than zero and cannot overflow
         Self::get_trust_count(&who) + trust_temp.trust.len() - trust_temp.untrust.len()
     }
 
@@ -187,33 +188,29 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
     }
 
     fn computed_path(users: &Vec<T::AccountId>) -> Result<(u32, u32), DispatchError> {
-        // TODO: Minimum trust count
         ensure!(T::SeedsBase::is_seed(&users[0]), Error::<T>::NotSeed);
         let mut start_ir = INIT_SEED_RANK as u32;
         let users_v = &users;
         let (dist, score) = users_v
             .windows(2)
-            .map(|u| {
+            .map(|u| -> Result<(u32, u32), Error<T>> {
                 if Self::is_trust(&u[0], &u[1]) {
                     let end_ir = T::Reputation::get_reputation_new(&u[1]).unwrap_or(0);
-                    // let item_dist = f64::from(start_ir.saturating_sub(end_ir).max(3u32)) as u32;
                     let item_dist =
                         f64::from(start_ir.saturating_sub(end_ir).max(3u32)).ln() as u32;
                     start_ir = end_ir;
-                    Some(item_dist)
+                    let trust_count = Self::get_trust_count_old(&u[0]) as u32;
+                    Ok((item_dist,trust_count))
                 } else {
-                    None
+                    Err(Error::<T>::WrongPath)
                 }
             })
             .try_fold::<_, _, Result<(u32, u32), Error<T>>>(
                 (0u32, INIT_SEED_RANK as u32),
                 |acc, d| {
-                    ensure!(d.is_some(), Error::<T>::WrongPath);
-                    let dist = d.unwrap();
-                    // TODO get trust_count
-                    let trust_count = 10u32;
+                    let (dist,trust_count) = d?;
                     let item_score =
-                        T::DampingFactor::get().mul_floor(acc.1) / trust_count.max(100) / dist;
+                        T::DampingFactor::get().mul_floor(acc.1) / trust_count.max(MIN_TRUST_COUNT) / dist;
                     Ok((acc.0.saturating_add(dist as u32), item_score))
                 },
             )?;
