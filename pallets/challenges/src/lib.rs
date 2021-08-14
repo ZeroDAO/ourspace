@@ -295,7 +295,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn after_upload(app_id: &AppId) {
-        <LastAt<T>>::mutate(*app_id, |l| Self::now());
+        <LastAt<T>>::mutate(*app_id, |l| *l = Self::now());
     }
 
     fn is_challenge_timeout(challenge: &Metadata<T::AccountId, T::BlockNumber>) -> bool {

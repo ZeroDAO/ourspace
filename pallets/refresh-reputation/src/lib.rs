@@ -8,10 +8,10 @@ use frame_support::{
     RuntimeDebug,
 };
 use frame_system::{self as system, ensure_signed};
-use sp_runtime::{traits::Zero, DispatchError, DispatchResult, Perbill};
+use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
 use sp_std::vec::Vec;
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
-use zd_traits::{ChallengeBase, Reputation, SeedsBase, TrustBase, MultiBaseToken};
+use zd_traits::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
 #[cfg(test)]
 mod mock;
@@ -249,10 +249,7 @@ pub mod pallet {
             Self::next_step();
             T::Reputation::set_free();
             let payroll = Payrolls::<T>::take(&pathfinder);
-            T::MultiBaseToken::release(
-                &pathfinder,
-                &payroll.total_amount::<T>(),
-            )?;
+            T::MultiBaseToken::release(&pathfinder, &payroll.total_amount::<T>())?;
             <Records<T>>::remove_prefix(&pathfinder);
             Ok(().into())
         }
@@ -349,8 +346,7 @@ pub mod pallet {
                 &target,
                 |score| -> Result<(bool, bool, u64), _> {
                     let score = score as u32;
-                    let new_score =
-                        Self::do_update_path_verify(&target, &seeds, &paths, score)?;
+                    let new_score = Self::do_update_path_verify(&target, &seeds, &paths, score)?;
                     T::Reputation::mutate_reputation(&target, &new_score);
                     Ok((new_score == score, false, new_score.into()))
                 },
@@ -450,10 +446,7 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn share(user: &T::AccountId) -> Result<Balance, DispatchError> {
         let targets = T::TrustBase::get_trust_old(user);
-        T::MultiBaseToken::share(
-            user,
-            &targets
-        )
+        T::MultiBaseToken::share(user, &targets)
     }
 
     pub(crate) fn get_dist(paths: &Path<T::AccountId>, seed: &T::AccountId) -> Option<u32> {
@@ -484,9 +477,11 @@ impl<T: Config> Pallet<T> {
                     Error::<T>::PathAlreadyExist
                 );
                 ensure!(path.exclude_zero(), Error::<T>::WrongPath);
-                Paths::<T>::insert(seed, target, path);
                 acc.checked_add(path.score).ok_or(Error::<T>::Overflow)
             })?;
+        for (seed, path) in seeds.iter().zip(paths.iter()) {
+            Paths::<T>::insert(seed, target, path);
+        }
         Ok(new_score.clone())
     }
 
@@ -496,32 +491,35 @@ impl<T: Config> Pallet<T> {
         paths: &Vec<Path<T::AccountId>>,
         score: u32,
     ) -> Result<u32, DispatchError> {
-        let new_score = seeds
-            .iter()
-            .zip(paths.iter())
-            .try_fold(score, |acc, (seed, path)| {
-                Paths::<T>::try_mutate_exists(&seed, &target, |p| -> Result<u32, DispatchError> {
-                    let dist_new = Self::get_dist(&path, seed).ok_or(Error::<T>::DistErr)?;
-                    let old_path = p.take().unwrap_or_default();
-                    if let Some(old_dist) = Self::get_dist(&old_path, &seed) {
-                        ensure!(old_dist >= dist_new, Error::<T>::DistTooLong);
-                        ensure!(
-                            old_dist == dist_new && old_path.score > path.score,
-                            Error::<T>::DistTooLong
-                        );
-                    }
-                    let acc = acc
-                        .checked_sub(old_path.score)
-                        .and_then(|s| s.checked_add(path.score))
-                        .ok_or(Error::<T>::Overflow)?;
-                    *p = if path.score == 0 {
-                        None
-                    } else {
-                        Some(path.clone())
-                    };
-                    Ok(acc)
-                })
-            })?;
+        let new_score = seeds.iter().zip(paths.iter()).try_fold(
+            score,
+            |acc, (seed, path)| -> Result<u32, DispatchError> {
+                let dist_new = Self::get_dist(&path, seed).ok_or(Error::<T>::DistErr)?;
+                let old_path = <Paths<T>>::get(&seed, &target);
+                if let Some(old_dist) = Self::get_dist(&old_path, &seed) {
+                    ensure!(old_dist >= dist_new, Error::<T>::DistTooLong);
+                    ensure!(
+                        old_dist == dist_new && old_path.score > path.score,
+                        Error::<T>::DistTooLong
+                    );
+                }
+                let acc = acc
+                    .checked_sub(old_path.score)
+                    .and_then(|s| s.checked_add(path.score))
+                    .ok_or(Error::<T>::Overflow)?;
+
+                Ok(acc)
+            },
+        )?;
+        for (seed, path) in seeds.iter().zip(paths.iter()) {
+            Paths::<T>::mutate_exists(&seed, &target, |p| {
+                *p = if path.score == 0 {
+                    None
+                } else {
+                    Some(path.clone())
+                };
+            })
+        }
         Ok(new_score)
     }
 }
