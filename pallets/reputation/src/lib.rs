@@ -72,10 +72,6 @@ pub mod pallet {
     pub type SystemInfo<T: Config> = StorageValue<_, OperationStatus<T::BlockNumber>, ValueQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn last_challenge)]
-    pub type LastChallenge<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
-
-    #[pallet::storage]
     #[pallet::getter(fn get_ir)]
     pub type ReputationScores<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, [ReputationScore; 2], ValueQuery>;
@@ -151,10 +147,6 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn is_challenge_end(now: T::BlockNumber) -> bool {
         now > Self::last_challenge() + T::ChallengePerior::get()
-    }
-
-    pub(crate) fn set_last_challenge(now: &T::BlockNumber) {
-        LastChallenge::<T>::put(now);
     }
 
     pub(crate) fn set_last_refresh(now: T::BlockNumber) {
@@ -245,10 +237,6 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
 
     fn check_update_status(update_mode: bool) -> Option<u32> {
         Self::system_info().check_update_status(update_mode)
-    }
-
-    fn last_challenge_at() {
-        Self::set_last_challenge(&Self::now());
     }
 
     fn get_last_update_at() -> T::BlockNumber {

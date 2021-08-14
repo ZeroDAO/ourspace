@@ -22,8 +22,6 @@ pub trait Reputation<AccountId, BlockNumber, TIRStep> {
 
 	fn check_update_status(update_mode: bool) -> Option<u32>;
 
-	fn last_challenge_at();
-
 	fn set_free();
 
 	fn new_round() -> DispatchResult;

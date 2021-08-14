@@ -111,14 +111,6 @@ fn check_update_status_should_work() {
 }
 
 #[test]
-fn last_challenge_at_should_work() {
-    new_test_ext().execute_with(|| {
-        assert_eq!(ZdReputation::last_challenge(), 0);
-        ZdReputation::last_challenge_at();
-        assert_eq!(ZdReputation::last_challenge(), 1);
-    });
-}
-#[test]
 fn end_refresh_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(ZdReputation::new_round());
