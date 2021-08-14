@@ -466,7 +466,7 @@ pub mod pallet {
                 &APP_ID,
                 &challenger,
                 &target,
-                |order, c_score| -> Result<bool, DispatchError> {
+                |order, _| -> Result<bool, DispatchError> {
                     match <Paths<T>>::try_get(&target) {
                         Ok(path_vec) => {
                             let mut have_path_id = false;
@@ -535,12 +535,11 @@ pub mod pallet {
                 p_path.nodes.len() + 2 > path.len(),
                 Error::<T>::DepthLimitExceeded
             );
-            let mut score: u64;
             let maybe_score = T::ChallengeBase::evidence(
                 &APP_ID,
                 &challenger,
                 &target,
-                |_, c_score| -> Result<bool, DispatchError> { Ok(false) },
+                |_, _| -> Result<bool, DispatchError> { Ok(false) },
             )?;
             Self::restart(&target, &challenger, &maybe_score.unwrap_or_default());
             Ok(().into())
@@ -571,7 +570,7 @@ pub mod pallet {
                 &APP_ID,
                 &challenger,
                 &target,
-                |_, c_score| -> Result<bool, DispatchError> {
+                |_, _| -> Result<bool, DispatchError> {
                     for mid_path in mid_paths.clone() {
                         let path = Self::check_mid_path(&mid_path, &start, &stop, &target)?;
                         if path.len() < p_path_len {
