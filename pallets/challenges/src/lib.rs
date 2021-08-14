@@ -288,6 +288,7 @@ impl<T: Config> Pallet<T> {
     ) -> DispatchResult {
         Metadatas::<T>::try_mutate_exists(app_id, target, |challenge| -> DispatchResult {
             let challenge = challenge.as_mut().ok_or(Error::<T>::NonExistent)?;
+            challenge.last_update = Self::now();
             f(challenge)
         })?;
         Ok(())
