@@ -15,9 +15,11 @@ sp-runtime = { version = "3.0.0", default-features = false }
 sp-std = { version = "3.0.0", default-features = false }
 frame-support = { version = "3.0.0", default-features = false }
 frame-system = { version = "3.0.0", default-features = false }
-orml-traits = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao' }
+
 zd-primitives = {path = "../../primitives", default-features = false, version = '0.0.1'}
 zd-traits = {path = "../../traits", default-features = false, version = '0.0.1'}
+
+orml-traits = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git#4ec1311', branch = 'feature-zerodao' }
 
 [dev-dependencies]
 sp-core = { version = "3.0.0", default-features = false }
@@ -27,8 +29,8 @@ pallet-elections-phragmen = { version = "3.0.0" }
 pallet-balances = { default-features = false, version = '3.0.0' }
 
 # orml extensions
-orml-tokens = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao' }
-orml-currencies = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao' }
+orml-tokens = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git#4ec1311', branch = 'feature-zerodao' }
+orml-currencies = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git#4ec1311', branch = 'feature-zerodao' }
 
 [features]
 default = ["std"]

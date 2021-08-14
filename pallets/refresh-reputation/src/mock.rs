@@ -98,12 +98,7 @@ impl zd_reputation::Config for Test {
 
 impl zd_refresh_reputation::Config for Test {
     type Event = Event;
-    type CurrencyId = CurrencyId;
-    type BaceToken = BaceToken;
-    type Currency = Tokens;
-    type ShareRatio = ShareRatio;
-    type FeeRation = FeeRation;
-    type SelfRation = SelfRation;
+    type MultiBaseToken = ZdToken;
     type MaxUpdateCount = MaxUpdateCount;
     type UpdateStakingAmount = UpdateStakingAmount;
     type ConfirmationPeriod = ConfirmationPeriod;
@@ -134,7 +129,7 @@ impl orml_tokens::Config for Test {
     type ExistentialDeposits = ExistentialDeposits;
     type OnDust = ();
 }
-/*
+
 impl zd_tokens::Config for Test {
     type Event = Event;
     type CurrencyId = CurrencyId;
@@ -143,7 +138,6 @@ impl zd_tokens::Config for Test {
     type Balance = Balance;
     type Amount = Amount;
 }
-*/
 
 impl system::Config for Test {
     type BaseCallFilter = ();
@@ -185,7 +179,7 @@ construct_runtime!(
         ZdTrust: zd_trust::{Module, Call, Event<T>},
         Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
         Challenges: zd_challenges::{Module, Storage, Event<T>},
-        // ZdToken: zd_tokens::{Module, Call, Event<T>},
+        ZdToken: zd_tokens::{Module, Call, Event<T>},
     }
 );
 

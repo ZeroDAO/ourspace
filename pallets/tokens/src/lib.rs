@@ -132,36 +132,20 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
             .saturating_sub(burn_amount)
             .saturating_sub(fee_amount);
 
-        T::Currency::bat_share(
-            T::BaceToken::get(),
-            &who,
-            targets,
-            total_share_amount.div(
-                targets
-                    .len()
-                    .max(per_social_currency::MIN_TRUST_COUNT.into()),
-            ),
-        )?;
-
-        T::Currency::thaw(
-            T::BaceToken::get(),
-            &who,
-            reserved_amount,
-        )?;
-
-        T::Currency::social_burn(
-            T::BaceToken::get(),
-            &who,
-            burn_amount,
-        )?;
-
-        <Bonus<T>>::try_mutate(|balance|{
-            *balance = balance.checked_add(pre_reward).ok_or(Error::<T>::Overflow)?;
+        let share_amount = total_share_amount
+            .checked_div((targets.len() as u32).max(per_social_currency::MIN_TRUST_COUNT).into())
+            .ok_or(Error::<T>::Overflow)?;
+            
+        T::Currency::bat_share(T::BaceToken::get(), &who, targets, share_amount)?;
+        T::Currency::thaw(T::BaceToken::get(), &who, reserved_amount)?;
+        T::Currency::social_burn(T::BaceToken::get(), &who, burn_amount)?;
+        <Bonus<T>>::try_mutate(|balance| {
+            *balance = balance
+                .checked_add(pre_reward)
+                .ok_or(Error::<T>::Overflow)?;
             Ok(())
         })?;
-
         T::Currency::social_staking(T::BaceToken::get(), &who, fee_amount)?;
-
         Ok(fee_amount)
     }
 

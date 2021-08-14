@@ -24,8 +24,6 @@ zd-traits = { path = "../../traits", default-features = false, version = '0.0.1'
 zd-primitives = { path = "../../primitives", default-features = false, version = '0.0.1' }
 zd-utilities = { path = "../utilities", default-features = false, version = '0.0.1' }
 
-orml-traits = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao' }
-
 [dev-dependencies]
 sp-core = { default-features = false, version = '3.0.0' }
 sp-io = { default-features = false, version = '3.0.0' }
@@ -41,5 +39,4 @@ std = [
     'sp-std/std',
     'sp-runtime/std',
     'zd-traits/std',
-    'orml-traits/std',
 ]

@@ -8,9 +8,8 @@ use frame_support::{
     RuntimeDebug,
 };
 use frame_system::{self as system};
-use orml_traits::{MultiCurrencyExtended, StakingCurrency};
 use sha1::{Digest, Sha1};
-use zd_primitives::{fee::ProxyFee, Amount, AppId, Balance, TIRStep};
+use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
 use zd_traits::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 use zd_utilities::{UserSet, UserSetExt};
 
@@ -145,14 +144,6 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
-        type BaceToken: Get<Self::CurrencyId>;
-        type Currency: MultiCurrencyExtended<
-                Self::AccountId,
-                CurrencyId = Self::CurrencyId,
-                Balance = Balance,
-                Amount = Amount,
-            > + StakingCurrency<Self::AccountId>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
         type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance, Self::BlockNumber>;
         type TrustBase: TrustBase<Self::AccountId>;
@@ -249,7 +240,7 @@ pub mod pallet {
                 <Candidates<T>>::contains_key(target.clone()),
                 Error::<T>::AlreadyExist
             );
-            T::Currency::staking(T::BaceToken::get(), &pathfinder, T::StakingAmount::get())?;
+            T::MultiBaseToken::staking(&pathfinder, &T::StakingAmount::get())?;
             Self::candidate_insert(&target, &pathfinder, &score);
             T::Reputation::set_last_refresh_at();
             Ok(().into())

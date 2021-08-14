@@ -8,11 +8,10 @@ use frame_support::{
     RuntimeDebug,
 };
 use frame_system::{self as system, ensure_signed};
-use orml_traits::{MultiCurrency, SocialCurrency, StakingCurrency};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult, Perbill};
 use sp_std::vec::Vec;
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
-use zd_traits::{ChallengeBase, Reputation, SeedsBase, TrustBase};
+use zd_traits::{ChallengeBase, Reputation, SeedsBase, TrustBase, MultiBaseToken};
 
 #[cfg(test)]
 mod mock;
@@ -71,17 +70,7 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
-        type BaceToken: Get<Self::CurrencyId>;
-        type Currency: MultiCurrency<Self::AccountId, CurrencyId = Self::CurrencyId, Balance = Balance>
-            + StakingCurrency<Self::AccountId>
-            + SocialCurrency<Self::AccountId>;
-        #[pallet::constant]
-        type ShareRatio: Get<Perbill>;
-        #[pallet::constant]
-        type FeeRation: Get<Perbill>;
-        #[pallet::constant]
-        type SelfRation: Get<Perbill>;
+        type MultiBaseToken: MultiBaseToken<Self::AccountId, Balance>;
         #[pallet::constant]
         type MaxUpdateCount: Get<u32>;
         #[pallet::constant]
@@ -201,13 +190,13 @@ pub mod pallet {
                     |acc: Balance, (pathfinder, payroll)| {
                         let (proxy_fee, without_fee) = payroll.total_amount::<T>().with_fee();
 
-                        T::Currency::release(T::BaceToken::get(), &pathfinder, without_fee)?;
+                        T::MultiBaseToken::release(&pathfinder, &without_fee)?;
 
                         acc.checked_add(proxy_fee)
                             .ok_or(Error::<T>::Overflow.into())
                     },
                 )?;
-            T::Currency::release(T::BaceToken::get(), &who, total_fee)?;
+            T::MultiBaseToken::release(&who, &total_fee)?;
             <StartedAt<T>>::put(now);
             Ok(().into())
         }
@@ -230,7 +219,7 @@ pub mod pallet {
             let amount = T::UpdateStakingAmount::get()
                 .checked_mul(user_count as Balance)
                 .ok_or(Error::<T>::Overflow)?;
-            T::Currency::staking(T::BaceToken::get(), &pathfinder, amount)?;
+            T::MultiBaseToken::staking(&pathfinder, &amount)?;
             let total_fee = user_scores
                 .iter()
                 .try_fold::<_, _, Result<Balance, DispatchError>>(
@@ -260,10 +249,9 @@ pub mod pallet {
             Self::next_step();
             T::Reputation::set_free();
             let payroll = Payrolls::<T>::take(&pathfinder);
-            T::Currency::release(
-                T::BaceToken::get(),
+            T::MultiBaseToken::release(
                 &pathfinder,
-                payroll.total_amount::<T>(),
+                &payroll.total_amount::<T>(),
             )?;
             <Records<T>>::remove_prefix(&pathfinder);
             Ok(().into())
@@ -283,8 +271,8 @@ pub mod pallet {
                 .checked_with_fee(last, system::Module::<T>::block_number())
                 .ok_or(Error::<T>::FailedProxy)?;
             <Records<T>>::remove_prefix(&pathfinder);
-            T::Currency::release(T::BaceToken::get(), &proxy, proxy_fee)?;
-            T::Currency::release(T::BaceToken::get(), &pathfinder, without_fee)?;
+            T::MultiBaseToken::release(&proxy, &proxy_fee)?;
+            T::MultiBaseToken::release(&pathfinder, &without_fee)?;
             Ok(().into())
         }
 
@@ -438,7 +426,7 @@ impl<T: Config> Pallet<T> {
         T::Reputation::refresh_reputation(&user_score)?;
         let who = &user_score.0;
 
-        let fee = Self::share(who.clone())?;
+        let fee = Self::share(&who)?;
         <Records<T>>::mutate(&pathfinder, &who, |_| Record { update_at, fee });
         Ok(fee)
     }
@@ -460,25 +448,12 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    pub(crate) fn share(user: T::AccountId) -> Result<Balance, DispatchError> {
-        let targets = T::TrustBase::get_trust_old(&user);
-        let total_share = T::Currency::social_balance(T::BaceToken::get(), &user);
-
-        T::Currency::bat_share(
-            T::BaceToken::get(),
-            &user,
-            &targets,
-            T::ShareRatio::get().mul_floor(total_share),
-        )?;
-        T::Currency::thaw(
-            T::BaceToken::get(),
-            &user,
-            T::SelfRation::get().mul_floor(total_share),
-        )?;
-        let actor_amount = T::FeeRation::get().mul_floor(total_share);
-        T::Currency::social_staking(T::BaceToken::get(), &user, actor_amount.clone())?;
-
-        Ok(actor_amount)
+    pub(crate) fn share(user: &T::AccountId) -> Result<Balance, DispatchError> {
+        let targets = T::TrustBase::get_trust_old(user);
+        T::MultiBaseToken::share(
+            user,
+            &targets
+        )
     }
 
     pub(crate) fn get_dist(paths: &Path<T::AccountId>, seed: &T::AccountId) -> Option<u32> {
