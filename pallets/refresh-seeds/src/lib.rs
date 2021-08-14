@@ -384,7 +384,7 @@ pub mod pallet {
                     let (uper_limit, lower_limit) = r_hashs.limit();
                     Self::checked_paths_vec(&paths, &target, uper_limit, lower_limit)?;
                     if is_all_done {
-                        Self::verify_paths(&paths, &target)?;
+                        Self::verify_paths(&paths, &target, &r_hashs)?;
                     }
                     <Paths<T>>::insert(&target, &paths);
                     Ok(().into())
@@ -421,7 +421,7 @@ pub mod pallet {
                     ensure!(old_len == full_paths.len(), Error::<T>::DepthLimitExceeded);
                     Self::checked_paths_vec(&paths, &target, uper_limit, lower_limit)?;
                     if is_all_done {
-                        Self::verify_paths(&full_paths, &target)?;
+                        Self::verify_paths(&full_paths, &target, &r_hashs)?;
                     }
                     <Paths<T>>::mutate(&target, |p| *p = full_paths);
                     // TODO 如果全部结束，则修改返回值为 uper limit
@@ -883,6 +883,7 @@ impl<T: Config> Pallet<T> {
     pub(crate) fn verify_paths(
         paths: &Vec<Path<T::AccountId>>,
         target: &T::AccountId,
+        result_hash: &ResultHash,
     ) -> DispatchResult {
         let enlarged_total_score =
             paths
@@ -893,6 +894,7 @@ impl<T: Config> Pallet<T> {
                     let score = 100 / p.total;
                     Ok(acc.saturating_add(score))
                 })?;
+        let         total_score = enlarged_total_score.checked_div(100).ok_or(Error::<T>::DepthLimitExceeded)?;
 
         // String: "AccountId,AccountId,total-AccountId,AccountId,total..."
         let list_str = paths
@@ -908,7 +910,14 @@ impl<T: Config> Pallet<T> {
             .collect::<Vec<String>>()
             .join("-");
         let hash = Self::hash(list_str.as_bytes()).to_string();
-        // TODO Validating scores and hashes
+        ensure!(
+            hash == result_hash.hash,
+            Error::<T>::DepthLimitExceeded
+        );
+        ensure!(
+            total_score as u64 == result_hash.score,
+            Error::<T>::DepthLimitExceeded
+        );
         Ok(())
     }
 
