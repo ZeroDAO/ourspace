@@ -145,10 +145,6 @@ impl<T: Config> Pallet<T> {
         system::Module::<T>::block_number()
     }
 
-    pub(crate) fn is_challenge_end(now: T::BlockNumber) -> bool {
-        now > Self::last_challenge() + T::ChallengePerior::get()
-    }
-
     pub(crate) fn set_last_refresh(now: T::BlockNumber) {
         SystemInfo::<T>::mutate(|operation_status| {
             operation_status.last = now;
@@ -240,7 +236,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
     }
 
     fn get_last_update_at() -> T::BlockNumber {
-        Self::last_challenge().max(Self::system_info().last)
+        Self::system_info().last
     }
 
     fn set_free() {
