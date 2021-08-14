@@ -106,7 +106,7 @@ where
         self
     }
 
-    fn next(&mut self, count: u32, who: AccountId) -> &mut Self {
+    fn next(&mut self, count: u32) -> &mut Self {
         self.progress.done = self.progress.done.saturating_add(count);
         self
     }
@@ -463,7 +463,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     Error::<T>::NoChallengeAllowed
                 );
                 ensure!(
-                    challenge.next(*count, who.clone()).check_progress(),
+                    challenge.next(*count).check_progress(),
                     Error::<T>::TooMany
                 );
                 let is_all_done = challenge.is_all_done();
@@ -526,7 +526,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                 ensure!(
                     challenge
                         .new_progress(total)
-                        .next(count, who.clone())
+                        .next(count)
                         .check_progress(),
                     Error::<T>::TooMany
                 );
