@@ -25,8 +25,14 @@ hex-literal = { optional = true, version = '0.3.1' }
 serde = { features = ['derive'], optional = true, version = '1.0.119' }
 
 # local dependencies
-zd-primitives = { path = "../primitives", default-features = false, version = '0.0.1' }
+zd-primitives = { default-features = false, path = "../primitives", version = '0.0.1' }
 zd-tokens = { default-features = false, path = '../pallets/tokens', version = '0.0.1' }
+zd-challenges = {path = "../pallets/challenges", default-features = false, version = '0.0.1'}
+zd-reputation = {path = "../pallets/reputation", default-features = false, version = '0.0.1'}
+zd-seeds = {path = "../pallets/seeds", default-features = false, version = '0.0.1'}
+zd-trust = {path = "../pallets/trust", default-features = false, version = '0.0.1'}
+zd-refresh-reputation = {path = "../pallets/refresh-reputation", default-features = false, version = '0.0.1'}
+zd-refresh-seeds = {path = "../pallets/refresh-seeds", default-features = false, version = '0.0.1'}
 
 # orml extensions
 orml-tokens = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao' }

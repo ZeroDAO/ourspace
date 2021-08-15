@@ -3,50 +3,29 @@
 #[cfg(test)]
 mod tests;
 
-use sp_runtime::{
-    generic,
-    traits::{AtLeast32BitUnsigned, IdentifyAccount, Verify},
-    MultiSignature, Perbill,
-};
-use sp_std::{convert::TryInto};
 use frame_support::{
     codec::{Decode, Encode},
     RuntimeDebug,
 };
+use sp_runtime::{
+    traits::AtLeast32BitUnsigned, Perbill,
+};
+use sp_std::convert::TryInto;
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-/// An index to a block.
-pub type BlockNumber = u64;
-
-/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
-pub type Signature = MultiSignature;
-
-/// Some way of identifying an account on the chain. We intentionally make it equivalent
-/// to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-
-/// The type for looking up accounts. We don't expect more than 4 billion of them, but you
-/// never know...
-pub type AccountIndex = u32;
+pub type AppId = [u8; 8];
 
 /// Balance of an account.
 pub type Balance = u128;
 
-/// Index of a transaction in the chain.
-pub type Index = u32;
+pub const PROXY_PERIOD: u64 = 20_000;
 
-/// A hash of some data used by the chain.
-pub type Hash = sp_core::H256;
+/// When other users receive their earnings, they receive that percentage of the earnings.
+pub const PROXY_PICKUP_RATIO: Perbill = Perbill::from_perthousand(20);
 
-/// Digest item type.
-pub type DigestItem = generic::DigestItem<Hash>;
-
-pub type Amount = i128;
-
-pub type AppId = [u8; 8];
-
+/*
 pub mod factor {
     use super::{Balance, BlockNumber, Perbill};
 
@@ -59,8 +38,7 @@ pub mod factor {
     /// After this period, no challenge can be launched.
     pub const CHALLENGE_PERIOD: BlockNumber = 10_000;
 
-    /// When other users receive their earnings, they receive that percentage of the earnings.
-    pub const PROXY_PICKUP_RATIO: Perbill = Perbill::from_perthousand(20);
+
 
     pub const PROXY_PERIOD: BlockNumber = 20_000;
 
@@ -69,9 +47,11 @@ pub mod factor {
     pub const ANALYST_RATIO: Perbill = Perbill::from_percent(10);
 }
 
+*/
+
 pub mod per_social_currency {
     use super::Perbill;
-    
+
     pub const MIN_TRUST_COUNT: u32 = 150;
     /// Reserve the owner's free balance. The percentage can be adjusted by the community.
     pub const PRE_RESERVED: Perbill = Perbill::from_percent(10);
@@ -98,9 +78,9 @@ pub enum TIRStep {
 }
 
 impl Default for TIRStep {
-	fn default() -> TIRStep {
-		TIRStep::FREE
-	}
+    fn default() -> TIRStep {
+        TIRStep::FREE
+    }
 }
 
 pub mod fee {
@@ -111,29 +91,34 @@ pub mod fee {
         Self: Sized,
     {
         fn is_allowed_proxy<B: AtLeast32BitUnsigned>(last: B, now: B) -> bool;
-        fn checked_with_fee<B: AtLeast32BitUnsigned>(&self, last: B, now: B) -> Option<(Self,Self)>;
-        fn with_fee(&self) -> (Self,Self);
+        fn checked_with_fee<B: AtLeast32BitUnsigned>(
+            &self,
+            last: B,
+            now: B,
+        ) -> Option<(Self, Self)>;
+        fn with_fee(&self) -> (Self, Self);
     }
 
     impl ProxyFee for Balance {
-
         fn is_allowed_proxy<B: AtLeast32BitUnsigned>(last: B, now: B) -> bool {
             let now_into = TryInto::<u64>::try_into(last).ok().unwrap();
             let last_into = TryInto::<u64>::try_into(now).ok().unwrap();
-            last_into + factor::PROXY_PERIOD > now_into
+            last_into + PROXY_PERIOD > now_into
         }
 
-        fn checked_with_fee<B: AtLeast32BitUnsigned>(&self, last: B, now: B) -> Option<(Self,Self)> {
+        fn checked_with_fee<B: AtLeast32BitUnsigned>(
+            &self,
+            last: B,
+            now: B,
+        ) -> Option<(Self, Self)> {
             match Balance::is_allowed_proxy(last, now) {
-                true => {
-                    Some(self.with_fee())
-                },
+                true => Some(self.with_fee()),
                 false => None,
             }
         }
 
-        fn with_fee(&self) -> (Self,Self) {
-            let proxy_fee = factor::PROXY_PICKUP_RATIO.mul_floor(*self);
+        fn with_fee(&self) -> (Self, Self) {
+            let proxy_fee = PROXY_PICKUP_RATIO.mul_floor(*self);
             (proxy_fee, self.saturating_sub(proxy_fee))
         }
     }

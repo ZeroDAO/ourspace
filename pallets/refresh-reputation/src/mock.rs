@@ -11,11 +11,12 @@ use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
 use sp_runtime::{traits::Zero, Perbill};
-use zd_primitives::{Balance, BlockNumber};
+use zd_primitives::Balance;
 
 pub type Amount = i128;
 pub type AccountId = u64;
 pub type CurrencyId = u128;
+pub type BlockNumber = u32;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;

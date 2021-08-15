@@ -198,7 +198,7 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        NewExamine,
+        RefershSeedStared(T::AccountId),
     }
 
     #[pallet::error]
@@ -221,8 +221,9 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn start(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-            let _ = ensure_signed(origin)?;
+            let who = ensure_signed(origin)?;
             T::Reputation::new_round()?;
+            Self::deposit_event(Event::RefershSeedStared(who));
             Ok(().into())
         }
 

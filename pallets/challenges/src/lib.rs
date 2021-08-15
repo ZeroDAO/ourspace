@@ -8,8 +8,10 @@ use frame_support::{
     RuntimeDebug,
 };
 use frame_system::{self as system};
-use orml_traits::{MultiCurrencyExtended, StakingCurrency};
-use zd_primitives::{factor, fee::ProxyFee, Amount, AppId, Balance, TIRStep};
+use sp_std::convert::{TryFrom, TryInto};
+
+use orml_traits::{MultiCurrencyExtended, StakingCurrency, arithmetic::{self, Signed}};
+use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
 use zd_traits::{ChallengeBase, Reputation};
 
 #[cfg(feature = "std")]
@@ -138,13 +140,24 @@ pub mod pallet {
                 Self::AccountId,
                 CurrencyId = Self::CurrencyId,
                 Balance = Balance,
-                Amount = Amount,
+                Amount = Self::Amount,
             > + StakingCurrency<Self::AccountId>;
+        type Amount: Signed
+            + TryInto<Balance>
+            + TryFrom<Balance>
+            + Parameter
+            + Member
+            + arithmetic::SimpleArithmetic
+            + Default
+            + Copy
+            + MaybeSerializeDeserialize;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
         #[pallet::constant]
         type ChallengePerior: Get<Self::BlockNumber>;
         #[pallet::constant]
         type BaceToken: Get<Self::CurrencyId>;
+        #[pallet::constant]
+        type ChallengeStakingAmount: Get<Balance>;
     }
 
     #[pallet::pallet]
@@ -326,16 +339,14 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             Status::FREE => {
                 pathfinder_amount = awards;
             }
-            Status::REPLY => {
-                match is_all_done {
-                    true => {
-                        pathfinder_amount = awards;
-                    },
-                    false => {
-                        challenger_amount = awards;
-                    },
+            Status::REPLY => match is_all_done {
+                true => {
+                    pathfinder_amount = awards;
                 }
-            }
+                false => {
+                    challenger_amount = awards;
+                }
+            },
             Status::EXAMINE => {
                 challenger_amount = awards;
                 maybe_score = Some(challenge.score);
@@ -345,10 +356,10 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                 match is_all_done {
                     true => {
                         challenger_amount = awards;
-                    },
+                    }
                     false => {
                         pathfinder_amount = awards;
-                    },
+                    }
                 }
             }
             Status::ARBITRATION => match challenge.joint_benefits {
@@ -394,10 +405,8 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     Error::<T>::NoChallengeAllowed
                 );
                 challenge_storage
-            },
-            Err(_) => {
-                Metadata::default()
-            },
+            }
+            Err(_) => Metadata::default(),
         };
 
         ensure!(
@@ -425,7 +434,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
 
         <Metadatas<T>>::try_mutate(app_id, target, |m| -> DispatchResult {
             *m = challenge;
-            Self::staking(&who, factor::CHALLENGE_STAKING_AMOUNT)?;
+            Self::staking(&who, T::ChallengeStakingAmount::get())?;
             Ok(())
         })?;
 
@@ -458,10 +467,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     challenge.is_challenger(&who),
                     Error::<T>::NoChallengeAllowed
                 );
-                ensure!(
-                    challenge.next(*count).check_progress(),
-                    Error::<T>::TooMany
-                );
+                ensure!(challenge.next(*count).check_progress(), Error::<T>::TooMany);
                 let is_all_done = challenge.is_all_done();
                 let (score, remark) = up(challenge.score, challenge.remark, is_all_done)?;
                 challenge.remark = remark;
@@ -520,10 +526,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                 );
 
                 ensure!(
-                    challenge
-                        .new_progress(total)
-                        .next(count)
-                        .check_progress(),
+                    challenge.new_progress(total).next(count).check_progress(),
                     Error::<T>::TooMany
                 );
 
@@ -581,7 +584,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                         Self::is_challenge_timeout(&challenge),
                         Error::<T>::NoPermission
                     );
-                    Self::staking(&who, factor::CHALLENGE_STAKING_AMOUNT)?;
+                    Self::staking(&who, T::ChallengeStakingAmount::get())?;
                     challenge.challenger = who.clone();
                 }
                 let (joint_benefits, restart, score) = up(challenge.score)?;

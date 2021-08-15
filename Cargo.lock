@@ -8705,8 +8705,14 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
+ "zd-challenges",
  "zd-primitives",
+ "zd-refresh-reputation",
+ "zd-refresh-seeds",
+ "zd-reputation",
+ "zd-seeds",
  "zd-tokens",
+ "zd-trust",
 ]
 
 [[package]]
