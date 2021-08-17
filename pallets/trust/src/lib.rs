@@ -10,8 +10,8 @@ use frame_system::{ensure_signed, pallet_prelude::*};
 use sp_runtime::{DispatchError, DispatchResult, Perbill};
 use sp_std::vec::Vec;
 use zd_traits::{Reputation, SeedsBase, TrustBase};
-use zd_utilities::{UserSet, UserSetExt};
-use zd_primitives::TIRStep;
+use orml_utilities::OrderedSet;
+use zd_primitives::{TIRStep,appro_ln};
 
 pub use module::*;
 
@@ -20,8 +20,8 @@ pub const MIN_TRUST_COUNT: u32 = 5;
 
 #[derive(Encode, Decode, Clone, Eq, PartialEq, Default)]
 pub struct TrustTemp<AccountId> {
-    pub trust: UserSet<AccountId>,
-    pub untrust: UserSet<AccountId>,
+    pub trust: OrderedSet<AccountId>,
+    pub untrust: OrderedSet<AccountId>,
 }
 
 #[frame_support::pallet]
@@ -44,7 +44,7 @@ pub mod module {
     #[pallet::storage]
     #[pallet::getter(fn trust_list)]
     pub type TrustedList<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, UserSet<T::AccountId>, ValueQuery>;
+        StorageMap<_, Twox64Concat, T::AccountId, OrderedSet<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn trust_temp_list)]
@@ -196,8 +196,7 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
             .map(|u| -> Result<(u32, u32), Error<T>> {
                 if Self::is_trust(&u[0], &u[1]) {
                     let end_ir = T::Reputation::get_reputation_new(&u[1]).unwrap_or(0);
-                    let item_dist =
-                        f64::from(start_ir.saturating_sub(end_ir).max(3u32)).ln() as u32;
+                    let item_dist = appro_ln(start_ir.saturating_sub(end_ir));
                     start_ir = end_ir;
                     let trust_count = Self::get_trust_count_old(&u[0]) as u32;
                     Ok((item_dist,trust_count))

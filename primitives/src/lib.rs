@@ -123,3 +123,23 @@ pub mod fee {
         }
     }
 }
+
+pub fn appro_ln(value: u32) -> u32 {
+    if value < 3 {
+        1
+    }else if value < 8 {
+        2
+    }else if value < 21 {
+        3
+    }else if value < 55 {
+        4
+    }else if value < 149 {
+        5
+    }else if value < 404 {
+        6
+    }else if value < 1097 {
+        7
+    }else {
+        8
+    }
+}

@@ -3,15 +3,16 @@
 // use frame_support::{ensure, dispatch::DispatchResultWithPostInfo, pallet, pallet_prelude::*};
 use frame_support::{
     codec::{Decode, Encode},
-    ensure, pallet,
+    ensure,
     traits::Get,
     RuntimeDebug,
 };
 use frame_system::{self as system};
 use sha1::{Digest, Sha1};
+// use sp_core::hexdisplay::AsBytesRef;
+use orml_utilities::OrderedSet;
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
 use zd_traits::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
-use zd_utilities::{UserSet, UserSetExt};
 
 use sp_runtime::{
     traits::{AtLeast32Bit, Zero},
@@ -19,7 +20,9 @@ use sp_runtime::{
 };
 use sp_std::{cmp::Ordering, convert::TryInto, fmt::Display, vec::Vec};
 
-pub use pallet::*;
+// #[macro_use]
+extern crate alloc;
+use alloc::string::{String, ToString};
 
 const APP_ID: AppId = *b"seed    ";
 const DEEP: u32 = 4;
@@ -38,7 +41,7 @@ pub struct Candidate<AccountId> {
 pub struct ResultHash {
     pub order: u32,
     pub score: u64,
-    pub hash: String,
+    pub hash: [u8; 20],
 }
 
 impl ResultHash {
@@ -89,6 +92,7 @@ where
 impl<A: AtLeast32Bit + Copy> Convert<A> for PathId {
     fn from_ids(start: &A, end: &A) -> Self {
         // .saturated_into()
+        let start_mut = start.as_mut();
         let start_into = TryInto::<u128>::try_into(*start).ok().unwrap();
         let end_into = TryInto::<u128>::try_into(*end).ok().unwrap();
         (start_into << 64) | end_into
@@ -132,7 +136,9 @@ pub struct Path<AccountId> {
     pub total: u32,
 }
 
-#[pallet]
+pub use pallet::*;
+
+#[frame_support::pallet]
 pub mod pallet {
 
     use super::*;
@@ -150,9 +156,9 @@ pub mod pallet {
         type SeedsBase: SeedsBase<Self::AccountId>;
         type MultiBaseToken: MultiBaseToken<Self::AccountId, Balance>;
         #[pallet::constant]
-        type StakingAmount: Get<Balance>;
+        type SeedStakingAmount: Get<Balance>;
         #[pallet::constant]
-        type MaxSeedCount: Get<Balance>;
+        type MaxSeedCount: Get<u32>;
         type AccountIdForPathId: Member
             + Parameter
             + AtLeast32Bit
@@ -169,7 +175,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn get_result_hashs)]
     pub type ResultHashs<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, Vec<UserSet<ResultHash>>, ValueQuery>;
+        StorageMap<_, Twox64Concat, T::AccountId, Vec<OrderedSet<ResultHash>>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn get_candidate)]
@@ -239,7 +245,7 @@ pub mod pallet {
                 <Candidates<T>>::contains_key(target.clone()),
                 Error::<T>::AlreadyExist
             );
-            T::MultiBaseToken::staking(&pathfinder, &T::StakingAmount::get())?;
+            T::MultiBaseToken::staking(&pathfinder, &T::SeedStakingAmount::get())?;
             Self::candidate_insert(&target, &pathfinder, &score);
             T::Reputation::set_last_refresh_at();
             Ok(().into())
@@ -260,7 +266,7 @@ pub mod pallet {
                 &challenger,
                 &candidate.pathfinder,
                 Zero::zero(),
-                T::StakingAmount::get(),
+                T::SeedStakingAmount::get(),
                 &target,
                 Zero::zero(),
                 score,
@@ -677,19 +683,17 @@ pub mod pallet {
         }
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn skim(
-            origin: OriginFor<T>,
-        ) -> DispatchResultWithPostInfo {
+        pub fn skim(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let _ = ensure_signed(origin)?;
             match Self::is_all_harvest() {
                 true => {
                     <ScoreList<T>>::kill();
-                },
+                }
                 false => {
                     if <ScoreList<T>>::get().is_empty() {
                         <Candidates<T>>::remove_all();
                     }
-                },
+                }
             }
             Ok(().into())
         }
@@ -799,10 +803,13 @@ impl<T: Config> Pallet<T> {
         Ok(path.to_vec())
     }
 
-    pub(crate) fn hash(data: &[u8]) -> Digest {
+    pub(crate) fn sha1_hasher(data: &[u8]) -> [u8; 20] {
         let mut hasher = Sha1::new();
         hasher.update(data);
-        hasher.digest()
+        let result = hasher.finalize();
+        let mut r = [0u8; 20];
+        r.clone_from_slice(&result[..]);
+        r
     }
 
     pub(crate) fn to_path_id(start: &T::AccountId, stop: &T::AccountId) -> PathId {
@@ -866,7 +873,7 @@ impl<T: Config> Pallet<T> {
         let mut res_hash_set = Self::get_result_hashs(&target);
         let current_deep = res_hash_set.len();
         ensure!((current_deep as u32) < DEEP, Error::<T>::DepthLimitExceeded);
-        let result_vec = UserSet::from(result_hashs.clone());
+        let result_vec = OrderedSet::from(result_hashs.clone());
         // TODO Determine if it is an addition or a new one!
         // TODO is_ascii
         res_hash_set.push(result_vec);
@@ -893,26 +900,26 @@ impl<T: Config> Pallet<T> {
                     let score = 100 / p.total;
                     Ok(acc.saturating_add(score))
                 })?;
-        let         total_score = enlarged_total_score.checked_div(100).ok_or(Error::<T>::DepthLimitExceeded)?;
+        let total_score = enlarged_total_score
+            .checked_div(100)
+            .ok_or(Error::<T>::DepthLimitExceeded)?;
 
         // String: "AccountId,AccountId,total-AccountId,AccountId,total..."
         let list_str = paths
             .iter()
             .map(|p| {
-                p.nodes
+                let mut nodes_str = p
+                    .nodes
                     .iter()
                     .map(|a| T::AccountIdForPathId::from(a.clone()).to_string())
-                    .chain([p.total.to_string()])
-                    .collect::<Vec<String>>()
-                    .join(",")
+                    .collect::<Vec<String>>();
+                nodes_str.push(p.total.to_string());
+                nodes_str.join(",")
             })
             .collect::<Vec<String>>()
             .join("-");
-        let hash = Self::hash(list_str.as_bytes()).to_string();
-        ensure!(
-            hash == result_hash.hash,
-            Error::<T>::DepthLimitExceeded
-        );
+        let hash = Self::sha1_hasher(list_str.as_bytes());
+        ensure!(hash == result_hash.hash, Error::<T>::DepthLimitExceeded);
         ensure!(
             total_score as u64 == result_hash.score,
             Error::<T>::DepthLimitExceeded
@@ -921,7 +928,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn verify_result_hashs(
-        result_hashs: &Vec<UserSet<ResultHash>>,
+        result_hashs: &Vec<OrderedSet<ResultHash>>,
         index: u32,
         target: &T::AccountId,
     ) -> DispatchResult {
@@ -929,23 +936,24 @@ impl<T: Config> Pallet<T> {
         if deep == 0 {
             return Ok(());
         }
-        let mut data = "".to_string();
+        let mut data: Vec<u8> = Vec::default();
         let fold_score = result_hashs[deep - 1]
             .0
             .iter()
-            .try_fold::<_, _, Result<u64, DispatchError>>(0u64, |acc, r| {
+            .try_fold::<_, _, Result<u64, Error<T>>>(0u64, |acc, r| {
                 if deep < 2 {
-                    data += &r.hash;
+                    data.extend_from_slice(&r.hash);
                 }
                 ensure!(r.order < RANGE, Error::<T>::DepthLimitExceeded);
-                acc.checked_add(r.score)
+                acc
+                    .checked_add(r.score)
                     .ok_or_else(|| Error::<T>::Overflow.into())
             })?;
         let total_score = match deep {
             1 => Self::get_candidate(&target).score,
             _ => {
                 ensure!(
-                    Self::hash(data.as_bytes()).to_string()
+                    Self::sha1_hasher(data.as_slice())
                         == result_hashs[deep - 2].0[index as usize].hash,
                     Error::<T>::DepthLimitExceeded
                 );

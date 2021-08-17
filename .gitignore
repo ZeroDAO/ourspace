@@ -6,6 +6,8 @@
 
 .vscode/
 
+Cargo.lock
+
 .DS_Store
 
 # The cache for docker container dependency

@@ -1,5 +1,3 @@
-//! The ZeroDAO Node runtime.
-
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
@@ -9,26 +7,26 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode};
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-use sp_runtime::traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, NumberFor};
+use sp_runtime::traits::{
+    AccountIdLookup, BlakeTwo256, Block as BlockT, IdentifyAccount, NumberFor, Verify, Zero,
+};
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::Zero,
     transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult,
+    ApplyExtrinsicResult, MultiSignature,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
 
 // A few exports that help ease life for downstream crates.
 pub use frame_support::{
@@ -46,13 +44,17 @@ use pallet_transaction_payment::CurrencyAdapter;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
-pub use zd_primitives::*;
 
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 
-pub use orml_tokens;
+pub use zd_challenges;
+pub use zd_refresh_reputation;
+pub use zd_refresh_seeds;
+pub use zd_reputation;
+pub use zd_seeds;
 pub use zd_tokens;
+pub use zd_trust;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -67,6 +69,9 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
 pub type AccountIndex = u32;
+
+/// Balance of an account.
+pub type Balance = u128;
 
 /// Index of a transaction in the chain.
 pub type Index = u32;
@@ -104,8 +109,8 @@ pub mod opaque {
 }
 
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("zerodao-node"),
-    impl_name: create_runtime_str!("zerodao-node"),
+    spec_name: create_runtime_str!("node-template"),
+    impl_name: create_runtime_str!("node-template"),
     authoring_version: 1,
     spec_version: 100,
     impl_version: 1,
@@ -264,20 +269,15 @@ impl pallet_transaction_payment::Config for Runtime {
     type FeeMultiplierUpdate = ();
 }
 
-impl pallet_sudo::Config for Runtime {
-    type Event = Event;
-    type Call = Call;
-}
-
-parameter_types! {
-    pub const GetNativeCurrencyId: CurrencyId = CurrencyId::ZDAO;
-}
-
 #[derive(Encode, Debug, Decode, Eq, PartialEq, Copy, Clone, PartialOrd, Ord)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum CurrencyId {
     ZDAO,
     SOCI,
+}
+
+parameter_types! {
+    pub const GetNativeCurrencyId: CurrencyId = CurrencyId::ZDAO;
 }
 
 impl orml_currencies::Config for Runtime {
@@ -304,16 +304,16 @@ impl orml_tokens::Config for Runtime {
     type OnDust = ();
 }
 
-impl zd_tokens::Config for Runtime {
+impl pallet_sudo::Config for Runtime {
     type Event = Event;
-    type CurrencyId = CurrencyId;
-    type WeightInfo = ();
-    type Currency = Currencies;
-    type Balance = Balance;
-    type Amount = Amount;
+    type Call = Call;
 }
 
-impl zd_seeds::Config for Test {
+impl zd_reputation::Config for Runtime {
+    type Event = Event;
+}
+
+impl zd_seeds::Config for Runtime {
     type Event = Event;
     type Reputation = ZdReputation;
 }
@@ -322,7 +322,7 @@ parameter_types! {
     pub const DampingFactor: Perbill = Perbill::from_percent(100);
 }
 
-impl zd_trust::Config for Test {
+impl zd_trust::Config for Runtime {
     type Event = Event;
     type DampingFactor = DampingFactor;
     type SeedsBase = ZdSeeds;
@@ -330,14 +330,30 @@ impl zd_trust::Config for Test {
 }
 
 parameter_types! {
-    /// Challenges to reputation will not be allowed beyond this time period.
-    pub const ConfirmationPeriod: BlockNumber = 100;
+    /// Response time period of challenge system.
+    pub const ChallengeTimeout: BlockNumber = 100;
+        /// Response time period of challenge system.
+    pub const ChallengeStakingAmount: Balance = 100;
 }
 
-impl zd_reputation::Config for Test {
+impl zd_challenges::Config for Runtime {
     type Event = Event;
-    type ChallengeTimeOut = ChallengePerior;
-    type ConfirmationPeriod = ConfirmationPeriod;
+    type CurrencyId = CurrencyId;
+    type BaceToken = GetNativeCurrencyId;
+    type Currency = Currencies;
+    type Reputation = ZdReputation;
+    type ChallengeStakingAmount = ChallengeStakingAmount;
+    type ChallengeTimeout = ChallengeTimeout;
+    type Amount = Amount;
+}
+
+impl zd_tokens::Config for Runtime {
+    type Event = Event;
+    type CurrencyId = CurrencyId;
+    type WeightInfo = ();
+    type Currency = Currencies;
+    type Amount = Amount;
+    type BaceToken = GetNativeCurrencyId;
 }
 
 parameter_types! {
@@ -347,9 +363,11 @@ parameter_types! {
     pub const UpdateStakingAmount: Balance = 1_000_000_000;
     /// Maximum number of uploads, which is a security setting
     pub const MaxUpdateCount: u32 = 150;
+    /// Challenges to reputation will not be allowed beyond this time period.
+    pub const ConfirmationPeriod: BlockNumber = 100;
 }
 
-impl zd_refresh_reputation::Config for Test {
+impl zd_refresh_reputation::Config for Runtime {
     type Event = Event;
     type MultiBaseToken = ZdToken;
     type MaxUpdateCount = MaxUpdateCount;
@@ -357,34 +375,27 @@ impl zd_refresh_reputation::Config for Test {
     type ConfirmationPeriod = ConfirmationPeriod;
     type Reputation = ZdReputation;
     type TrustBase = ZdTrust;
-    type ChallengeBase = Challenges;
+    type ChallengeBase = ZdChallenges;
     type SeedsBase = ZdSeeds;
     type RefRepuTiomeOut = RefRepuTiomeOut;
 }
 
 parameter_types! {
-    /// The reputation must be refreshed within this time period.
-    pub const RefRepuTiomeOut: BlockNumber = 14_400;
-    /// Amount needed for staking when refreshing reputation and seeds.
-    pub const UpdateStakingAmount: Balance = 1_000_000_000;
-    /// Maximum number of uploads, which is a security setting
-    pub const MaxUpdateCount: u32 = 150;
-	/// Response time period of challenge system.
-	pub const ChallengeTimeout: BlockNumber = 100;
-    	/// Response time period of challenge system.
-	pub const ChallengeStakingAmount: Balance = 100;
+    /// 
+    pub const SeedStakingAmount: Balance = 1_000_000_000;
+	pub const MaxSeedCount: u32 = 200;
 }
 
-impl zd_challenges::Config for Test {
-    type Event = Event;
-    type CurrencyId = CurrencyId;
-    type BaceToken = BaceToken;
-    type Currency = Tokens;
-    type Reputation = ZdReputation;
-    type UpdateStakingAmount = UpdateStakingAmount;
-    type ChallengeStakingAmount = ChallengeStakingAmount;
-    type ChallengeTimeout = ChallengeTimeout;
-    type Amount = Amount;
+impl zd_refresh_seeds::Config for Runtime {
+	type Event = Event;
+	type Reputation = ZdReputation;
+	type ChallengeBase = ZdChallenges;
+	type TrustBase = ZdTrust;
+	type SeedsBase = ZdSeeds;
+	type MultiBaseToken = ZdToken;
+	type SeedStakingAmount = SeedStakingAmount;
+	type MaxSeedCount = MaxSeedCount;
+	type AccountIdForPathId = AccountId;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -404,15 +415,15 @@ construct_runtime!(
         Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 
         Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
-        Currencies: orml_currencies::{Module, Event<T>},
+        Currencies: orml_currencies::{Module, Storage, Event<T>},
 
+        ZdReputation: zd_reputation::{Module, Call, Config<T>, Storage, Event<T>},
+        ZdSeeds: zd_seeds::{Module, Call, Storage, Event<T>},
+        ZdTrust: zd_trust::{Module, Call, Storage, Event<T>},
+        ZdChallenges: zd_challenges::{Module, Storage, Event<T>},
         ZdToken: zd_tokens::{Module, Call, Event<T>},
-		zdChallenges: zd_challenges::{Module, Call, Storage,  Config<T>, Event<T>},
-        ZdReputation: zd_reputation::{Module, Call, Storage, Event<T>},
         ZdRefreshReputation: zd_refresh_reputation::{Module, Call, Storage, Event<T>},
 		ZdRefreshSeeds: zd_refresh_seeds::{Module, Call, Storage, Event<T>},
-        ZdSeeds: zd_seeds::{Module, Call, Storage, Event<T>},
-		ZdTrust: zd_trust::{Module, Call, Storage, Event<T>},
     }
 );
 
@@ -615,7 +626,6 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
             add_benchmark!(params, batches, pallet_balances, Balances);
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-            add_benchmark!(params, batches, zd_tokens, Zdtokens);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

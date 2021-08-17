@@ -14,7 +14,9 @@ use zd_primitives::TIRStep;
 
 pub use pallet::*;
 
+#[cfg(test)]
 mod mock;
+#[cfg(test)]
 mod tests;
 
 /// Maximum quantity for seeds
@@ -58,9 +60,6 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-        #[pallet::constant]
-        type ChallengePerior: Get<Self::BlockNumber>;
-        type ConfirmationPeriod: Get<Self::BlockNumber>;
     }
 
     #[pallet::pallet]

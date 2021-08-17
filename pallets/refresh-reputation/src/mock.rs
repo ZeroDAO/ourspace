@@ -1,9 +1,8 @@
 #![cfg(test)]
 
 use crate as zd_refresh_reputation;
-use frame_support::sp_runtime::{
-    testing::Header,
-    traits::{BlakeTwo256, IdentityLookup},
+use sp_runtime::{
+    traits::{BlakeTwo256, IdentityLookup}, testing::Header,
 };
 use frame_support::{construct_runtime, parameter_types, traits::GenesisBuild};
 use frame_system as system;
@@ -14,9 +13,9 @@ use sp_runtime::{traits::Zero, Perbill};
 use zd_primitives::Balance;
 
 pub type Amount = i128;
-pub type AccountId = u64;
+pub type AccountId = u32;
 pub type CurrencyId = u128;
-pub type BlockNumber = u32;
+pub type BlockNumber = u64;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
@@ -62,21 +61,19 @@ parameter_types! {
     pub const BaceToken: CurrencyId = ZDAO;
     pub const ConfirmationPeriod: BlockNumber = 120;
     pub const ChallengePerior: BlockNumber = 100;
-    pub const BlockHashCount: u64 = 250;
+    pub const BlockHashCount: u32 = 250;
     pub const SS58Prefix: u8 = 42;
 
     pub const ShareRatio: Perbill = Perbill::from_percent(80);
     pub const FeeRation: Perbill = Perbill::from_percent(3);
     pub const SelfRation: Perbill = Perbill::from_percent(3);
     pub const MaxUpdateCount: u32 = 4;
-    pub const UpdateStakingAmount: Balance = 1_000;
 
     pub const DampingFactor: Perbill = Perbill::from_percent(80);
     pub const ExistentialDeposit: u128 = 500;
     pub const MaxLocks: u32 = 50;
 
     pub const ReceiverProtectionPeriod: BlockNumber = 100;
-    pub const RefRepuTiomeOut: BlockNumber = 100;
 }
 
 impl zd_seeds::Config for Test {
@@ -110,15 +107,26 @@ impl zd_refresh_reputation::Config for Test {
     type RefRepuTiomeOut = RefRepuTiomeOut;
 }
 
+parameter_types! {
+    /// The reputation must be refreshed within this time period.
+    pub const RefRepuTiomeOut: BlockNumber = 14_400;
+    /// Amount needed for staking when refreshing reputation and seeds.
+    pub const UpdateStakingAmount: Balance = 1_000_000_000;
+	/// Response time period of challenge system.
+	pub const ChallengeTimeout: BlockNumber = 100;
+    	/// Response time period of challenge system.
+	pub const ChallengeStakingAmount: Balance = 100;
+}
+
 impl zd_challenges::Config for Test {
     type Event = Event;
     type CurrencyId = CurrencyId;
     type BaceToken = BaceToken;
     type Currency = Tokens;
     type Reputation = ZdReputation;
-    type ReceiverProtectionPeriod = ReceiverProtectionPeriod;
-    type UpdateStakingAmount = UpdateStakingAmount;
-    type ChallengePerior = ChallengePerior;
+    type ChallengeStakingAmount = ChallengeStakingAmount;
+    type ChallengeTimeout = ChallengeTimeout;
+    type Amount = Amount;
 }
 
 impl orml_tokens::Config for Test {
@@ -136,8 +144,8 @@ impl zd_tokens::Config for Test {
     type CurrencyId = CurrencyId;
     type WeightInfo = ();
     type Currency = Currencies;
-    type Balance = Balance;
     type Amount = Amount;
+    type BaceToken = BaceToken;
 }
 
 impl system::Config for Test {
@@ -147,11 +155,11 @@ impl system::Config for Test {
     type DbWeight = ();
     type Origin = Origin;
     type Call = Call;
-    type Index = u64;
+    type Index = u32;
     type BlockNumber = BlockNumber;
     type Hash = H256;
     type Hashing = BlakeTwo256;
-    type AccountId = u64;
+    type AccountId = AccountId;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
     type Event = Event;

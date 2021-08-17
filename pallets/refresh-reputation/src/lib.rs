@@ -57,7 +57,7 @@ impl<AccountId> Path<AccountId> {
     }
 
     fn exclude_zero(&self) -> bool {
-        self.nodes.len() as u32 <= MAX_PATH_COUNT && !self.nodes.is_empty() && !self.score.is_zero()
+        self.nodes.len() as u32 <= MAX_PATH_COUNT && !self.nodes.is_empty() && self.score != 0
     }
 }
 
@@ -186,7 +186,7 @@ pub mod pallet {
 
             let total_fee = Payrolls::<T>::drain()
                 .try_fold::<_, _, Result<Balance, DispatchError>>(
-                    Zero::zero(),
+                    0u128,
                     |acc: Balance, (pathfinder, payroll)| {
                         let (proxy_fee, without_fee) = payroll.total_amount::<T>().with_fee();
 
@@ -495,7 +495,7 @@ impl<T: Config> Pallet<T> {
             score,
             |acc, (seed, path)| -> Result<u32, DispatchError> {
                 let dist_new = Self::get_dist(&path, seed).ok_or(Error::<T>::DistErr)?;
-                let old_path = <Paths<T>>::get(&seed, &target);
+                let old_path = Self::get_path(&seed, &target);
                 if let Some(old_dist) = Self::get_dist(&old_path, &seed) {
                     ensure!(old_dist >= dist_new, Error::<T>::DistTooLong);
                     ensure!(

@@ -1,7 +1,7 @@
 use sp_core::{Pair, Public, sr25519};
 use zerodao::{
-	AccountId, AuraConfig, BalancesConfig, CurrencyId, GenesisConfig, GrandpaConfig,
-	SudoConfig, SystemConfig, WASM_BINARY, Signature, TokensConfig
+	AccountId, BlockNumber, AuraConfig, BalancesConfig, CurrencyId, GenesisConfig, GrandpaConfig,
+	SudoConfig, SystemConfig, WASM_BINARY, Signature, TokensConfig, ZdReputationConfig
 };
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -53,7 +53,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 			vec![
 				authority_keys_from_seed("Alice"),
 			],
-			// Sudo account
+			100,
 			get_account_id_from_seed::<sr25519::Public>("Alice"),
 			// Pre-funded accounts
 			vec![
@@ -93,6 +93,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 				authority_keys_from_seed("Alice"),
 				authority_keys_from_seed("Bob"),
 			],
+			100,
 			// Sudo account
 			get_account_id_from_seed::<sr25519::Public>("Alice"),
 			// Pre-funded accounts
@@ -129,6 +130,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 fn testnet_genesis(
 	wasm_binary: &[u8],
 	initial_authorities: Vec<(AuraId, GrandpaId)>,
+	period: BlockNumber,
 	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
@@ -152,6 +154,9 @@ fn testnet_genesis(
 		pallet_sudo: Some(SudoConfig {
 			// Assign network admin rights.
 			key: root_key,
+		}),
+		zd_reputation: Some(ZdReputationConfig {
+			period: period,
 		}),
 		orml_tokens: Some(TokensConfig {
             endowed_accounts: endowed_accounts

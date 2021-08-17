@@ -11,6 +11,7 @@ use sp_runtime::{
     traits::{MaybeSerializeDeserialize, Member, StaticLookup},
     DispatchResult,
 };
+use sp_std::vec::Vec;
 use zd_primitives::{per_social_currency, Balance};
 use zd_traits::MultiBaseToken;
 
@@ -139,7 +140,7 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
         T::Currency::bat_share(T::BaceToken::get(), &who, targets, share_amount)?;
         T::Currency::thaw(T::BaceToken::get(), &who, reserved_amount)?;
         T::Currency::social_burn(T::BaceToken::get(), &who, burn_amount)?;
-        <Bonus<T>>::try_mutate(|balance| {
+        <Bonus<T>>::try_mutate(|balance| -> DispatchResult {
             *balance = balance
                 .checked_add(pre_reward)
                 .ok_or(Error::<T>::Overflow)?;

@@ -75,11 +75,11 @@ where
         self.pool.staking.checked_add(self.pool.earnings)
     }
 
-    fn is_allowed_evidence<ChallengePerior>(&self, now: BlockNumber) -> bool
+    fn is_allowed_evidence<ChallengeTimeout>(&self, now: BlockNumber) -> bool
     where
-        ChallengePerior: Get<BlockNumber>,
+        ChallengeTimeout: Get<BlockNumber>,
     {
-        let challenge_perior = ChallengePerior::get().saturated_into::<BlockNumber>();
+        let challenge_perior = ChallengeTimeout::get().saturated_into::<BlockNumber>();
 
         if !self.is_all_done() && self.last_update + challenge_perior >= now {
             return false;
@@ -153,7 +153,7 @@ pub mod pallet {
             + MaybeSerializeDeserialize;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
         #[pallet::constant]
-        type ChallengePerior: Get<Self::BlockNumber>;
+        type ChallengeTimeout: Get<Self::BlockNumber>;
         #[pallet::constant]
         type BaceToken: Get<Self::CurrencyId>;
         #[pallet::constant]
@@ -251,7 +251,7 @@ impl<T: Config> Pallet<T> {
             Ok((sweeper_fee, awards))
         } else {
             ensure!(
-                challenge.last_update + T::ChallengePerior::get() > now_block_number,
+                challenge.last_update + T::ChallengeTimeout::get() > now_block_number,
                 Error::<T>::TooSoon
             );
             Ok((Zero::zero(), *total_amount))
@@ -309,7 +309,7 @@ impl<T: Config> Pallet<T> {
 
     fn is_challenge_timeout(challenge: &Metadata<T::AccountId, T::BlockNumber>) -> bool {
         let now_block_number = system::Module::<T>::block_number();
-        now_block_number > challenge.last_update + T::ChallengePerior::get()
+        now_block_number > challenge.last_update + T::ChallengeTimeout::get()
     }
 }
 
@@ -319,8 +319,8 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
     }
 
     fn is_all_timeout(app_id: &AppId, now: &T::BlockNumber) -> bool {
-        let last = <LastAt<T>>::get(app_id);
-        *now > last + T::ChallengePerior::get()
+        let last = LastAt::<T>::get(app_id);
+        *now > last + T::ChallengeTimeout::get()
     }
 
     fn harvest(
@@ -410,7 +410,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         };
 
         ensure!(
-            challenge.is_allowed_evidence::<T::ChallengePerior>(now_block_number),
+            challenge.is_allowed_evidence::<T::ChallengeTimeout>(now_block_number),
             Error::<T>::NoChallengeAllowed
         );
 

@@ -13,7 +13,7 @@ targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
 serde = { features = ['derive'], optional = true, version = '1.0.119' }
-sha1 = { optional = true, default-features = false, version = '0.6.0' }
+sha-1 = { default-features = false, version = '0.9.7' }
 codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
 frame-system = { default-features = false, version = '3.0.0' }
 frame-support = { default-features = false, version = '3.0.0' }
@@ -22,7 +22,8 @@ sp-std = { version = "3.0.0", default-features = false }
 
 zd-traits = { path = "../../traits", default-features = false, version = '0.0.1' }
 zd-primitives = { path = "../../primitives", default-features = false, version = '0.0.1' }
-zd-utilities = { path = "../utilities", default-features = false, version = '0.0.1' }
+
+orml-utilities = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = 'd6e9979'}
 
 [dev-dependencies]
 sp-core = { default-features = false, version = '3.0.0' }
@@ -32,11 +33,13 @@ sp-io = { default-features = false, version = '3.0.0' }
 default = ['std']
 std = [
     'serde',
-    'sha1',
     'codec/std',
     'frame-support/std',
     'frame-system/std',
     'sp-std/std',
     'sp-runtime/std',
     'zd-traits/std',
+    'orml-utilities/std',
+    'zd-primitives/std',
+    'sha-1/std',
 ]

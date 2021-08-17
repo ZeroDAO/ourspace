@@ -20,7 +20,6 @@ sp-std = {version = "3.0.0", default-features = false}
 
 zd-primitives = {path = "../../primitives", default-features = false, version = '0.0.1'}
 zd-traits = {path = "../../traits", default-features = false, version = '0.0.1'}
-zd-utilities = {path = "../utilities", default-features = false, version = '0.0.1'}
 
 [dev-dependencies]
 pallet-balances = {default-features = false, version = '3.0.0'}
@@ -34,11 +33,9 @@ zd-seeds = {path = "../seeds", default-features = false, version = '0.0.1'}
 zd-tokens = {path = "../tokens", default-features = false, version = '0.0.1'}
 zd-trust = {path = "../trust", default-features = false, version = '0.0.1'}
 
-orml-traits = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao'}
-orml-currencies = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao'}
-orml-tokens = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao'}
-# orml-currencies = {default-features = false, version = '0.4.0', path = "../../../open-runtime-module-library/currencies"}
-# orml-tokens = {default-features = false, version = '0.4.0', path = "../../../open-runtime-module-library/tokens"}
+orml-traits = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = 'd6e9979'}
+orml-currencies = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = 'd6e9979'}
+orml-tokens = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = 'd6e9979'}
 
 [features]
 default = ['std']
@@ -50,7 +47,6 @@ std = [
   'orml-traits/std',
   'zd-traits/std',
   "sp-std/std",
-  "zd-utilities/std",
   "zd-challenges/std",
   "zd-reputation/std",
   "zd-seeds/std", # "zd-tokens/std",
