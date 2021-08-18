@@ -29,8 +29,8 @@ pallet-elections-phragmen = { version = "3.0.0" }
 pallet-balances = { default-features = false, version = '3.0.0' }
 
 # orml extensions
-orml-tokens = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '684c66a' }
-orml-currencies = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '684c66a' }
+orml-tokens = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = 'd6e9979' }
+orml-currencies = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = 'd6e9979' }
 
 [features]
 default = ["std"]

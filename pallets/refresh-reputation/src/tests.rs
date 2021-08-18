@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-// use crate::mock::{Event, *};
+use crate::mock::{Event, *};
 use frame_support::{assert_noop, assert_ok};
 
 fn new_test_ext() -> sp_io::TestExternalities {

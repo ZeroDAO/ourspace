@@ -90,8 +90,6 @@ impl zd_trust::Config for Test {
 
 impl zd_reputation::Config for Test {
     type Event = Event;
-    type ChallengePerior = ChallengePerior;
-    type ConfirmationPeriod = ConfirmationPeriod;
 }
 
 impl zd_refresh_reputation::Config for Test {

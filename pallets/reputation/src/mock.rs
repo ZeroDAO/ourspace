@@ -44,8 +44,6 @@ parameter_types! {
 
 impl zd_reputation::Config for Test {
     type Event = Event;
-    type ChallengePerior = ChallengePerior;
-    type ConfirmationPeriod = ConfirmationPeriod;
 }
 
 impl system::Config for Test {
