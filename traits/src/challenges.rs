@@ -38,7 +38,7 @@ pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
         target: &AccountId,
         total: u32,
         count: u32,
-        up: impl Fn(bool,u32) -> DispatchResult,
+        up: impl Fn(bool, u32, u64) -> Result<u64, DispatchError>,
     ) -> DispatchResult;
 
     fn evidence(

@@ -512,7 +512,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         target: &T::AccountId,
         total: u32,
         count: u32,
-        up: impl Fn(bool, u32) -> DispatchResult,
+        up: impl Fn(bool, u32, u64) -> Result<u64, DispatchError>,
     ) -> DispatchResult {
         Self::mutate_metadata(
             app_id,
@@ -536,7 +536,8 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     challenge.status = Status::REPLY;
                 }
 
-                up(is_all_done, challenge.remark)
+                challenge.score = up(is_all_done, challenge.remark, challenge.score)?;
+                Ok(())
             },
         )
     }
