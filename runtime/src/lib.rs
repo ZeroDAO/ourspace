@@ -395,7 +395,6 @@ impl zd_refresh_seeds::Config for Runtime {
 	type MultiBaseToken = ZdToken;
 	type SeedStakingAmount = SeedStakingAmount;
 	type MaxSeedCount = MaxSeedCount;
-	type AccountIdForPathId = AccountId;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
