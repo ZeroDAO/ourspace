@@ -415,9 +415,11 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
-            // TODO Detection of duplication
+            let mut mid_paths = mid_paths;
+            mid_paths.sort();
+            mid_paths.dedup();
+
             Self::do_reply_num(&challenger, &target, &mid_paths)?;
-            // TODO restart or timeout
             T::Reputation::set_last_refresh_at();
             Ok(().into())
         }
@@ -1018,7 +1020,6 @@ impl<T: Config> Pallet<T> {
                     (count as u32) == p_path.total,
                     Error::<T>::DepthLimitExceeded
                 );
-                // TODO 修改端点获取方式
                 let (start, stop) = Self::get_ends(&p_path);
                 for mid_path in mid_paths {
                     let _ = Self::check_mid_path(&mid_path, &start, &stop, &target)?;
