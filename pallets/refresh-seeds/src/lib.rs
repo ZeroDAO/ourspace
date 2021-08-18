@@ -553,12 +553,14 @@ pub mod pallet {
             let p_path_total = p_path.total as usize;
             let p_path_len = p_path.nodes.len() + 2;
 
+            let mut mid_paths = mid_paths;
+            mid_paths.sort();
+            mid_paths.dedup();
+
             ensure!(
                 mid_paths.len() <= (MAX_SHORTEST_PATH + 1) as usize,
                 Error::<T>::DepthLimitExceeded
             );
-
-            // TODO Removal of duplicates
 
             let (start, stop) = Self::get_ends(&p_path);
             let maybe_score = T::ChallengeBase::evidence(
@@ -639,9 +641,8 @@ pub mod pallet {
             );
             let is_sweeper = who == target;
             let mut score_list = Self::get_score_list();
-            // TODO Throwing error if less than zero
+            ensure!(score_list.is_empty(), Error::<T>::DepthLimitExceeded);
             let len = Self::hand_first_time(&mut score_list);
-
             let candidate = <Candidates<T>>::take(&target);
             if !score_list.is_empty() && candidate.score >= score_list[0] {
                 if let Ok(index) = score_list.binary_search(&candidate.score) {
@@ -667,8 +668,11 @@ pub mod pallet {
                 }
             }
 
-            if score_list.is_empty() || Self::is_all_harvest() {}
             <ScoreList<T>>::put(score_list);
+
+            if score_list.is_empty() || Self::is_all_harvest() {
+                T::Reputation::set_step(TIRStep::REPUTATION);
+            }
             Ok(().into())
         }
 
