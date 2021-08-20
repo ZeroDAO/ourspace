@@ -6,7 +6,7 @@
 
 .vscode/
 
-Cargo.lock
+**/Cargo.lock
 
 .DS_Store
 

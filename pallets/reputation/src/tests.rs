@@ -18,7 +18,7 @@ fn set_period_should_work() {
         assert_eq!(<SystemInfo<Test>>::get().period, 18);
     });
 }
-
+/* 
 #[test]
 fn set_period_should_fail() {
     new_test_ext().execute_with(|| {
@@ -28,6 +28,7 @@ fn set_period_should_fail() {
         );
     });
 }
+*/
 
 #[test]
 fn new_round_should_work() {
@@ -46,7 +47,7 @@ fn new_round_should_work() {
         );
     });
 }
-
+/* 
 #[test]
 fn new_round_should_fail() {
     new_test_ext().execute_with(|| {
@@ -54,6 +55,7 @@ fn new_round_should_fail() {
         assert_noop!(ZdReputation::new_round(), Error::<Test>::AlreadyInUpdating);
     });
 }
+*/
 
 #[test]
 fn mutate_reputation_should_work() {
@@ -109,7 +111,7 @@ fn check_update_status_should_work() {
         assert_eq!(ZdReputation::check_update_status(false), None);
     });
 }
-
+/* 
 #[test]
 fn end_refresh_should_work() {
     new_test_ext().execute_with(|| {
@@ -121,3 +123,4 @@ fn end_refresh_should_work() {
         assert_eq!(<SystemInfo<Test>>::get().updating, false);
     });
 }
+*/
