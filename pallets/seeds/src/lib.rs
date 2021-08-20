@@ -62,18 +62,11 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn add_seed(origin: OriginFor<T>,new_seed: T::AccountId) -> DispatchResultWithPostInfo {
+		pub fn new_seed(origin: OriginFor<T>,seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
 			T::Reputation::check_update_status(false);
-
 			ensure!(Seeds::<T>::contains_key(&new_seed), Error::<T>::SeedsLimitReached);
-
-			Seeds::<T>::insert(&new_seed,INIT_SEED_SCORE);
-
-			SeedsCount::<T>::mutate(|c| *c += 1);
-
-			Self::deposit_event(Event::SeedAdded(new_seed));
-
+			Self::add_seed(&seed);
 			Ok(().into())
 		}
 
@@ -81,14 +74,10 @@ pub mod pallet {
 		pub fn remove_seed(origin: OriginFor<T>, seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
 			let _ = T::Reputation::check_update_status(false);
-
 			ensure!(!<Seeds<T>>::contains_key(&seed), Error::<T>::NotSeedUser);
-
 			<Seeds<T>>::remove(&seed);
 			SeedsCount::<T>::mutate(|c| *c -= 1);
-
 			Self::deposit_event(Event::SeedRemoved(seed));
-
 			Ok(().into())
 		}
 	}
