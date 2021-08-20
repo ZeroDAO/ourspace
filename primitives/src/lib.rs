@@ -22,30 +22,6 @@ pub const PROXY_PERIOD: u64 = 20_000;
 /// When other users receive their earnings, they receive that percentage of the earnings.
 pub const PROXY_PICKUP_RATIO: Perbill = Perbill::from_perthousand(20);
 
-/*
-pub mod factor {
-    use super::{Balance, BlockNumber, Perbill};
-
-    /// Challenge staking amount.
-    pub const CHALLENGE_STAKING_AMOUNT: Balance = 5_000;
-
-    /// After this period, the proceeds can be claimed by other users.
-    pub const RECEIVER_PROTECTION_PERIOD: BlockNumber = 10;
-
-    /// After this period, no challenge can be launched.
-    pub const CHALLENGE_PERIOD: BlockNumber = 10_000;
-
-
-
-    pub const PROXY_PERIOD: BlockNumber = 20_000;
-
-    /// When the final reputation value obtained from the challenge is consistent with the
-    /// original reputation value, the accountant divides it into percentage values.
-    pub const ANALYST_RATIO: Perbill = Perbill::from_percent(10);
-}
-
-*/
-
 pub mod per_social_currency {
     use super::Perbill;
 
