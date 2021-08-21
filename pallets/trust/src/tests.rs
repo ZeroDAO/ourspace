@@ -73,7 +73,40 @@ fn computed_path_should_work() {
         initialize_trust();
         assert_ok!(ZdSeeds::new_seed(Origin::root(), ALICE));
         // vec![(FERDIE, BOB), (ALICE, CHARLIE), (ALICE, BOB), (BOB, CHARLIE), (CHARLIE, DAVE), (DAVE, EVE)];
-        assert_ok!(ZdTrust::computed_path(&vec![ALICE,BOB]), (2,250));
-        assert_ok!(ZdTrust::computed_path(&vec![ALICE,BOB,DAVE]), (3,50));
+        // 1000 / 2.max(5) / (1000 - 0).ln() = 28.5714
+        assert_ok!(ZdTrust::computed_path(&vec![ALICE,BOB]), (7,28));
+        // 28 / 0.max(5) / 1 = 5.6
+        assert_ok!(ZdTrust::computed_path(&vec![ALICE,BOB,CHARLIE]), (1 + 7,5));
+    });
+}
+
+#[test]
+fn computed_path_should_fail() {
+    new_test_ext().execute_with(|| {
+        initialize_trust();
+        assert_ok!(ZdSeeds::new_seed(Origin::root(), ALICE));
+        assert_noop!(ZdTrust::computed_path(&vec![BOB,CHARLIE]), Error::<Test>::NotSeed);
+        assert_noop!(ZdTrust::computed_path(&vec![ALICE, BOB, 22]), Error::<Test>::WrongPath);
+    });
+}
+
+#[test]
+fn get_trust_count_old_should_work() {
+    new_test_ext().execute_with(|| {
+        initialize_trust();
+        ZdReputation::set_step(&TIRStep::SEED);
+
+        // (ALICE, CHARLIE), (ALICE, BOB)
+        assert_ok!(ZdTrust::do_trust(&ALICE, &DAVE));
+        assert_eq!(ZdTrust::get_trust_count_old(&ALICE),2);
+        assert_eq!(ZdTrust::get_trust_count(&ALICE),3);
+
+        assert_ok!(ZdTrust::do_untrust(&ALICE, &DAVE));
+        assert_eq!(ZdTrust::get_trust_count_old(&ALICE),2);
+        assert_eq!(ZdTrust::get_trust_count(&ALICE),2);
+
+        assert_ok!(ZdTrust::do_untrust(&ALICE, &CHARLIE));
+        assert_eq!(ZdTrust::get_trust_count_old(&ALICE),2);
+        assert_eq!(ZdTrust::get_trust_count(&ALICE),1);
     });
 }
