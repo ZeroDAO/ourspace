@@ -1,43 +1,47 @@
 [package]
 authors = ["ZeroDAO <https://github.com/ZeroDAO>"]
 description = 'The challenge logic of the TIR algorithm.'
+edition = "2018"
+homepage = 'https://0p0.org'
+license = "Apache-2.0"
 name = 'zd-trust'
 repository = "https://github.com/ZeroDAO/ZeroDAO-node"
-license = "Apache-2.0"
 version = "0.0.1"
-homepage = 'https://0p0.org'
-edition = "2018"
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
-codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
+codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0'}
 
-sp-runtime = { default-features = false, version = '3.0.0' }
-sp-std = { version = "3.0.0", default-features = false }
-sr-std = { version = "1.0.1", default-features = false }
+sp-runtime = {default-features = false, version = '3.0.0'}
+sp-std = {version = "3.0.0", default-features = false}
+sr-std = {version = "1.0.1", default-features = false}
 
-frame-system = { default-features = false, version = '3.0.0' }
-frame-support = { default-features = false, version = '3.0.0' }
+frame-support = {default-features = false, version = '3.0.0'}
+frame-system = {default-features = false, version = '3.0.0'}
 
-zd-traits = { path = "../../traits", default-features = false, version = '0.0.1' }
-zd-primitives = { path = "../../primitives", default-features = false, version = '0.0.1' }
+zd-primitives = {path = "../../primitives", default-features = false, version = '0.0.1'}
+zd-traits = {path = "../../traits", default-features = false, version = '0.0.1'}
 
-orml-utilities = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = 'd6e9979'}
+orml-utilities = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = 'd6e9979'}
 
 [dev-dependencies]
-serde = { version = "1.0.119" }
-sp-core = { default-features = false, version = '3.0.0' }
-sp-io = { default-features = false, version = '3.0.0' }
-zd-seeds = {path = "../seeds", default-features = false, version = '0.0.1'}
+serde = {version = "1.0.119"}
+sp-core = {default-features = false, version = '3.0.0'}
+sp-io = {default-features = false, version = '3.0.0'}
 zd-reputation = {path = "../reputation", default-features = false, version = '0.0.1'}
+zd-seeds = {path = "../seeds", default-features = false, version = '0.0.1'}
 
 [features]
 default = ['std']
 std = [
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    "sr-std/std",
+  'codec/std',
+  'frame-support/std',
+  'frame-system/std',
+  "sr-std/std",
+  'sp-std/std',
+  "zd-traits/std",
+  "zd-primitives/std",
+  'zd-reputation/std'
 ]
