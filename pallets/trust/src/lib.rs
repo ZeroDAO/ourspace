@@ -122,7 +122,7 @@ impl<T: Config> Pallet<T> {
                 let _ = trust_temp_list.untrust.insert(target.clone());
             }
 
-            <TrustTempList<T>>::insert(&who, trust_temp_list);
+            <TrustTempList<T>>::mutate(&who, |t|*t = trust_temp_list);
         }
         Ok(())
     }
@@ -130,11 +130,10 @@ impl<T: Config> Pallet<T> {
     pub(crate) fn do_untrust(who: &T::AccountId, target: &T::AccountId) -> DispatchResult {
         ensure!(who != target, Error::<T>::UnableUntrustYourself);
 
-        ensure!(
-            <TrustTempList<T>>::contains_key(&who),
-            Error::<T>::NonExistent
-        );
-        <TrustTempList<T>>::mutate(&who, |list| list.trust.remove(&target));
+        <TrustedList<T>>::try_mutate(&who, |t| -> DispatchResult {
+            ensure!(t.remove(target), Error::<T>::NonExistent);
+            Ok(())
+        })?;
 
         if !T::Reputation::is_step(&TIRStep::FREE) {
             let mut trust_temp_list = Self::trust_temp_list(&who);
@@ -143,7 +142,7 @@ impl<T: Config> Pallet<T> {
                 let _ = trust_temp_list.trust.insert(target.clone());
             }
 
-            <TrustTempList<T>>::insert(&who, trust_temp_list);
+            <TrustTempList<T>>::mutate(&who, |t|*t = trust_temp_list);
         }
         Ok(())
     }
