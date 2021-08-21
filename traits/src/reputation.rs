@@ -20,7 +20,7 @@ pub trait Reputation<AccountId, BlockNumber, TIRStep> {
 
 	fn set_last_refresh_at();
 
-	fn check_update_status(update_mode: bool) -> Option<u32>;
+	fn checked_nonce(step: &TIRStep) -> Option<u32>;
 
 	fn set_free();
 

@@ -64,8 +64,8 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn new_seed(origin: OriginFor<T>,seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
-			T::Reputation::check_update_status(false);
-			ensure!(Seeds::<T>::contains_key(&new_seed), Error::<T>::SeedsLimitReached);
+			ensure!(T::Reputation::is_step(&TIRStep::FREE), Error::<T>::NotSeedUser);
+			ensure!(Seeds::<T>::contains_key(&seed), Error::<T>::SeedsLimitReached);
 			Self::add_seed(&seed);
 			Ok(().into())
 		}
@@ -73,7 +73,7 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn remove_seed(origin: OriginFor<T>, seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
-			let _ = T::Reputation::check_update_status(false);
+			ensure!(T::Reputation::is_step(&TIRStep::FREE), Error::<T>::NotSeedUser);
 			ensure!(!<Seeds<T>>::contains_key(&seed), Error::<T>::NotSeedUser);
 			<Seeds<T>>::remove(&seed);
 			SeedsCount::<T>::mutate(|c| *c -= 1);

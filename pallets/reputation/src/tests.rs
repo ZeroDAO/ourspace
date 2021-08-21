@@ -39,7 +39,6 @@ fn new_round_should_work() {
             OperationStatus {
                 nonce: 1,
                 last: 1,
-                updating: true,
                 next: INIT_PERIOD + 1,
                 period: INIT_PERIOD,
                 step: TIRStep::FREE,
@@ -99,18 +98,6 @@ fn last_refresh_at_should_work() {
     });
 }
 
-#[test]
-fn check_update_status_should_work() {
-    new_test_ext().execute_with(|| {
-        assert_eq!(ZdReputation::check_update_status(true), None);
-        assert_eq!(ZdReputation::check_update_status(false), Some(0));
-
-        assert_ok!(ZdReputation::new_round());
-
-        assert_eq!(ZdReputation::check_update_status(true), Some(1));
-        assert_eq!(ZdReputation::check_update_status(false), None);
-    });
-}
 /* 
 #[test]
 fn end_refresh_should_work() {

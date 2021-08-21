@@ -32,5 +32,6 @@ std = [
     'codec/std',
     'frame-support/std',
     'frame-system/std',
-    'zd-reputation/std'
+    'zd-traits/std',
+    'zd-reputation/std',
 ]

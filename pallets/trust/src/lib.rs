@@ -13,6 +13,11 @@ use zd_traits::{Reputation, SeedsBase, TrustBase};
 use orml_utilities::OrderedSet;
 use zd_primitives::{TIRStep,appro_ln};
 
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+
 pub use module::*;
 
 pub const INIT_SEED_RANK: usize = 1000;
@@ -110,7 +115,7 @@ impl<T: Config> Pallet<T> {
             Ok(())
         })?;
 
-        if T::Reputation::check_update_status(true).is_some() {
+        if !T::Reputation::is_step(&TIRStep::FREE) {
             let mut trust_temp_list = Self::trust_temp_list(&who);
 
             if !trust_temp_list.trust.remove(&target) {
@@ -131,7 +136,7 @@ impl<T: Config> Pallet<T> {
         );
         <TrustTempList<T>>::mutate(&who, |list| list.trust.remove(&target));
 
-        if T::Reputation::check_update_status(true).is_some() {
+        if !T::Reputation::is_step(&TIRStep::FREE) {
             let mut trust_temp_list = Self::trust_temp_list(&who);
 
             if !trust_temp_list.untrust.remove(&target) {

@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use crate::mock::*;
+use crate::mock::{Event, *};
 use frame_support::{assert_noop, assert_ok, dispatch};
 
 fn initialize_seeds(seeds: Vec<<Test as system::Config>::AccountId>) {
@@ -56,5 +56,7 @@ fn remove_all_should_work() {
         assert_eq!(<ZdSeeds as SeedsBase<_>>::get_seed_count(), 6);
         <ZdSeeds as SeedsBase<_>>::remove_all();
         assert_eq!(<ZdSeeds as SeedsBase<_>>::get_seed_count(), 0);
+        let seeds_event = Event::zd_seeds(crate::Event::SeedAdded(1));
+        assert!(System::events().iter().any(|record| record.event == seeds_event));
     });
 }

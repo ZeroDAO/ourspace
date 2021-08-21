@@ -28,7 +28,6 @@ pub const INIT_SEED_RANK: usize = 1000;
 pub struct OperationStatus<BlockNumber> {
     pub nonce: u32,
     pub last: BlockNumber,
-    pub updating: bool,
     pub next: BlockNumber,
     pub period: BlockNumber,
     pub step: TIRStep,
@@ -38,16 +37,6 @@ pub struct OperationStatus<BlockNumber> {
 pub struct ReputationScore {
     pub score: u32,
     pub nonce: u32,
-}
-
-impl<BlockNumber> OperationStatus<BlockNumber> {
-    fn check_update_status(&self, update_mode: bool) -> Option<u32> {
-        if self.updating == update_mode {
-            Some(self.nonce)
-        } else {
-            None
-        }
-    }
 }
 
 #[pallet]
@@ -152,7 +141,7 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn do_set_period(period: T::BlockNumber) -> DispatchResult {
         SystemInfo::<T>::try_mutate(|operation_status| {
-            ensure!(!operation_status.updating, Error::<T>::UnableToSetPeriod);
+            ensure!(operation_status.step == TIRStep::FREE, Error::<T>::UnableToSetPeriod);
             operation_status.period = period;
             Ok(())
         })
@@ -169,7 +158,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
         <SystemInfo<T>>::mutate(|operation_status|operation_status.step = *step);
     }
 
-    fn is_step(step: &TIRStep) -> bool{
+    fn is_step(step: &TIRStep) -> bool {
         *step == <SystemInfo<T>>::get().step
     }
 
@@ -183,7 +172,6 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
             );
             let next = now_block_number + operation_status.period;
             operation_status.nonce += 1;
-            operation_status.updating = true;
             operation_status.next = next;
             operation_status.last = now_block_number;
             Ok(())
@@ -230,8 +218,12 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
         Self::set_last_refresh(Self::now());
     }
 
-    fn check_update_status(update_mode: bool) -> Option<u32> {
-        Self::system_info().check_update_status(update_mode)
+    fn checked_nonce(step: &TIRStep) -> Option<u32> {
+        let operation_status = <SystemInfo<T>>::get();
+        match operation_status.step == *step {
+            true => Some(operation_status.nonce),
+            false => None,
+        }
     }
 
     fn get_last_update_at() -> T::BlockNumber {
