@@ -181,7 +181,7 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
     fn is_trust_old(who: &T::AccountId, target: &T::AccountId) -> bool {
         let temp_list = <TrustTempList<T>>::get(who);
         temp_list.trust.contains(&target)
-            || Self::is_trust(&who, &target) && temp_list.untrust.contains(&target)
+            || (Self::is_trust(&who, &target) && !temp_list.untrust.contains(&target))
     }
 
     fn get_trust_old(who: &T::AccountId) -> Vec<T::AccountId> {
