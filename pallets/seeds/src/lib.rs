@@ -65,7 +65,7 @@ pub mod pallet {
 		pub fn new_seed(origin: OriginFor<T>,seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
 			ensure!(T::Reputation::is_step(&TIRStep::FREE), Error::<T>::NotSeedUser);
-			ensure!(Seeds::<T>::contains_key(&seed), Error::<T>::SeedsLimitReached);
+			ensure!(!Seeds::<T>::contains_key(&seed), Error::<T>::SeedsLimitReached);
 			Self::add_seed(&seed);
 			Ok(().into())
 		}
