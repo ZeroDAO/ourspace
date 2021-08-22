@@ -10,7 +10,7 @@ use frame_support::{
 use frame_system::{self as system};
 use sp_std::convert::{TryFrom, TryInto};
 
-use orml_traits::{MultiCurrencyExtended, StakingCurrency, arithmetic::{self, Signed}};
+use orml_traits::{MultiCurrency, StakingCurrency, arithmetic::{self, Signed}};
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
 use zd_traits::{ChallengeBase, Reputation};
 
@@ -141,11 +141,10 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
-        type Currency: MultiCurrencyExtended<
+        type Currency: MultiCurrency<
                 Self::AccountId,
                 CurrencyId = Self::CurrencyId,
                 Balance = Balance,
-                Amount = Self::Amount,
             > + StakingCurrency<Self::AccountId>;
         type Amount: Signed
             + TryInto<Balance>
@@ -225,6 +224,10 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
     fn now() -> T::BlockNumber {
         system::Module::<T>::block_number()
+    }
+
+    fn challenge_staking_amount() -> Balance {
+        T::ChallengeStakingAmount::get()
     }
 
     fn get_metadata_exist(
@@ -437,7 +440,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
 
         <Metadatas<T>>::try_mutate(app_id, target, |m| -> DispatchResult {
             *m = challenge;
-            Self::staking(&who, T::ChallengeStakingAmount::get())?;
+            Self::staking(&who, Self::challenge_staking_amount())?;
             Ok(())
         })?;
 
@@ -588,7 +591,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                         Self::is_challenge_timeout(&challenge),
                         Error::<T>::NoPermission
                     );
-                    Self::staking(&who, T::ChallengeStakingAmount::get())?;
+                    Self::staking(&who, Self::challenge_staking_amount())?;
                     challenge.challenger = who.clone();
                 }
                 let (joint_benefits, restart, score) = up(challenge.score)?;

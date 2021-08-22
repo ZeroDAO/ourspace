@@ -6,8 +6,8 @@ use frame_support::sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
 };
 use frame_support::{construct_runtime, parameter_types, traits::GenesisBuild};
-use orml_traits::parameter_type_with_key;
 use orml_currencies::BasicCurrencyAdapter;
+use orml_traits::parameter_type_with_key;
 
 use sp_runtime::traits::Zero;
 
@@ -157,10 +157,13 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
     fn default() -> Self {
-        Self { period: INIT_PERIOD,            endowed_accounts: vec![
-            (ALICE, ZDAO, 1000_000_000_000_000u128),
-            (BOB, ZDAO, 1000_000_000_000_000u128),
-        ], }
+        Self {
+            period: INIT_PERIOD,
+            endowed_accounts: vec![
+                (ALICE, ZDAO, 1000_000_000_000_000u128),
+                (BOB, ZDAO, 1000_000_000_000_000u128),
+            ],
+        }
     }
 }
 
