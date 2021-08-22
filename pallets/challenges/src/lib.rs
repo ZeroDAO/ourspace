@@ -406,18 +406,14 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         let mut challenge = match <Metadatas<T>>::try_get(app_id, target) {
             Ok(challenge_storage) => {
                 ensure!(
-                    challenge_storage.status == Status::FREE,
+                    challenge_storage.status == Status::FREE &&
+                    challenge_storage.is_allowed_evidence::<T::ChallengeTimeout>(now_block_number),
                     Error::<T>::NoChallengeAllowed
                 );
                 challenge_storage
             }
             Err(_) => Metadata::default(),
         };
-
-        ensure!(
-            challenge.is_allowed_evidence::<T::ChallengeTimeout>(now_block_number),
-            Error::<T>::NoChallengeAllowed
-        );
 
         challenge.pool.staking = challenge
             .pool
@@ -436,6 +432,8 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         challenge.last_update = now_block_number;
         challenge.status = Status::EXAMINE;
         challenge.score = score;
+        challenge.pathfinder = path_finder.clone();
+        challenge.challenger = who.clone();
 
         <Metadatas<T>>::try_mutate(app_id, target, |m| -> DispatchResult {
             *m = challenge;

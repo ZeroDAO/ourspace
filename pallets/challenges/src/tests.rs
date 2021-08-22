@@ -23,8 +23,8 @@ fn new_challenge_should_work() {
             ZdChallenges::get_metadata(&APP_ID, &CHARLIE),
             Metadata {
                 pool: Pool {
-                    staking: 200_200,
-                    earnings: 100_100,
+                    staking: 100_100,
+                    earnings: 200_200,
                 },
                 joint_benefits: false,
                 progress: Progress {
