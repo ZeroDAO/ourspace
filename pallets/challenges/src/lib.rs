@@ -21,6 +21,11 @@ use sp_runtime::{
     DispatchError, DispatchResult, SaturatedConversion,
 };
 
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+
 pub use pallet::*;
 
 const MAX_UPDATE_COUNT: u32 = 10;
