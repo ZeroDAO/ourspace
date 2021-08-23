@@ -28,7 +28,7 @@ mod tests;
 
 pub use pallet::*;
 
-const MAX_UPDATE_COUNT: u32 = 10;
+const MAX_UPDATE_COUNT: u32 = 257;
 
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
 pub struct Pool {
@@ -111,6 +111,7 @@ where
 
     fn new_progress(&mut self, total: u32) -> &mut Self {
         self.progress.total = total;
+        self.progress.done = Zero::zero();
         self
     }
 
@@ -209,10 +210,14 @@ pub mod pallet {
         TooSoon,
         /// Wrong progress
         ErrProgress,
-        // Non-existent
+        /// Non-existent
         NonExistent,
-        // Too many uploads
+        /// Too many uploads
         TooMany,
+        /// An error in progress has occurred
+        ProgressErr,
+        /// Status does not match
+        StatusErr,
     }
 
     #[pallet::hooks]
@@ -473,9 +478,9 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
 
                 ensure!(
                     challenge.is_challenger(&who),
-                    Error::<T>::NoChallengeAllowed
+                    Error::<T>::NoPermission
                 );
-                ensure!(challenge.next(*count).check_progress(), Error::<T>::TooMany);
+                ensure!(challenge.next(*count).check_progress(), Error::<T>::ProgressErr);
                 let is_all_done = challenge.is_all_done();
                 let (score, remark) = up(challenge.score, challenge.remark, is_all_done)?;
                 challenge.remark = remark;
@@ -502,7 +507,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                 );
                 ensure!(
                     challenge.is_challenger(&who),
-                    Error::<T>::NoChallengeAllowed
+                    Error::<T>::NoPermission
                 );
 
                 challenge.status = Status::EXAMINE;
@@ -527,24 +532,16 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
                 ensure!(challenge.is_pathfinder(&who), Error::<T>::NoPermission);
-
                 ensure!(
                     challenge.status == Status::EXAMINE,
-                    Error::<T>::NoPermission
+                    Error::<T>::StatusErr
                 );
-
                 ensure!(
                     challenge.new_progress(total).next(count).check_progress(),
-                    Error::<T>::TooMany
+                    Error::<T>::ProgressErr
                 );
-
-                let is_all_done = challenge.is_all_done();
-
-                if !is_all_done {
-                    challenge.status = Status::REPLY;
-                }
-
-                challenge.score = up(is_all_done, challenge.remark, challenge.score)?;
+                challenge.status = Status::REPLY;
+                challenge.score = up(challenge.is_all_done(), challenge.remark, challenge.score)?;
                 Ok(())
             },
         )

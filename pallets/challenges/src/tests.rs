@@ -233,11 +233,133 @@ new_challenge_no_allowed! {
     new_challenge_no_allowed_8: (0,Status::ARBITRATION,5),
 }
 
-/* 
+fn init_challenge(total: u32,done: u32,status: Status) {
+    let init_metadata = Metadata {
+        progress: Progress {
+            total: total,
+            done: done,
+        },
+        status: status,
+        ..DEFAULT_METADATA
+    };
+
+    <Metadatas<Test>>::mutate(&APP_ID,&TARGET,|m|*m = init_metadata);
+}
+
 #[test]
 fn next_should_work() {
     new_test_ext().execute_with(|| {
-
+        init_challenge(300,20, Status::FREE);
+        System::set_block_number(3);
+        assert_ok!(ZdChallenges::next(&APP_ID,&CHALLENGER,&TARGET,&100,|score,remark,is_all_done|-> Result<(u64, u32), DispatchError> {
+            assert_eq!(score,DEFAULT_METADATA.score);
+            assert_eq!(remark,DEFAULT_METADATA.remark);
+            assert_eq!(is_all_done,false);
+            Ok((211, 322))
+        }));
+        let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+        assert_eq!(metadata.progress.done, 100 + 20);
+        assert_eq!(metadata.score, 211);
+        assert_eq!(metadata.remark, 322);
     });
 }
-*/
+
+#[test]
+fn next_should_fail() {
+    new_test_ext().execute_with(|| {
+        init_challenge(100,20, Status::FREE);
+        System::set_block_number(3);
+        assert_noop!(ZdChallenges::next(&APP_ID,&EVE,&TARGET,&80,|score,remark,_|-> Result<(u64, u32), DispatchError> {
+            Ok((score, remark))
+        }),Error::<Test>::NoPermission);
+        assert_noop!(ZdChallenges::next(&APP_ID,&CHALLENGER,&TARGET,&300,|score,remark,_|-> Result<(u64, u32), DispatchError> {
+            Ok((score, remark))
+        }),Error::<Test>::TooMany);
+        System::set_block_number(200);
+        assert_noop!(ZdChallenges::next(&APP_ID,&CHALLENGER,&TARGET,&90,|score,remark,_|-> Result<(u64, u32), DispatchError> {
+            Ok((score, remark))
+        }),Error::<Test>::ProgressErr);
+        let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+        assert_eq!(metadata.progress.total, 100);
+        assert_eq!(metadata.progress.done, 20);
+    });
+}
+
+#[test]
+fn examine_should_work() {
+    new_test_ext().execute_with(|| {
+        init_challenge(100,100, Status::REPLY);
+        assert_ok!(ZdChallenges::examine(
+            &APP_ID,
+            CHALLENGER,
+            &TARGET,
+            22
+        ));
+        let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+        assert_eq!(metadata.remark, 22);
+        assert_eq!(metadata.status, Status::EXAMINE);
+        assert_eq!(metadata.last_update, 1);
+    });
+}
+
+#[test]
+fn examine_should_fail() {
+    new_test_ext().execute_with(|| {
+        init_challenge(100,100, Status::REPLY);
+        assert_noop!(ZdChallenges::examine(
+            &APP_ID,
+            EVE,
+            &TARGET,
+            22
+        ),Error::<Test>::NoPermission);
+        let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+        assert_eq!(metadata.status, Status::REPLY);
+        assert_eq!(metadata.progress.total, 100);
+        assert_eq!(metadata.progress.done, 100);
+        init_challenge(100,10, Status::REPLY);
+        assert_noop!(ZdChallenges::examine(
+            &APP_ID,
+            CHALLENGER,
+            &TARGET,
+            22
+        ),Error::<Test>::NoChallengeAllowed);
+        let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+        assert_eq!(metadata.status, Status::REPLY);
+        assert_eq!(metadata.progress.total, 100);
+        assert_eq!(metadata.progress.done, 10);
+        init_challenge(100,100, Status::FREE);
+        assert_noop!(ZdChallenges::examine(
+            &APP_ID,
+            CHALLENGER,
+            &TARGET,
+            22
+        ),Error::<Test>::NoChallengeAllowed);
+        let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+        assert_eq!(metadata.status, Status::FREE);
+        assert_eq!(metadata.progress.total, 100);
+        assert_eq!(metadata.progress.done, 100);
+    });
+}
+
+#[test]
+fn reply_should_work() {
+    new_test_ext().execute_with(|| {
+        init_challenge(100,100, Status::EXAMINE);
+        assert_ok!(ZdChallenges::reply(
+            &APP_ID,
+            &PATHINFER,
+            &TARGET,
+            100,
+            12,
+            |is_all_done, _, _| -> Result<u64, DispatchError> {
+                assert_eq!(is_all_done, false);
+                Ok(60)
+            }
+        ));
+        let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+        assert_eq!(metadata.score, 60);
+        assert_eq!(metadata.status, Status::REPLY);
+        assert_eq!(metadata.last_update, 1);
+    });
+}
+
