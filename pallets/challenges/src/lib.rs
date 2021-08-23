@@ -469,7 +469,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             app_id,
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
-                ensure!(*count <= MAX_UPDATE_COUNT, Error::<T>::NoPermission);
+                ensure!(*count <= MAX_UPDATE_COUNT, Error::<T>::TooMany);
 
                 ensure!(
                     challenge.is_challenger(&who),
