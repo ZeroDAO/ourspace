@@ -86,10 +86,11 @@ where
     {
         let challenge_perior = ChallengeTimeout::get().saturated_into::<BlockNumber>();
 
-        if !self.is_all_done() && self.last_update + challenge_perior >= now {
-            return false;
+        match self.is_all_done() {
+            true => self.last_update + challenge_perior > now,
+            false => self.last_update + challenge_perior <= now,
         }
-        self.last_update + challenge_perior < now
+        
     }
 
     fn is_all_done(&self) -> bool {
@@ -414,7 +415,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     Error::<T>::NoChallengeAllowed
                 );
                 challenge_storage
-            }
+            },
             Err(_) => Metadata::default(),
         };
 
