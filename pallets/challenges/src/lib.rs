@@ -554,10 +554,10 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         up: impl Fn(u32, u64) -> Result<bool, DispatchError>,
     ) -> Result<Option<u64>, DispatchError> {
         let mut challenge =
-            <Metadatas<T>>::try_get(app_id, target).map_err(|_| Error::<T>::NoPermission)?;
+            <Metadatas<T>>::try_get(app_id, target).map_err(|_| Error::<T>::NonExistent)?;
         ensure!(challenge.is_challenger(&who), Error::<T>::NoPermission);
-        ensure!(challenge.is_all_done(), Error::<T>::NoPermission);
-        // TODO 权限检查，非质询状态下
+        ensure!(challenge.is_all_done(), Error::<T>::ProgressErr);
+        ensure!(challenge.status != Status::EXAMINE, Error::<T>::StatusErr);
         let needs_arbitration = up(challenge.remark, challenge.score)?;
         let score = challenge.score;
         match needs_arbitration {

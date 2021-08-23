@@ -363,3 +363,74 @@ fn reply_should_work() {
     });
 }
 
+#[test]
+fn reply_should_fail() {
+    new_test_ext().execute_with(|| {
+        init_challenge(100,100, Status::EXAMINE);
+        assert_noop!(ZdChallenges::reply(
+            &APP_ID,
+            &EVE,
+            &TARGET,
+            100,
+            12,
+            |is_all_done, _, _| -> Result<u64, DispatchError> {
+                assert_eq!(is_all_done, false);
+                Ok(60)
+            }
+        ),Error::<Test>::NoPermission);
+        init_challenge(100,100, Status::FREE);
+        assert_noop!(ZdChallenges::reply(
+            &APP_ID,
+            &EVE,
+            &TARGET,
+            100,
+            12,
+            |is_all_done, _, _| -> Result<u64, DispatchError> {
+                assert_eq!(is_all_done, false);
+                Ok(60)
+            }
+        ),Error::<Test>::StatusErr);
+        init_challenge(100,100, Status::FREE);
+        assert_noop!(ZdChallenges::reply(
+            &APP_ID,
+            &EVE,
+            &TARGET,
+            100,
+            120,
+            |is_all_done, _, _| -> Result<u64, DispatchError> {
+                assert_eq!(is_all_done, false);
+                Ok(60)
+            }
+        ),Error::<Test>::ProgressErr);
+    });
+}
+
+#[test]
+fn evidence_should_work() {
+    new_test_ext().execute_with(|| {
+        init_challenge(100,100, Status::REPLY);
+        assert_ok!(ZdChallenges::evidence(
+            &APP_ID,
+            &CHALLENGER,
+            &TARGET,
+            |_, _| -> Result<bool, DispatchError> {
+                Ok(true)
+            }
+        ),None);
+        let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+        assert_eq!(metadata.status, Status::ARBITRATION);
+        init_challenge(100,100, Status::REPLY);
+        assert_ok!(ZdChallenges::evidence(
+            &APP_ID,
+            &CHALLENGER,
+            &TARGET,
+            |_, _| -> Result<bool, DispatchError> {
+                Ok(false)
+            }
+        ),Some(0));
+        let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+        assert_eq!(metadata.status, Status::FREE);
+        assert_eq!(metadata.pathfinder, CHALLENGER);
+        assert_eq!(metadata.joint_benefits, false);
+    });
+}
