@@ -381,7 +381,7 @@ fn reply_should_fail() {
         init_challenge(100,100, Status::FREE);
         assert_noop!(ZdChallenges::reply(
             &APP_ID,
-            &EVE,
+            &PATHINFER,
             &TARGET,
             100,
             12,
@@ -390,10 +390,10 @@ fn reply_should_fail() {
                 Ok(60)
             }
         ),Error::<Test>::StatusErr);
-        init_challenge(100,100, Status::FREE);
+        init_challenge(100,100, Status::EXAMINE);
         assert_noop!(ZdChallenges::reply(
             &APP_ID,
-            &EVE,
+            &PATHINFER,
             &TARGET,
             100,
             120,
