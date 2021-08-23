@@ -32,23 +32,20 @@ fn new_test_ext() -> sp_io::TestExternalities {
 #[test]
 fn new_challenge_should_work() {
     new_test_ext().execute_with(|| {
-
         assert_ok!(ZdChallenges::new(
             &APP_ID, &ALICE, &BOB, 200_200, 100_100, &CHARLIE, 100, 0
         ));
-
         assert_eq!(
             ZdChallenges::get_metadata(&APP_ID, &CHARLIE),
             Metadata {
                 pool: Pool {
-                    staking: 100_100,
+                    staking: 100_100 + ZdChallenges::challenge_staking_amount(),
                     earnings: 200_200,
                 },
                 ..DefaultMetadata
             }
         );
-
-        assert_eq!(Currencies::total_staking(ZDAO), 100_100u128);
-        assert_eq!(Currencies::free_balance(ZDAO, &ALICE), 1000_000_000_000_000u128 - 100_100u128);
+        assert_eq!(Currencies::total_staking(ZDAO), ZdChallenges::challenge_staking_amount());
+        assert_eq!(Currencies::free_balance(ZDAO, &ALICE), 1000_000_000_000_000u128 - ZdChallenges::challenge_staking_amount());
     });
 }

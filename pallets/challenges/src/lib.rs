@@ -226,15 +226,15 @@ impl<T: Config> Pallet<T> {
         system::Module::<T>::block_number()
     }
 
-    fn challenge_staking_amount() -> Balance {
-        T::ChallengeStakingAmount::get()
-    }
-
     fn get_metadata_exist(
         app_id: &AppId,
         target: &T::AccountId,
     ) -> Result<Metadata<T::AccountId, T::BlockNumber>, Error<T>> {
         <Metadatas<T>>::try_get(&app_id, &target).map_err(|_err| Error::<T>::NonExistent)
+    }
+
+    pub(crate) fn challenge_staking_amount() -> Balance {
+        T::ChallengeStakingAmount::get()
     }
 
     pub(crate) fn staking(who: &T::AccountId, amount: Balance) -> DispatchResult {
@@ -422,6 +422,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             .pool
             .staking
             .checked_add(staking)
+            .and_then(|v| v.checked_add(Self::challenge_staking_amount()))
             .ok_or(Error::<T>::Overflow)?;
         challenge.pool.earnings = challenge
             .pool

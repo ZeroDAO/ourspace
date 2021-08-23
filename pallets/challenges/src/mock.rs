@@ -89,17 +89,24 @@ parameter_types! {
     pub const BaceToken: CurrencyId = ZDAO;
 }
 
+parameter_types! {
+    pub const GetNativeCurrencyId: CurrencyId = 0;
+}
+
 impl orml_currencies::Config for Test {
     type Event = Event;
     type MultiCurrency = Tokens;
     type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, BlockNumber>;
-    type GetNativeCurrencyId = BaceToken;
+    type GetNativeCurrencyId = GetNativeCurrencyId;
     type WeightInfo = ();
 }
 
 parameter_type_with_key! {
-    pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
-        Zero::zero()
+    pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
+        match currency_id {
+			&ZDAO => 1,
+			_ => 0,
+		}
     };
 }
 
