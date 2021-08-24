@@ -17,7 +17,7 @@ pub type AppId = [u8; 8];
 /// Balance of an account.
 pub type Balance = u128;
 
-pub const PROXY_PERIOD: u64 = 20_000;
+pub const PROXY_PERIOD: u64 = 500;
 
 /// When other users receive their earnings, they receive that percentage of the earnings.
 pub const PROXY_PICKUP_RATIO: Perbill = Perbill::from_perthousand(20);
@@ -74,9 +74,9 @@ pub mod fee {
 
     impl ProxyFee for Balance {
         fn is_allowed_proxy<B: AtLeast32BitUnsigned>(last: B, now: B) -> bool {
-            let now_into = TryInto::<u64>::try_into(last).ok().unwrap();
-            let last_into = TryInto::<u64>::try_into(now).ok().unwrap();
-            last_into + PROXY_PERIOD > now_into
+            let now_into = TryInto::<u64>::try_into(now).ok().unwrap();
+            let last_into = TryInto::<u64>::try_into(last).ok().unwrap();
+            last_into + PROXY_PERIOD < now_into
         }
 
         fn checked_with_fee<B: AtLeast32BitUnsigned>(

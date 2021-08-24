@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use crate::mock::{Event, *};
+use crate::mock::*;
 use frame_support::{assert_noop, assert_ok};
 
 const APP_ID: AppId = *b"test    ";
@@ -698,7 +698,7 @@ macro_rules! harvest_should_work {
             #[test]
             fn $name() {
                 new_test_ext().execute_with(|| {
-                    let (who, status, done, joint_benefits,staking) = $value;
+                    let (who, status, done, joint_benefits,staking,now) = $value;
                     // init staking pool
                     assert_ok!(ZdChallenges::staking(&FERDIE, 10000000));
                     let init_metadata = Metadata {
@@ -715,7 +715,9 @@ macro_rules! harvest_should_work {
                         ..DEFAULT_METADATA
                     };
                     <Metadatas<Test>>::insert(&APP_ID, &TARGET, &init_metadata);
-                    System::set_block_number(2000);
+
+                    System::set_block_number(now);
+
                     let total_amount = staking + 200;
                     let (sweeper_fee, awards) = if who == CHALLENGER || who == PATHINFER {
                         (0,total_amount)
@@ -767,7 +769,9 @@ macro_rules! harvest_should_work {
                             }
                         },
                     }
-                    assert_eq!(Currencies::free_balance(ZDAO, &who), sweeper_balance + sweeper_fee);
+                    if sweeper_fee > 0 {
+                        assert_eq!(Currencies::free_balance(ZDAO, &who), sweeper_balance + sweeper_fee);
+                    }
                 });
             }
         )*
@@ -776,18 +780,18 @@ macro_rules! harvest_should_work {
 
 harvest_should_work! {
     // who, status, done, joint_benefits,staking
-    harvest_should_work_0: (FERDIE,Status::FREE,10,false,200),
-    harvest_should_work_1: (PATHINFER,Status::FREE,10,false,200221),
-    harvest_should_work_2: (CHALLENGER,Status::FREE,10,false,20455784),
-    harvest_should_work_3: (CHALLENGER,Status::EXAMINE,10,false,10),
-    harvest_should_work_4: (FERDIE,Status::EXAMINE,10,false,241111),
-    harvest_should_work_5: (FERDIE,Status::REPLY,100,false,2345564),
-    harvest_should_work_6: (PATHINFER,Status::REPLY,100,false,22),
-    harvest_should_work_7: (CHALLENGER,Status::REPLY,10,false,46453),
-    harvest_should_work_8: (CHALLENGER,Status::EVIDENCE,100,false,42334),
-    harvest_should_work_9: (PATHINFER,Status::EVIDENCE,10,false,478786),
-    harvest_should_work_10: (FERDIE,Status::EVIDENCE,10,false,45333),
-    harvest_should_work_11: (FERDIE,Status::ARBITRATION,10,true,75333),
-    harvest_should_work_12: (PATHINFER,Status::ARBITRATION,10,false,46454),
-    harvest_should_work_13: (FERDIE,Status::FREE,10,false,0),
+    harvest_should_work_0: (SWEEPER,Status::FREE,10,false,200,2000),
+    harvest_should_work_1: (PATHINFER,Status::FREE,10,false,200221,8),
+    harvest_should_work_2: (CHALLENGER,Status::FREE,10,false,20784,8),
+    harvest_should_work_3: (CHALLENGER,Status::EXAMINE,10,false,10,8),
+    harvest_should_work_4: (SWEEPER,Status::EXAMINE,10,false,241111,2000),
+    harvest_should_work_5: (SWEEPER,Status::REPLY,100,false,2345564,2000),
+    harvest_should_work_6: (PATHINFER,Status::REPLY,100,false,22,8),
+    harvest_should_work_7: (CHALLENGER,Status::REPLY,10,false,46453,8),
+    harvest_should_work_8: (CHALLENGER,Status::EVIDENCE,100,false,42334,8),
+    harvest_should_work_9: (PATHINFER,Status::EVIDENCE,10,false,478786,8),
+    harvest_should_work_10: (SWEEPER,Status::EVIDENCE,10,false,45333,2000),
+    harvest_should_work_11: (SWEEPER,Status::ARBITRATION,10,true,75333,2000),
+    harvest_should_work_12: (PATHINFER,Status::ARBITRATION,10,false,46454,8),
+    harvest_should_work_13: (SWEEPER,Status::FREE,10,false,0,2000),
 }

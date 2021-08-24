@@ -218,6 +218,8 @@ pub mod pallet {
         ProgressErr,
         /// Status does not match
         StatusErr,
+        /// Not available for collection
+        NotAllowedSweeper,
     }
 
     #[pallet::hooks]
@@ -265,7 +267,7 @@ impl<T: Config> Pallet<T> {
         if is_sweeper {
             let (sweeper_fee, awards) = total_amount
                 .checked_with_fee(challenge.last_update, now_block_number)
-                .ok_or(Error::<T>::TooSoon)?;
+                .ok_or(Error::<T>::NotAllowedSweeper)?;
             Ok((sweeper_fee, awards))
         } else {
             ensure!(
@@ -396,10 +398,10 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             Self::release(&who, sweeper_fee)?;
         }
         if pathfinder_amount > 0 {
-            Self::release(&challenge.pathfinder, sweeper_fee)?;
+            Self::release(&challenge.pathfinder, pathfinder_amount)?;
         }
         if challenger_amount > 0 {
-            Self::release(&challenge.challenger, sweeper_fee)?;
+            Self::release(&challenge.challenger, challenger_amount)?;
         };
         Self::remove(&app_id, &target);
         Ok(maybe_score)

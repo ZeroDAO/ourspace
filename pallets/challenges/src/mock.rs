@@ -9,8 +9,6 @@ use frame_support::{construct_runtime, parameter_types, traits::GenesisBuild};
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 
-use sp_runtime::traits::Zero;
-
 pub use frame_system as system;
 use sp_core::H256;
 pub use sp_runtime::{Perbill, Permill};
@@ -27,6 +25,7 @@ pub const CHARLIE: AccountId = 3;
 pub const DAVE: AccountId = 4;
 pub const EVE: AccountId = 5;
 pub const FERDIE: AccountId = 6;
+pub const SWEEPER: AccountId = 7;
 
 pub const ZDAO: CurrencyId = 1;
 
@@ -170,6 +169,7 @@ impl Default for ExtBuilder {
                 (ALICE, ZDAO, 1000_000_000_000_000u128),
                 (BOB, ZDAO, 1000_000_000_000_000u128),
                 (FERDIE, ZDAO, 1000_000_000_000_000u128),
+                (SWEEPER, ZDAO, 1000_000_000_000_000u128),
             ],
         }
     }
