@@ -434,3 +434,147 @@ fn evidence_should_work() {
         assert_eq!(metadata.joint_benefits, false);
     });
 }
+
+
+#[test]
+fn evidence_should_fail() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(ZdChallenges::evidence(
+            &APP_ID,
+            &CHALLENGER,
+            &TARGET,
+            |_, _| -> Result<bool, DispatchError> {
+                Ok(true)
+            }
+        ),Error::<Test>::NonExistent);
+        init_challenge(100,10, Status::REPLY);
+        assert_noop!(ZdChallenges::evidence(
+            &APP_ID,
+            &EVE,
+            &TARGET,
+            |_, _| -> Result<bool, DispatchError> {
+                Ok(true)
+            }
+        ),Error::<Test>::NoPermission);
+        assert_noop!(ZdChallenges::evidence(
+            &APP_ID,
+            &CHALLENGER,
+            &TARGET,
+            |_, _| -> Result<bool, DispatchError> {
+                Ok(true)
+            }
+        ),Error::<Test>::ProgressErr);
+        init_challenge(100,100, Status::EXAMINE);
+        assert_noop!(ZdChallenges::evidence(
+            &APP_ID,
+            &CHALLENGER,
+            &TARGET,
+            |_, _| -> Result<bool, DispatchError> {
+                Ok(true)
+            }
+        ),Error::<Test>::StatusErr);
+    });
+}
+
+#[test]
+fn arbitral_should_work() {
+    new_test_ext().execute_with(|| {
+        init_challenge(100,100, Status::REPLY);
+        assert_ok!(ZdChallenges::arbitral(
+            &APP_ID,
+            &CHALLENGER,
+            &TARGET,
+            |_| -> Result<(bool, bool, u64), DispatchError> {
+                // joint_benefits, restart, score
+                Ok((true,false,18))
+            }
+        ));
+        let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+        assert_eq!(metadata.joint_benefits, true);
+        assert_eq!(metadata.score, 18);
+
+        init_challenge(100,100, Status::REPLY);
+        System::set_block_number(9);
+        assert_ok!(ZdChallenges::arbitral(
+            &APP_ID,
+            &CHALLENGER,
+            &TARGET,
+            |_| -> Result<(bool, bool, u64), DispatchError> {
+                // joint_benefits, restart, score
+                Ok((true,false,60))
+            }
+        ));
+        let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+        assert_eq!(metadata.joint_benefits, true);
+        assert_eq!(metadata.score, 60);
+        assert_eq!(metadata.last_update, 9);
+
+        System::set_block_number(100);
+
+        assert_ok!(ZdChallenges::arbitral(
+            &APP_ID,
+            &FERDIE,
+            &TARGET,
+            |_| -> Result<(bool, bool, u64), DispatchError> {
+                // joint_benefits, restart, score
+                Ok((true,false,60))
+            }
+        ));
+
+        let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+        assert_eq!(metadata.joint_benefits, true);
+        assert_eq!(metadata.score, 60);
+        assert_eq!(metadata.last_update, 100);
+        let staking_amount = ZdChallenges::challenge_staking_amount();
+        assert_eq!(Currencies::total_staking(ZDAO), staking_amount);
+        assert_eq!(Currencies::free_balance(ZDAO, &FERDIE), 1000_000_000_000_000u128 - staking_amount);
+    });
+}
+
+
+#[test]
+fn arbitral_should_fail() {
+    new_test_ext().execute_with(|| {
+        init_challenge(100,100, Status::EXAMINE);
+        assert_noop!(ZdChallenges::arbitral(
+            &APP_ID,
+            &CHALLENGER,
+            &TARGET,
+            |_| -> Result<(bool, bool, u64), DispatchError> {
+                // joint_benefits, restart, score
+                Ok((true,false,60))
+            }
+        ),Error::<Test>::StatusErr);
+        init_challenge(100,10, Status::REPLY);
+        assert_noop!(ZdChallenges::arbitral(
+            &APP_ID,
+            &CHALLENGER,
+            &TARGET,
+            |_| -> Result<(bool, bool, u64), DispatchError> {
+                // joint_benefits, restart, score
+                Ok((true,false,60))
+            }
+        ),Error::<Test>::ProgressErr);
+        init_challenge(100,100, Status::REPLY);
+        System::set_block_number(3);
+        assert_noop!(ZdChallenges::arbitral(
+            &APP_ID,
+            &FERDIE,
+            &TARGET,
+            |_| -> Result<(bool, bool, u64), DispatchError> {
+                // joint_benefits, restart, score
+                Ok((true,false,60))
+            }
+        ),Error::<Test>::NoPermission);
+        System::set_block_number(30);
+        assert!(ZdChallenges::arbitral(
+            &APP_ID,
+            &EVE,
+            &TARGET,
+            |_| -> Result<(bool, bool, u64), DispatchError> {
+                // joint_benefits, restart, score
+                Ok((true,false,60))
+            }
+        ).is_err());
+    });
+}

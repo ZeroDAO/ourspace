@@ -239,6 +239,10 @@ impl<T: Config> Pallet<T> {
         <Metadatas<T>>::try_get(&app_id, &target).map_err(|_err| Error::<T>::NonExistent)
     }
 
+    fn get_challenge_timeout() -> T::BlockNumber {
+        T::ChallengeTimeout::get().saturated_into::<T::BlockNumber>()
+    }
+
     pub(crate) fn challenge_staking_amount() -> Balance {
         T::ChallengeStakingAmount::get()
     }
@@ -265,7 +269,7 @@ impl<T: Config> Pallet<T> {
             Ok((sweeper_fee, awards))
         } else {
             ensure!(
-                challenge.last_update + T::ChallengeTimeout::get() > now_block_number,
+                !Self::is_challenge_timeout(&challenge.last_update),
                 Error::<T>::TooSoon
             );
             Ok((Zero::zero(), *total_amount))
@@ -311,8 +315,9 @@ impl<T: Config> Pallet<T> {
     ) -> DispatchResult {
         Metadatas::<T>::try_mutate_exists(app_id, target, |challenge| -> DispatchResult {
             let challenge = challenge.as_mut().ok_or(Error::<T>::NonExistent)?;
+            f(challenge)?;
             challenge.last_update = Self::now();
-            f(challenge)
+            Ok(())
         })?;
         Ok(())
     }
@@ -321,9 +326,9 @@ impl<T: Config> Pallet<T> {
         <LastAt<T>>::mutate(*app_id, |l| *l = Self::now());
     }
 
-    fn is_challenge_timeout(challenge: &Metadata<T::AccountId, T::BlockNumber>) -> bool {
+    pub(crate) fn is_challenge_timeout(last_update: &T::BlockNumber) -> bool {
         let now_block_number = system::Module::<T>::block_number();
-        now_block_number > challenge.last_update + T::ChallengeTimeout::get()
+        now_block_number > (Self::get_challenge_timeout() + *last_update)
     }
 }
 
@@ -334,7 +339,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
 
     fn is_all_timeout(app_id: &AppId, now: &T::BlockNumber) -> bool {
         let last = LastAt::<T>::get(app_id);
-        *now > last + T::ChallengeTimeout::get()
+        *now > last + Self::get_challenge_timeout()
     }
 
     fn harvest(
@@ -584,11 +589,12 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             app_id,
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
-                ensure!(challenge.is_all_done(), Error::<T>::NoPermission);
+                ensure!(challenge.status != Status::EXAMINE, Error::<T>::StatusErr);
+                ensure!(challenge.is_all_done(), Error::<T>::ProgressErr);
                 if !challenge.is_challenger(&who) {
                     ensure!(
-                        Self::is_challenge_timeout(&challenge),
-                        Error::<T>::NoPermission
+                       Self::is_challenge_timeout(&challenge.last_update),
+                       Error::<T>::NoPermission
                     );
                     Self::staking(&who, Self::challenge_staking_amount())?;
                     challenge.challenger = who.clone();
@@ -612,7 +618,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             app_id,
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
-                ensure!(challenge.is_all_done(), Error::<T>::NoPermission);
+                ensure!(challenge.is_all_done(), Error::<T>::ProgressErr);
                 Self::do_settle(challenge, &restart, &joint_benefits, &score)
             },
         )

@@ -169,6 +169,7 @@ impl Default for ExtBuilder {
             endowed_accounts: vec![
                 (ALICE, ZDAO, 1000_000_000_000_000u128),
                 (BOB, ZDAO, 1000_000_000_000_000u128),
+                (FERDIE, ZDAO, 1000_000_000_000_000u128),
             ],
         }
     }
