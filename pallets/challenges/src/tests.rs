@@ -578,3 +578,73 @@ fn arbitral_should_fail() {
         ).is_err());
     });
 }
+
+macro_rules! settle_should_work {
+    ($($name:ident: $value:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                new_test_ext().execute_with(|| {
+                    let (now,staking,joint_benefits,restart) = $value;
+                    System::set_block_number(now);
+                    let init_metadata = Metadata {
+                        progress: Progress {
+                            total: 100,
+                            done: 100,
+                        },
+                        pool: Pool {
+                            staking: staking,
+                            earnings: 200,
+                        },
+                        ..DEFAULT_METADATA
+                    };
+                    <Metadatas<Test>>::insert(&APP_ID,&TARGET,&init_metadata);
+                    // init staking pool
+                    assert_ok!(ZdChallenges::staking(&FERDIE, 10000000));
+
+                    let free_balance = Currencies::free_balance(ZDAO, &CHALLENGER);
+            
+                    assert_ok!(ZdChallenges::settle(
+                        &APP_ID,
+                        &TARGET,
+                        joint_benefits,
+                        restart,
+                        100,
+                    ));
+            
+                    let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
+            
+                    match restart {
+                        true => {
+                            if joint_benefits {
+                                assert_eq!(Currencies::free_balance(ZDAO, &CHALLENGER), free_balance + (staking / 2));
+                                assert_eq!(metadata.pool.staking, staking - (staking / 2));
+                                assert_eq!(metadata.pathfinder, PATHINFER);
+                            } else {
+                                assert_eq!(metadata.pathfinder, CHALLENGER);
+                            }
+                            assert_eq!(metadata.status, Status::FREE);
+                        },
+                        false => {
+                            assert_eq!(metadata.joint_benefits, joint_benefits);
+                            assert_eq!(metadata.score, 100);
+                        },
+                    }
+            
+                    assert_eq!(metadata.last_update, now);
+                });
+            }
+        )*
+    }
+}
+
+settle_should_work! {
+    // now,staking,joint_benefits,restart
+    settle_should_work_0: (10,100,true,true),
+    settle_should_work_1: (20,100000,true,true),
+    settle_should_work_2: (100,0,true,true),
+    settle_should_work_3: (10,655555,true,true),
+    settle_should_work_4: (10,655551,true,true),
+    settle_should_work_5: (10,100,false,true),
+    settle_should_work_6: (10,100,true,false),
+}
