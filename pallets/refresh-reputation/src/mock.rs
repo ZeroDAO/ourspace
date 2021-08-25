@@ -43,11 +43,15 @@ impl pallet_balances::Config for Test {
     type WeightInfo = ();
 }
 
+parameter_types! {
+    pub const GetNativeCurrencyId: CurrencyId = 0;
+}
+
 impl orml_currencies::Config for Test {
     type Event = Event;
     type MultiCurrency = Tokens;
     type NativeCurrency = BasicCurrencyAdapter<Test, Balances, Amount, BlockNumber>;
-    type GetNativeCurrencyId = BaceToken;
+    type GetNativeCurrencyId = GetNativeCurrencyId;
     type WeightInfo = ();
 }
 
@@ -142,6 +146,7 @@ impl zd_tokens::Config for Test {
     type CurrencyId = CurrencyId;
     type WeightInfo = ();
     type Currency = Currencies;
+    
     type Amount = Amount;
     type BaceToken = BaceToken;
 }
@@ -182,7 +187,7 @@ construct_runtime!(
         ZdReputation: zd_reputation::{Module, Call, Storage, Event<T>},
         ZdRefreshReputation: zd_refresh_reputation::{Module, Call, Storage, Event<T>},
         ZdSeeds: zd_seeds::{Module, Call, Storage, Event<T>},
-        Currencies: orml_currencies::{Module, Event<T>},
+        Currencies: orml_currencies::{Module, Call, Event<T>},
         ZdTrust: zd_trust::{Module, Call, Event<T>},
         Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
         Challenges: zd_challenges::{Module, Storage, Event<T>},

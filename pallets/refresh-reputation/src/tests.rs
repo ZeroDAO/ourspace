@@ -9,15 +9,18 @@ fn new_test_ext() -> sp_io::TestExternalities {
     ext.execute_with(|| System::set_block_number(1));
     ext
 }
-/*
+
 #[test]
-fn new_round_should_work() {
+fn start_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(ZdRefreshReputation::start(Origin::signed(ALICE)));
     });
 }
 
 
+
+
+/* 
 #[test]
 fn refresh_should_fail() {
     new_test_ext().execute_with(|| {

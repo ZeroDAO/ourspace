@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![allow(clippy::unused_unit)]
 
 use frame_support::{
     codec::{Decode, Encode},
@@ -9,7 +8,7 @@ use frame_support::{
 };
 use frame_system::{self as system, ensure_signed};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
-use sp_std::vec::Vec;
+// use sp_std::prelude::*;
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
 use zd_traits::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
