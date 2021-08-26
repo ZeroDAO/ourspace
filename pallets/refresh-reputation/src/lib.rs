@@ -158,6 +158,8 @@ pub mod pallet {
         DistTooLong,
         /// Paths and seeds do not match
         NotMatch,
+        /// Status mismatch
+        StatusErr,
     }
 
     #[pallet::hooks]
@@ -388,7 +390,7 @@ impl<T: Config> Pallet<T> {
     fn check_step() -> DispatchResult {
         ensure!(
             T::Reputation::is_step(&TIRStep::REPUTATION),
-            Error::<T>::DistTooLong
+            Error::<T>::StatusErr
         );
         Ok(())
     }

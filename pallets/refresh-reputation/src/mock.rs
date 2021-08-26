@@ -23,6 +23,9 @@ pub const CHARLIE: AccountId = 3;
 pub const DAVE: AccountId = 4;
 pub const EVE: AccountId = 5;
 pub const FERDIE: AccountId = 6;
+pub const CHALLENGER: AccountId = 7;
+pub const PATHFINDER: AccountId = 8;
+pub const SWEEPRT: AccountId = 9;
 
 pub const ZDAO: CurrencyId = 1;
 
@@ -206,6 +209,8 @@ impl Default for ExtBuilder {
             endowed_accounts: vec![
                 (ALICE, ZDAO, 1000_000_000_000_000u128),
                 (BOB, ZDAO, 1000_000_000_000_000u128),
+                (FERDIE, ZDAO, 1000_000_000_000_000u128),
+                (SWEEPRT, ZDAO, 1000_000u128),
             ],
             period: INIT_PERIOD,
         }
