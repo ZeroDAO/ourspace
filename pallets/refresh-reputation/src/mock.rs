@@ -210,7 +210,7 @@ impl Default for ExtBuilder {
                 (ALICE, ZDAO, 1000_000_000_000_000u128),
                 (BOB, ZDAO, 1000_000_000_000_000u128),
                 (FERDIE, ZDAO, 1000_000_000_000_000u128),
-                (SWEEPRT, ZDAO, 1000_000u128),
+                (PATHFINDER, ZDAO, 1000_000_000_000_000u128),
             ],
             period: INIT_PERIOD,
         }

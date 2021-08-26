@@ -162,6 +162,8 @@ pub mod pallet {
         StatusErr,
         /// Not in time
         NotInTime,
+        // Not yet started
+        NotYetStarted,
     }
 
     #[pallet::hooks]
@@ -394,6 +396,10 @@ impl<T: Config> Pallet<T> {
             T::Reputation::is_step(&TIRStep::REPUTATION),
             Error::<T>::StatusErr
         );
+        ensure!(
+            <StartedAt<T>>::exists(),
+            Error::<T>::NotYetStarted
+        );
         Ok(())
     }
 
@@ -406,6 +412,7 @@ impl<T: Config> Pallet<T> {
         if (is_last_ref_timeout || is_ref_timeout) && is_cha_all_timeout {
             T::TrustBase::remove_all_tmp();
             T::Reputation::set_free();
+            <StartedAt<T>>::kill();
         }
     }
 

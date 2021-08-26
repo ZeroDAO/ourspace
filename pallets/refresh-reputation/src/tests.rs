@@ -49,7 +49,7 @@ const INIT_PAYROLLS: [Payroll<Balance>; 6] = [
 const INIT_ACCOUNT: [AccountId; 6] = [ALICE, BOB, CHARLIE, DAVE, EVE, FERDIE];
 
 #[test]
-fn start_with_payrolls_should_work() {
+fn start_with_payrolls() {
     new_test_ext().execute_with(|| {
 
         assert_noop!(
@@ -93,6 +93,32 @@ fn start_with_payrolls_should_work() {
         });
 
         assert_eq!(ZdToken::free_balance(&SWEEPRT), who_balance + total_fee);
+        
+    });
+}
+
+
+
+#[test]
+fn refresh_should_work() {
+    new_test_ext().execute_with(|| {
+
+        let user_scores = vec![(BOB, 12), (CHARLIE, 18)];
+        // let user_scores_too_long = vec![(BOB, 12), (CHARLIE, 18), (DAVE, 1200),(EVE, 1223),(FERDIE, 322)];
+
+        assert_noop!(
+            ZdRefreshReputation::refresh(Origin::signed(PATHFINDER),user_scores.clone()),
+            Error::<Test>::StatusErr
+        );
+
+        ZdReputation::new_round();
+        ZdReputation::set_step(&TIRStep::REPUTATION);
+
+        System::set_block_number(2000);
+
+        // ZdRefreshReputation::start(Origin::signed(SWEEPRT));
+
+        assert_ok!(ZdRefreshReputation::refresh(Origin::signed(PATHFINDER),user_scores.clone()));
         
     });
 }
