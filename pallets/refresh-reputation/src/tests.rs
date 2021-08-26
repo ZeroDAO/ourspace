@@ -51,7 +51,19 @@ const INIT_ACCOUNT: [AccountId; 6] = [ALICE, BOB, CHARLIE, DAVE, EVE, FERDIE];
 #[test]
 fn start_with_payrolls_should_work() {
     new_test_ext().execute_with(|| {
+
+        assert_noop!(
+            ZdRefreshReputation::start(Origin::signed(SWEEPRT)),
+            Error::<Test>::StatusErr
+        );
+
         ZdReputation::set_step(&TIRStep::REPUTATION);
+
+        assert_noop!(
+            ZdRefreshReputation::start(Origin::signed(SWEEPRT)),
+            Error::<Test>::NotInTime
+        );
+
         System::set_block_number(2000);
 
         // init staking pool

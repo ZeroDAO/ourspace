@@ -160,6 +160,8 @@ pub mod pallet {
         NotMatch,
         /// Status mismatch
         StatusErr,
+        /// Not in time
+        NotInTime,
     }
 
     #[pallet::hooks]
@@ -182,7 +184,7 @@ pub mod pallet {
 
             ensure!(
                 Balance::is_allowed_proxy(last, now),
-                Error::<T>::ChallengeTimeout
+                Error::<T>::NotInTime
             );
 
             let total_fee = Payrolls::<T>::drain()
