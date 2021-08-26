@@ -132,8 +132,6 @@ pub mod pallet {
     pub enum Error<T> {
         /// Quantity reaches limit.
         QuantityLimitReached,
-        /// Not in the update period.
-        NoUpdatesAllowed,
         /// Error getting fee.
         ErrorFee,
         /// Challenge timeout.
@@ -162,8 +160,10 @@ pub mod pallet {
         StatusErr,
         /// Not in time
         NotInTime,
-        // Not yet started
+        /// Not yet started
         NotYetStarted,
+        /// Already started
+        AlreadyStarted,
     }
 
     #[pallet::hooks]
@@ -174,7 +174,7 @@ pub mod pallet {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn start(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
-            Self::check_step()?;
+            Self::check_step_and_not_stared()?;
 
             ensure!(
                 T::ChallengeBase::is_all_harvest(&APP_ID),
@@ -217,7 +217,7 @@ pub mod pallet {
                 user_count as u32 <= T::MaxUpdateCount::get(),
                 Error::<T>::QuantityLimitReached
             );
-            Self::check_step()?;
+            Self::check_step_and_stared()?;
             let now_block_number = system::Module::<T>::block_number();
             Self::check_timeout(&now_block_number)?;
 
@@ -396,9 +396,23 @@ impl<T: Config> Pallet<T> {
             T::Reputation::is_step(&TIRStep::REPUTATION),
             Error::<T>::StatusErr
         );
+        Ok(())
+    }
+
+    fn check_step_and_stared() -> DispatchResult {
+        Self::check_step()?;
         ensure!(
             <StartedAt<T>>::exists(),
             Error::<T>::NotYetStarted
+        );
+        Ok(())
+    }
+
+    fn check_step_and_not_stared() -> DispatchResult {
+        Self::check_step()?;
+        ensure!(
+            !<StartedAt<T>>::exists(),
+            Error::<T>::AlreadyStarted
         );
         Ok(())
     }
