@@ -21,7 +21,7 @@ pub use pallet::*;
 
 const APP_ID: AppId = *b"repu    ";
 
-/// 有效路径最大数量
+/// Maximum number of active paths
 const MAX_PATH_COUNT: u32 = 5;
 
 #[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
@@ -31,12 +31,13 @@ pub struct Record<BlockNumber, Balance> {
 }
 
 #[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug)]
-pub struct Payroll<Balance> {
+pub struct Payroll<Balance, BlockNumber> {
     pub count: u32,
     pub total_fee: Balance,
+    pub update_at: BlockNumber,
 }
 
-impl Payroll<Balance> {
+impl<BlockNumber> Payroll<Balance, BlockNumber> {
     fn total_amount<T: Config>(&self) -> Balance {
         T::UpdateStakingAmount::get()
             .saturating_mul(self.count.into())
@@ -94,7 +95,7 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn get_payroll)]
     pub type Payrolls<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, Payroll<Balance>, ValueQuery>;
+        StorageMap<_, Twox64Concat, T::AccountId, Payroll<Balance, T::BlockNumber>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn update_record)]
@@ -182,12 +183,9 @@ pub mod pallet {
             );
 
             let last = T::Reputation::get_last_refresh_at();
-            let now = system::Module::<T>::block_number();
+            let now = Self::now();
 
-            ensure!(
-                Balance::is_allowed_proxy(last, now),
-                Error::<T>::NotInTime
-            );
+            ensure!(Balance::is_allowed_proxy(last, now), Error::<T>::NotInTime);
 
             let total_fee = Payrolls::<T>::drain()
                 .try_fold::<_, _, Result<Balance, DispatchError>>(
@@ -218,7 +216,7 @@ pub mod pallet {
                 Error::<T>::QuantityLimitReached
             );
             Self::check_step_and_stared()?;
-            let now_block_number = system::Module::<T>::block_number();
+            let now_block_number = Self::now();
             Self::check_timeout(&now_block_number)?;
 
             let amount = T::UpdateStakingAmount::get()
@@ -236,7 +234,12 @@ pub mod pallet {
                             .ok_or_else(|| Error::<T>::Overflow.into())
                     },
                 )?;
-            Self::mutate_payroll(&pathfinder, &total_fee, &(user_count as u32))?;
+            Self::mutate_payroll(
+                &pathfinder,
+                &total_fee,
+                &(user_count as u32),
+                &now_block_number,
+            )?;
 
             T::Reputation::set_last_refresh_at();
 
@@ -252,8 +255,9 @@ pub mod pallet {
         pub fn harvest_ref_all(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let pathfinder = ensure_signed(origin)?;
             Self::next_step();
-            T::Reputation::set_free();
+            let now_block_number = Self::now();
             let payroll = Payrolls::<T>::take(&pathfinder);
+            Self::can_harvest(&payroll,&now_block_number)?;
             T::MultiBaseToken::release(&pathfinder, &payroll.total_amount::<T>())?;
             <Records<T>>::remove_prefix(&pathfinder);
             Ok(().into())
@@ -266,11 +270,12 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let proxy = ensure_signed(origin)?;
             Self::next_step();
-            let last = T::Reputation::get_last_update_at();
             let payroll = Payrolls::<T>::take(&pathfinder);
+            let now_block_number = Self::now();
+            Self::can_harvest(&payroll,&now_block_number)?;
             let (proxy_fee, without_fee) = payroll
                 .total_amount::<T>()
-                .checked_with_fee(last, system::Module::<T>::block_number())
+                .checked_with_fee(payroll.update_at, Self::now())
                 .ok_or(Error::<T>::FailedProxy)?;
             <Records<T>>::remove_prefix(&pathfinder);
             T::MultiBaseToken::release(&proxy, &proxy_fee)?;
@@ -311,13 +316,14 @@ pub mod pallet {
 
             ensure!(
                 record.update_at + T::ConfirmationPeriod::get()
-                    > system::Module::<T>::block_number(),
+                    > Self::now(),
                 Error::<T>::ChallengeTimeout
             );
 
             Payrolls::<T>::mutate(&pathfinder, |f| Payroll {
                 total_fee: f.total_fee.saturating_sub(record.fee),
                 count: f.count.saturating_sub(1),
+                update_at: f.update_at,
             });
 
             T::ChallengeBase::new(
@@ -391,6 +397,9 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+    fn now() -> T::BlockNumber {
+        system::Module::<T>::block_number()
+    }
     fn check_step() -> DispatchResult {
         ensure!(
             T::Reputation::is_step(&TIRStep::REPUTATION),
@@ -401,32 +410,36 @@ impl<T: Config> Pallet<T> {
 
     fn check_step_and_stared() -> DispatchResult {
         Self::check_step()?;
-        ensure!(
-            <StartedAt<T>>::exists(),
-            Error::<T>::NotYetStarted
-        );
+        ensure!(<StartedAt<T>>::exists(), Error::<T>::NotYetStarted);
         Ok(())
     }
 
     fn check_step_and_not_stared() -> DispatchResult {
         Self::check_step()?;
+        ensure!(!<StartedAt<T>>::exists(), Error::<T>::AlreadyStarted);
+        Ok(())
+    }
+
+    fn can_harvest(payroll: &Payroll<Balance, T::BlockNumber>, now: &T::BlockNumber) -> DispatchResult  {
         ensure!(
-            !<StartedAt<T>>::exists(),
-            Error::<T>::AlreadyStarted
+            payroll.update_at + T::ConfirmationPeriod::get() < *now,
+            Error::<T>::ExcessiveBumberOfSeeds
         );
         Ok(())
     }
 
-    fn next_step() {
-        let now = system::Module::<T>::block_number();
-        let is_ref_timeout = Self::check_timeout(&now).is_err();
-        let is_last_ref_timeout =
-            T::Reputation::get_last_refresh_at() + T::ConfirmationPeriod::get() > now;
-        let is_cha_all_timeout = T::ChallengeBase::is_all_timeout(&APP_ID, &now);
-        if (is_last_ref_timeout || is_ref_timeout) && is_cha_all_timeout {
-            T::TrustBase::remove_all_tmp();
-            T::Reputation::set_free();
-            <StartedAt<T>>::kill();
+    pub(crate) fn next_step() {
+        if <StartedAt<T>>::exists() {
+            let now = Self::now();
+            let is_ref_timeout = Self::check_timeout(&now).is_err();
+            let is_last_ref_timeout =
+                T::Reputation::get_last_refresh_at() + T::ConfirmationPeriod::get() > now;
+            let is_cha_all_timeout = T::ChallengeBase::is_all_timeout(&APP_ID, &now);
+            if (is_last_ref_timeout || is_ref_timeout) && is_cha_all_timeout {
+                T::TrustBase::remove_all_tmp();
+                T::Reputation::set_free();
+                <StartedAt<T>>::kill();
+            }
         }
     }
 
@@ -446,9 +459,11 @@ impl<T: Config> Pallet<T> {
         T::Reputation::refresh_reputation(&user_score)?;
         let who = &user_score.0;
         let fee = Self::share(&who)?;
-        <Records<T>>::mutate(&pathfinder, &who, |r| *r = Record { 
-            update_at: *update_at,
-            fee
+        <Records<T>>::mutate(&pathfinder, &who, |r| {
+            *r = Record {
+                update_at: *update_at,
+                fee,
+            }
         });
         Ok(fee)
     }
@@ -457,6 +472,7 @@ impl<T: Config> Pallet<T> {
         pathfinder: &T::AccountId,
         amount: &Balance,
         count: &u32,
+        now: &T::BlockNumber,
     ) -> DispatchResult {
         <Payrolls<T>>::try_mutate(&pathfinder, |f| -> DispatchResult {
             let total_fee = f
@@ -465,7 +481,11 @@ impl<T: Config> Pallet<T> {
                 .ok_or(Error::<T>::Overflow)?;
 
             let count = f.count.checked_add(*count).ok_or(Error::<T>::Overflow)?;
-            *f = Payroll { count, total_fee };
+            *f = Payroll {
+                count,
+                total_fee,
+                update_at: *now,
+            };
             Ok(())
         })
     }

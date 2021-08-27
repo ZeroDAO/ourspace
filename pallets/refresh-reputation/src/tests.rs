@@ -20,30 +20,36 @@ fn start_should_work() {
     });
 }
 
-const INIT_PAYROLLS: [Payroll<Balance>; 6] = [
+const INIT_PAYROLLS: [Payroll<Balance,BlockNumber>; 6] = [
     Payroll {
         count: 11,
         total_fee: 1001,
+        update_at: 1,
     },
     Payroll {
         count: 112,
         total_fee: 1021,
+        update_at: 1,
     },
     Payroll {
         count: 100,
         total_fee: 10011233,
+        update_at: 1,
     },
     Payroll {
         count: 2,
         total_fee: 1,
+        update_at: 1,
     },
     Payroll {
         count: 1,
         total_fee: 0,
+        update_at: 1,
     },
     Payroll {
         count: 0,
         total_fee: 13,
+        update_at: 1,
     },
 ];
 
@@ -212,30 +218,84 @@ fn refresh_should_work() {
     });
 }
 
-/*
-#[test]
-fn refresh_should_fail() {
-    new_test_ext().execute_with(|| {
-        let user_scores = vec![(BOB, 12), (CHARLIE, 18)];
-        let user_scores_too_long = vec![(BOB, 12), (CHARLIE, 18), (DAVE, 1200),(EVE, 1223),(FERDIE, 322)];
+macro_rules! next_step_should_work {
+    ($($name:ident: $value:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                new_test_ext().execute_with(|| {
+                    ZdReputation::set_step(&TIRStep::REPUTATION);
+                    assert_ok!(ZdTrust::trust(Origin::signed(ALICE),BOB));
+                    <StartedAt<Test>>::put(1);
+                    ZdReputation::set_last_refresh_at();
+            
+                    System::set_block_number($value.0);
 
-        assert_noop!(
-            (ZdRefreshReputation::refresh(
-                Origin::signed(ALICE),
-                user_scores
-            )),
-            Error::<Test>::NoUpdatesAllowed
-        );
+                    ZdRefreshReputation::next_step();
 
-        assert_ok!(ZdRefreshReputation::start(Origin::signed(ALICE)));
-
-        assert_noop!(
-            (ZdRefreshReputation::refresh(
-                Origin::signed(ALICE),
-                user_scores_too_long
-            )),
-            Error::<Test>::QuantityLimitReached
-        );
-    });
+                    assert_eq!(
+                        !ZdTrust::is_trust_old(&ALICE,&BOB),
+                        $value.1
+                    );
+                    assert_eq!(
+                        !ZdReputation::is_step(&TIRStep::FREE),
+                        $value.1
+                    );
+                    assert_eq!(
+                        <StartedAt<Test>>::exists(),
+                        $value.1
+                    );
+                });
+            }
+        )*
+    }
 }
-*/
+
+next_step_should_work! {
+    next_step_should_work_0: (10,true),
+    next_step_should_work_1: (5000, false),
+    next_step_should_work_2: (199,true),
+    next_step_should_work_3: (20,true),
+    next_step_should_work_4: (62,true),
+}
+
+macro_rules! harvest_ref_all_should_work {
+    ($($name:ident: $value:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                new_test_ext().execute_with(|| {
+                    <Payrolls<Test>>::insert(&PATHFINDER, Payroll {
+                        count: $value.0,
+                        total_fee: $value.1,
+                        update_at: 1,
+                    });
+                    let total_amount = UpdateStakingAmount::get() * $value.0 + $value.1;
+                    assert_ok!(ZdToken::staking(&ALICE, &1_000_000_000_000u128));
+                    for a in INIT_ACCOUNT.iter() {
+                        <Records<Test>>::insert(&PATHFINDER,&a.account,Record {
+                            update_at: 11,
+                            fee: 111,
+                        });
+                    }
+                    System::set_block_number(500);
+                    let old_balances = ZdToken::free_balance(&PATHFINDER);
+                    assert_ok!(ZdRefreshReputation::harvest_ref_all(Origin::signed(PATHFINDER)));
+                    let new_balances = ZdToken::free_balance(&PATHFINDER);
+                    assert_eq!(new_balances - old_balances, total_amount);
+                    for a in INIT_ACCOUNT.iter() {
+                        assert!(<Records<Test>>::try_get(&PATHFINDER,&a.account).is_err());
+                    }
+                });
+            }
+        )*
+    }
+}
+
+harvest_ref_all_should_work! {
+    harvest_ref_all_should_work_0: (2,1000),
+    harvest_ref_all_should_work_1: (0,11),
+    harvest_ref_all_should_work_2: (0,0),
+    harvest_ref_all_should_work_3: (12,0),
+    harvest_ref_all_should_work_4: (212,1000),
+}
