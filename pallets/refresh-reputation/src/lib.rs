@@ -445,9 +445,11 @@ impl<T: Config> Pallet<T> {
     ) -> Result<Balance, DispatchError> {
         T::Reputation::refresh_reputation(&user_score)?;
         let who = &user_score.0;
-
         let fee = Self::share(&who)?;
-        <Records<T>>::mutate(&pathfinder, &who, |_| Record { update_at, fee });
+        <Records<T>>::mutate(&pathfinder, &who, |r| *r = Record { 
+            update_at: *update_at,
+            fee
+        });
         Ok(fee)
     }
 

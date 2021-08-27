@@ -123,6 +123,10 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
         T::Currency::free_balance(T::BaceToken::get(), who)
     }
 
+    fn social_balance(who: &T::AccountId) -> Balance {
+        T::Currency::social_balance(T::BaceToken::get(), who)
+    }
+
     fn share(who: &T::AccountId, targets: &Vec<T::AccountId>) -> Result<Balance, DispatchError> {
         let total_share = T::Currency::social_balance(T::BaceToken::get(), &who);
 

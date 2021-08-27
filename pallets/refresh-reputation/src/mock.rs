@@ -59,9 +59,9 @@ impl orml_currencies::Config for Test {
 }
 
 parameter_type_with_key! {
-    pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
-        Zero::zero()
-    };
+	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
+		0
+	};
 }
 
 parameter_types! {
@@ -211,6 +211,7 @@ impl Default for ExtBuilder {
                 (BOB, ZDAO, 1000_000_000_000_000u128),
                 (FERDIE, ZDAO, 1000_000_000_000_000u128),
                 (PATHFINDER, ZDAO, 1000_000_000_000_000u128),
+                (SWEEPRT, ZDAO, 1000_000_000_000_000u128),
             ],
             period: INIT_PERIOD,
         }

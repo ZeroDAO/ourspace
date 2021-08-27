@@ -24,6 +24,8 @@ pub const ZDAO: CurrencyId = 1;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
+pub const CHARLIE: AccountId = 3;
+
 pub const DOT: CurrencyId = 1;
 pub const BTC: CurrencyId = 3;
 

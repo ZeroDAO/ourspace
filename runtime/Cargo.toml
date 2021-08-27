@@ -35,9 +35,9 @@ zd-tokens = {default-features = false, path = '../pallets/tokens', version = '0.
 zd-trust = {path = "../pallets/trust", default-features = false, version = '0.0.1'}
 
 # orml extensions
-orml-currencies = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = 'b9f45fd'}
-orml-tokens = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = 'b9f45fd'}
-orml-traits = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = 'b9f45fd'}
+orml-currencies = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
+orml-tokens = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
+orml-traits = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
 
 # Substrate dependencies
 frame-benchmarking = {default-features = false, optional = true, version = '3.0.0'}
