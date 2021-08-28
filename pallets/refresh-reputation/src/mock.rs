@@ -9,7 +9,7 @@ use frame_system as system;
 use orml_currencies::BasicCurrencyAdapter;
 use orml_traits::parameter_type_with_key;
 use sp_core::H256;
-use sp_runtime::{traits::Zero, Perbill};
+use sp_runtime::Perbill;
 use zd_primitives::Balance;
 
 pub type Amount = i128;
@@ -26,6 +26,11 @@ pub const FERDIE: AccountId = 6;
 pub const CHALLENGER: AccountId = 7;
 pub const PATHFINDER: AccountId = 8;
 pub const SWEEPRT: AccountId = 9;
+
+pub const SEED1: AccountId = 10;
+pub const SEED2: AccountId = 11;
+pub const SEED3: AccountId = 12;
+pub const TARGET: AccountId = 12;
 
 pub const ZDAO: CurrencyId = 1;
 

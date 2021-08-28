@@ -305,7 +305,7 @@ pub mod pallet {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
             ensure!(
-                quantity < T::SeedsBase::get_seed_count(),
+                quantity <= T::SeedsBase::get_seed_count(),
                 Error::<T>::ExcessiveBumberOfSeeds
             );
             let reputation =

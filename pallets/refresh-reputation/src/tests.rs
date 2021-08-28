@@ -20,7 +20,7 @@ fn start_should_work() {
     });
 }
 
-const INIT_PAYROLLS: [Payroll<Balance,BlockNumber>; 6] = [
+const INIT_PAYROLLS: [Payroll<Balance, BlockNumber>; 6] = [
     Payroll {
         count: 11,
         total_fee: 1001,
@@ -148,13 +148,7 @@ fn refresh_should_work() {
             .iter()
             .map(|a| (a.account, a.score))
             .collect::<Vec<(AccountId, u32)>>();
-        let user_scores_too_long = vec![
-            (BOB, 0),
-            (CHARLIE, 0),
-            (DAVE, 0),
-            (EVE, 0),
-            (FERDIE, 0),
-        ];
+        let user_scores_too_long = vec![(BOB, 0), (CHARLIE, 0), (DAVE, 0), (EVE, 0), (FERDIE, 0)];
         for a in INIT_ACCOUNT.iter() {
             assert_ok!(ZdToken::transfer_social(
                 Origin::signed(SWEEPRT),
@@ -165,10 +159,7 @@ fn refresh_should_work() {
         }
 
         assert_noop!(
-            ZdRefreshReputation::refresh(
-                Origin::signed(PATHFINDER),
-                user_scores.clone()
-            ),
+            ZdRefreshReputation::refresh(Origin::signed(PATHFINDER), user_scores.clone()),
             Error::<Test>::StatusErr
         );
 
@@ -176,25 +167,16 @@ fn refresh_should_work() {
         ZdReputation::set_step(&TIRStep::REPUTATION);
         System::set_block_number(2000);
         assert_noop!(
-            ZdRefreshReputation::refresh(
-                Origin::signed(PATHFINDER),
-                user_scores.clone()
-            ),
+            ZdRefreshReputation::refresh(Origin::signed(PATHFINDER), user_scores.clone()),
             Error::<Test>::NotYetStarted
         );
         assert_ok!(ZdRefreshReputation::start(Origin::signed(PATHFINDER)));
         assert_noop!(
-            ZdRefreshReputation::refresh(
-                Origin::signed(PATHFINDER),
-                user_scores_too_long
-            ),
+            ZdRefreshReputation::refresh(Origin::signed(PATHFINDER), user_scores_too_long),
             Error::<Test>::QuantityLimitReached
         );
         assert!(
-            ZdRefreshReputation::refresh(
-                Origin::signed(CHARLIE),
-             user_scores.clone()
-            ).is_err()
+            ZdRefreshReputation::refresh(Origin::signed(CHARLIE), user_scores.clone()).is_err()
         );
         assert_ok!(ZdRefreshReputation::refresh(
             Origin::signed(PATHFINDER),
@@ -202,7 +184,10 @@ fn refresh_should_work() {
         ));
 
         for a in INIT_ACCOUNT[..4].iter() {
-            assert_eq!(<Records<Test>>::get(&PATHFINDER,a.account).fee, per_social_currency::PRE_FEE.mul_floor(a.soc_amount));
+            assert_eq!(
+                <Records<Test>>::get(&PATHFINDER, a.account).fee,
+                per_social_currency::PRE_FEE.mul_floor(a.soc_amount)
+            );
         }
 
         let total_fee = INIT_ACCOUNT[..4]
@@ -228,7 +213,7 @@ macro_rules! next_step_should_work {
                     assert_ok!(ZdTrust::trust(Origin::signed(ALICE),BOB));
                     <StartedAt<Test>>::put(1);
                     ZdReputation::set_last_refresh_at();
-            
+
                     System::set_block_number($value.0);
 
                     ZdRefreshReputation::next_step();
@@ -298,4 +283,43 @@ harvest_ref_all_should_work! {
     harvest_ref_all_should_work_2: (0,0),
     harvest_ref_all_should_work_3: (12,0),
     harvest_ref_all_should_work_4: (212,1000),
+}
+
+fn init_sys() -> DispatchResult {
+    ZdReputation::set_step(&TIRStep::FREE);
+    let init_seeds = vec![SEED1, SEED2, SEED3];
+    for seed in init_seeds {
+        ZdSeeds::add_seed(&seed);
+    }
+    let init_paths = vec![
+        vec![SEED1, ALICE, TARGET],
+        vec![SEED2, ALICE, BOB, TARGET],
+        vec![SEED3, TARGET],
+        vec![SEED3, ALICE, TARGET],
+        vec![SEED3, ALICE, BOB, TARGET],
+    ];
+    for path in init_paths {
+        for nodes in path.windows(2) {
+            ZdTrust::trust(Origin::signed(nodes[0]),nodes[1]);
+        }
+    }
+    ZdReputation::new_round();
+    ZdReputation::set_step(&TIRStep::REPUTATION);
+
+    ZdRefreshReputation::refresh(Origin::signed(PATHFINDER),vec![(TARGET,100)]);
+    Ok(())
+}
+
+#[test]
+fn challenge_should_work() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(init_sys());
+        assert_ok!(ZdRefreshReputation::challenge(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            PATHFINDER,
+            3,
+            20
+        ));
+    });
 }
