@@ -81,3 +81,32 @@ fn new_seed_test() {
         );
     });
 }
+
+#[test]
+fn remove_seed_test() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            ZdSeeds::remove_seed(Origin::signed(ALICE), ALICE),
+            dispatch::DispatchError::BadOrigin
+        );
+        assert_noop!(
+            ZdSeeds::remove_seed(Origin::root(), ALICE),
+            Error::<Test>::NotSeedUser
+        );
+        assert_ok!(ZdSeeds::new_seed(Origin::root(), ALICE));
+        assert_ok!(ZdSeeds::new_seed(Origin::root(), BOB));
+        assert_ok!(ZdSeeds::remove_seed(Origin::root(), ALICE));
+
+        let seeds_event = Event::zd_seeds(crate::Event::SeedRemoved(ALICE));
+        assert!(System::events().iter().any(|record| record.event == seeds_event));
+
+        assert_eq!(ZdSeeds::is_seed(&ALICE), false);
+        assert_eq!(ZdSeeds::get_seed_count(), 1);
+        
+        ZdReputation::set_step(&TIRStep::REPUTATION);
+        assert_noop!(
+            ZdSeeds::remove_seed(Origin::root(), BOB),
+            Error::<Test>::StatusErr
+        );
+    });
+}

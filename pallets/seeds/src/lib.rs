@@ -53,7 +53,9 @@ pub mod pallet {
 		/// Not a seed user
 		NotSeedUser,
 		/// Status error
-		StatusErr
+		StatusErr,
+		/// Calculation overflow.
+		Overflow,
 	}
 
     #[pallet::hooks]
@@ -74,9 +76,11 @@ pub mod pallet {
 		pub fn remove_seed(origin: OriginFor<T>, seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
 			ensure!(T::Reputation::is_step(&TIRStep::FREE), Error::<T>::StatusErr);
-			ensure!(!<Seeds<T>>::contains_key(&seed), Error::<T>::NotSeedUser);
+			ensure!(<Seeds<T>>::contains_key(&seed), Error::<T>::NotSeedUser);
+			let seeds_count = <SeedsCount<T>>::get();
+			let new_seeds_count = seeds_count.checked_sub(1).ok_or(Error::<T>::Overflow)?;
 			<Seeds<T>>::remove(&seed);
-			SeedsCount::<T>::mutate(|c| *c -= 1);
+			SeedsCount::<T>::mutate(|c| *c = new_seeds_count);
 			Self::deposit_event(Event::SeedRemoved(seed));
 			Ok(().into())
 		}
