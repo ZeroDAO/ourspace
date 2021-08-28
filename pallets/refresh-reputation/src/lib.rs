@@ -166,7 +166,7 @@ pub mod pallet {
         /// Already started
         AlreadyStarted,
         /// The challenged reputation is the same as the original reputation
-        SameReputation,
+        SameReputation
     }
 
     #[pallet::hooks]
