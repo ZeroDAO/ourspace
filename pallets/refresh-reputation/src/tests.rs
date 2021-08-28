@@ -285,8 +285,7 @@ harvest_ref_all_should_work! {
     harvest_ref_all_should_work_4: (212,1000),
 }
 
-fn init_sys() -> DispatchResult {
-    ZdReputation::new_round();
+fn init_sys() {
     let init_seeds = vec![SEED1, SEED2, SEED3];
     for seed in init_seeds {
         ZdSeeds::add_seed(&seed);
@@ -299,21 +298,26 @@ fn init_sys() -> DispatchResult {
         vec![SEED3, ALICE, BOB, TARGET],
     ];
     for path in init_paths {
+        // println!("path: {:?}",path);
         for nodes in path.windows(2) {
-            ZdTrust::trust(Origin::signed(nodes[0]),nodes[1]);
+            // println!("{:?} -> {:?}",nodes[0],nodes[1]);
+            if !ZdTrust::is_trust(&nodes[0],&nodes[1]) {
+                assert_ok!(ZdTrust::trust(Origin::signed(nodes[0]),nodes[1]));
+            }
         }
     }
-    ZdReputation::new_round();
+    assert_ok!(ZdToken::transfer_social(Origin::signed(ALICE),TARGET,ZDAO,1000));
+    assert_ok!(ZdReputation::new_round());
     ZdReputation::set_step(&TIRStep::REPUTATION);
+    <StartedAt<Test>>::put(1);
 
-    ZdRefreshReputation::refresh(Origin::signed(PATHFINDER),vec![(TARGET,100)]);
-    Ok(())
+    assert_ok!(ZdRefreshReputation::refresh(Origin::signed(PATHFINDER),vec![(TARGET,100)]));
 }
 
 #[test]
 fn challenge_should_work() {
     new_test_ext().execute_with(|| {
-        assert_ok!(init_sys());
+        init_sys();
         assert_ok!(ZdRefreshReputation::challenge(
             Origin::signed(CHALLENGER),
             TARGET,
@@ -321,5 +325,10 @@ fn challenge_should_work() {
             3,
             20
         ));
+
+        let payroll = ZdRefreshReputation::get_payroll(PATHFINDER);
+        assert_eq!(payroll.total_fee,0);
+        assert_eq!(payroll.count,0);
+        assert_eq!(payroll.update_at,1);
     });
 }

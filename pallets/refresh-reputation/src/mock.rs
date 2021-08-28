@@ -30,7 +30,7 @@ pub const SWEEPRT: AccountId = 9;
 pub const SEED1: AccountId = 10;
 pub const SEED2: AccountId = 11;
 pub const SEED3: AccountId = 12;
-pub const TARGET: AccountId = 12;
+pub const TARGET: AccountId = 13;
 
 pub const ZDAO: CurrencyId = 1;
 
@@ -216,7 +216,8 @@ impl Default for ExtBuilder {
                 (BOB, ZDAO, 1000_000_000_000_000u128),
                 (FERDIE, ZDAO, 1000_000_000_000_000u128),
                 (PATHFINDER, ZDAO, 1000_000_000_000_000u128),
-                (SWEEPRT, ZDAO, 1000_000_000_000_000u128),
+                (CHALLENGER, ZDAO, 1000_000_000_000_000u128),
+                (SWEEPRT, ZDAO, 1000_000_000u128),
             ],
             period: INIT_PERIOD,
         }
