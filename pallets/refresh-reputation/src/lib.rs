@@ -22,7 +22,7 @@ pub use pallet::*;
 const APP_ID: AppId = *b"repu    ";
 
 /// Maximum number of active paths
-const MAX_PATH_COUNT: u32 = 5;
+const MAX_NODE_COUNT: u32 = 5;
 
 #[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
 pub struct Record<BlockNumber, Balance> {
@@ -53,11 +53,11 @@ pub struct Path<AccountId> {
 
 impl<AccountId> Path<AccountId> {
     fn check_nodes_leng(&self) -> bool {
-        self.nodes.len() as u32 <= MAX_PATH_COUNT
+        self.nodes.len() as u32 <= MAX_NODE_COUNT
     }
 
     fn exclude_zero(&self) -> bool {
-        self.nodes.len() as u32 <= MAX_PATH_COUNT && !self.nodes.is_empty() && self.score != 0
+        self.check_nodes_leng() && self.score != 0
     }
 }
 
@@ -496,10 +496,11 @@ impl<T: Config> Pallet<T> {
         T::MultiBaseToken::share(user, &targets)
     }
 
-    pub(crate) fn get_dist(paths: &Path<T::AccountId>, seed: &T::AccountId) -> Option<u32> {
+    pub(crate) fn get_dist(paths: &Path<T::AccountId>, seed: &T::AccountId, target: &T::AccountId) -> Option<u32> {
         if !paths.nodes.is_empty() && paths.check_nodes_leng() {
             let mut nodes = paths.nodes.clone();
             nodes.insert(0, seed.clone());
+            nodes.push(target.clone());
             if let Ok((dist, score)) = T::TrustBase::computed_path(&nodes) {
                 if score == paths.score {
                     return Some(dist);
@@ -541,9 +542,9 @@ impl<T: Config> Pallet<T> {
         let new_score = seeds.iter().zip(paths.iter()).try_fold(
             score,
             |acc, (seed, path)| -> Result<u32, DispatchError> {
-                let dist_new = Self::get_dist(&path, seed).ok_or(Error::<T>::DistErr)?;
+                let dist_new = Self::get_dist(&path, seed, &target).ok_or(Error::<T>::DistErr)?;
                 let old_path = Self::get_path(&seed, &target);
-                if let Some(old_dist) = Self::get_dist(&old_path, &seed) {
+                if let Some(old_dist) = Self::get_dist(&old_path, &seed, &target) {
                     ensure!(old_dist >= dist_new, Error::<T>::DistTooLong);
                     ensure!(
                         old_dist == dist_new && old_path.score > path.score,

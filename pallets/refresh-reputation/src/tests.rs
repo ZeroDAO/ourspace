@@ -425,3 +425,68 @@ fn challenge_update_should_work() {
         );
     });
 }
+
+
+#[test]
+fn challenge_update_should_fail() {
+    new_test_ext().execute_with(|| {
+        init_sys(100);
+        assert_ok!(ZdRefreshReputation::challenge(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            PATHFINDER,
+            3,
+            20
+        ));
+
+        assert_err_ignore_postinfo!(ZdRefreshReputation::challenge_update(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            vec![SEED1,SEED3],
+            vec![Path {
+                nodes: vec![ALICE, TARGET],
+                score: 12
+            }]
+        ),Error::<Test>::NotMatch);
+
+        assert_ok!(ZdRefreshReputation::challenge_update(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            vec![SEED3],
+            vec![Path {
+                nodes: vec![ALICE, TARGET],
+                score: 11
+            }]
+        ));
+
+        assert_err_ignore_postinfo!(ZdRefreshReputation::challenge_update(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            vec![SEED3],
+            vec![Path {
+                nodes: vec![ALICE, TARGET],
+                score: 12
+            }]
+        ),Error::<Test>::PathAlreadyExist);
+
+        assert_err_ignore_postinfo!(ZdRefreshReputation::challenge_update(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            vec![SEED2],
+            vec![Path {
+                nodes: vec![ALICE, BOB, TARGET, TARGET, TARGET, BOB, TARGET],
+                score: 12
+            }]
+        ),Error::<Test>::WrongPath);
+
+        assert_err_ignore_postinfo!(ZdRefreshReputation::challenge_update(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            vec![SEED2],
+            vec![Path {
+                nodes: vec![ALICE, BOB, TARGET],
+                score: u32::MAX
+            }]
+        ),Error::<Test>::Overflow);
+    });
+}
