@@ -325,7 +325,6 @@ fn challenge_should_work() {
             3,
             20
         ));
-
         let payroll = ZdRefreshReputation::get_payroll(PATHFINDER);
         assert_eq!(payroll.total_fee,0);
         assert_eq!(payroll.count,0);

@@ -257,7 +257,7 @@ pub mod pallet {
             Self::next_step();
             let now_block_number = Self::now();
             let payroll = Payrolls::<T>::take(&pathfinder);
-            Self::can_harvest(&payroll,&now_block_number)?;
+            Self::can_harvest(&payroll, &now_block_number)?;
             T::MultiBaseToken::release(&pathfinder, &payroll.total_amount::<T>())?;
             <Records<T>>::remove_prefix(&pathfinder);
             Ok(().into())
@@ -272,7 +272,7 @@ pub mod pallet {
             Self::next_step();
             let payroll = Payrolls::<T>::take(&pathfinder);
             let now_block_number = Self::now();
-            Self::can_harvest(&payroll,&now_block_number)?;
+            Self::can_harvest(&payroll, &now_block_number)?;
             let (proxy_fee, without_fee) = payroll
                 .total_amount::<T>()
                 .checked_with_fee(payroll.update_at, Self::now())
@@ -311,19 +311,14 @@ pub mod pallet {
             let reputation =
                 T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
             ensure!(score != reputation, Error::<T>::ChallengeTimeout);
-
-            let record = <Records<T>>::take(&target, &pathfinder);
-
+            let record = <Records<T>>::take(&pathfinder, &target);
             ensure!(
-                record.update_at + T::ConfirmationPeriod::get()
-                    > Self::now(),
+                record.update_at + T::ConfirmationPeriod::get() > Self::now(),
                 Error::<T>::ChallengeTimeout
             );
-
-            Payrolls::<T>::mutate(&pathfinder, |f| Payroll {
-                total_fee: f.total_fee.saturating_sub(record.fee),
-                count: f.count.saturating_sub(1),
-                update_at: f.update_at,
+            Payrolls::<T>::mutate(&pathfinder, |f| {
+                f.total_fee = f.total_fee.saturating_sub(record.fee);
+                f.count = f.count.saturating_sub(1);
             });
 
             T::ChallengeBase::new(
@@ -420,7 +415,10 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    fn can_harvest(payroll: &Payroll<Balance, T::BlockNumber>, now: &T::BlockNumber) -> DispatchResult  {
+    fn can_harvest(
+        payroll: &Payroll<Balance, T::BlockNumber>,
+        now: &T::BlockNumber,
+    ) -> DispatchResult {
         ensure!(
             payroll.update_at + T::ConfirmationPeriod::get() < *now,
             Error::<T>::ExcessiveBumberOfSeeds
