@@ -54,6 +54,8 @@ pub mod pallet {
 		AlreadySeedUser,
 		/// Not a seed user
 		NotSeedUser,
+		/// Status error
+		StatusErr
 	}
 
     #[pallet::hooks]
@@ -64,7 +66,7 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn new_seed(origin: OriginFor<T>,seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
-			ensure!(T::Reputation::is_step(&TIRStep::FREE), Error::<T>::NotSeedUser);
+			ensure!(T::Reputation::is_step(&TIRStep::FREE), Error::<T>::StatusErr);
 			ensure!(!Seeds::<T>::contains_key(&seed), Error::<T>::SeedsLimitReached);
 			Self::add_seed(&seed);
 			Ok(().into())
@@ -73,7 +75,7 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
 		pub fn remove_seed(origin: OriginFor<T>, seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
-			ensure!(T::Reputation::is_step(&TIRStep::FREE), Error::<T>::NotSeedUser);
+			ensure!(T::Reputation::is_step(&TIRStep::FREE), Error::<T>::StatusErr);
 			ensure!(!<Seeds<T>>::contains_key(&seed), Error::<T>::NotSeedUser);
 			<Seeds<T>>::remove(&seed);
 			SeedsCount::<T>::mutate(|c| *c -= 1);
