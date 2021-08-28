@@ -218,14 +218,6 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
         Self::set_last_refresh(Self::now());
     }
 
-    fn checked_nonce(step: &TIRStep) -> Option<u32> {
-        let operation_status = <SystemInfo<T>>::get();
-        match operation_status.step == *step {
-            true => Some(operation_status.nonce),
-            false => None,
-        }
-    }
-
     fn set_free() {
         let now = Self::now();
         let operation_status = Self::system_info();

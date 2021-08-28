@@ -78,8 +78,8 @@ macro_rules! refresh_reputation_should_work {
                         score: 671u32,
                         nonce: 1,
                     };
-                    <ReputationScores<Test>>::mutate(ALICE,|s| *s[0] = init_reputation);
-                    let mut operation_status = <SystemInfo<Test>>::mutate(|s| *s.nonce = 2);
+                    <ReputationScores<Test>>::mutate(ALICE,|s| s[0] = init_reputation.clone());
+                    <SystemInfo<Test>>::mutate(|s| s.nonce = 2);
                     assert_ok!(ZdReputation::refresh_reputation(&(ALICE, $value)));
 
                     assert_eq!(ZdReputation::get_reputation_new(&ALICE), Some($value));
@@ -106,7 +106,7 @@ refresh_reputation_should_work! {
     refresh_reputation_should_work_0: 18,
     refresh_reputation_should_work_1: 1345,
     refresh_reputation_should_work_2: 0,
-    refresh_reputation_should_work_3: u32.MAX(),
+    refresh_reputation_should_work_3: u32::MAX,
 }
 
 #[test]

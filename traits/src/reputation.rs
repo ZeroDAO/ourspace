@@ -18,8 +18,6 @@ pub trait Reputation<AccountId, BlockNumber, TIRStep> {
 
 	fn set_last_refresh_at();
 
-	fn checked_nonce(step: &TIRStep) -> Option<u32>;
-
 	fn set_free();
 
 	fn new_round() -> DispatchResult;
