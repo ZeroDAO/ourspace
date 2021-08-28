@@ -144,16 +144,18 @@ fn last_refresh_at_should_work() {
     });
 }
 
-/*
+
 #[test]
-fn end_refresh_should_work() {
+fn set_free_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(ZdReputation::new_round());
         System::set_block_number(150);
-        // assert_ok!(ZdReputation::set_free());
+
+        ZdReputation::set_step(&TIRStep::REPUTATION);
+        ZdReputation::set_free();
 
         assert_eq!(<SystemInfo<Test>>::get().last, 150);
-        assert_eq!(<SystemInfo<Test>>::get().updating, false);
+        assert_eq!(<SystemInfo<Test>>::get().step, TIRStep::FREE);
     });
 }
-*/
+
