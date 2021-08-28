@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::mock::*;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, assert_err_ignore_postinfo};
 use zd_primitives::per_social_currency;
 
 fn new_test_ext() -> sp_io::TestExternalities {
@@ -217,7 +217,7 @@ macro_rules! next_step_should_work {
                     System::set_block_number($value.0);
 
                     ZdRefreshReputation::next_step();
-
+                    
                     assert_eq!(
                         !ZdTrust::is_trust_old(&ALICE,&BOB),
                         $value.1
@@ -226,6 +226,7 @@ macro_rules! next_step_should_work {
                         !ZdReputation::is_step(&TIRStep::FREE),
                         $value.1
                     );
+
                     assert_eq!(
                         <StartedAt<Test>>::exists(),
                         $value.1
@@ -239,7 +240,7 @@ macro_rules! next_step_should_work {
 next_step_should_work! {
     next_step_should_work_0: (10,true),
     next_step_should_work_1: (5000, false),
-    next_step_should_work_2: (199,true),
+    next_step_should_work_2: (<mock::Test as Config>::ConfirmationPeriod::get() + 2, false),
     next_step_should_work_3: (20,true),
     next_step_should_work_4: (62,true),
 }
@@ -285,7 +286,7 @@ harvest_ref_all_should_work! {
     harvest_ref_all_should_work_4: (212,1000),
 }
 
-fn init_sys() {
+fn init_sys(score: u32) {
     let init_seeds = vec![SEED1, SEED2, SEED3];
     for seed in init_seeds {
         ZdSeeds::add_seed(&seed);
@@ -301,23 +302,31 @@ fn init_sys() {
         // println!("path: {:?}",path);
         for nodes in path.windows(2) {
             // println!("{:?} -> {:?}",nodes[0],nodes[1]);
-            if !ZdTrust::is_trust(&nodes[0],&nodes[1]) {
-                assert_ok!(ZdTrust::trust(Origin::signed(nodes[0]),nodes[1]));
+            if !ZdTrust::is_trust(&nodes[0], &nodes[1]) {
+                assert_ok!(ZdTrust::trust(Origin::signed(nodes[0]), nodes[1]));
             }
         }
     }
-    assert_ok!(ZdToken::transfer_social(Origin::signed(ALICE),TARGET,ZDAO,1000));
+    assert_ok!(ZdToken::transfer_social(
+        Origin::signed(ALICE),
+        TARGET,
+        ZDAO,
+        1000
+    ));
     assert_ok!(ZdReputation::new_round());
     ZdReputation::set_step(&TIRStep::REPUTATION);
     <StartedAt<Test>>::put(1);
 
-    assert_ok!(ZdRefreshReputation::refresh(Origin::signed(PATHFINDER),vec![(TARGET,100)]));
+    assert_ok!(ZdRefreshReputation::refresh(
+        Origin::signed(PATHFINDER),
+        vec![(TARGET, score)]
+    ));
 }
 
 #[test]
 fn challenge_should_work() {
     new_test_ext().execute_with(|| {
-        init_sys();
+        init_sys(100);
         assert_ok!(ZdRefreshReputation::challenge(
             Origin::signed(CHALLENGER),
             TARGET,
@@ -326,8 +335,32 @@ fn challenge_should_work() {
             20
         ));
         let payroll = ZdRefreshReputation::get_payroll(PATHFINDER);
-        assert_eq!(payroll.total_fee,0);
-        assert_eq!(payroll.count,0);
-        assert_eq!(payroll.update_at,1);
+        assert_eq!(payroll.total_fee, 0);
+        assert_eq!(payroll.count, 0);
+        assert_eq!(payroll.update_at, 1);
+    });
+}
+
+#[test]
+fn challenge_should_fail() {
+    new_test_ext().execute_with(|| {
+        init_sys(100);
+        assert_noop!(
+            ZdRefreshReputation::challenge(Origin::signed(CHALLENGER), TARGET, PATHFINDER, 3, 100),
+            Error::<Test>::SameReputation
+        );
+        assert_noop!(
+            ZdRefreshReputation::challenge(Origin::signed(CHALLENGER), TARGET, PATHFINDER, 10, 55),
+            Error::<Test>::ExcessiveBumberOfSeeds
+        );
+        assert_noop!(
+            ZdRefreshReputation::challenge(Origin::signed(CHALLENGER), TARGET, PATHFINDER, u32::MAX, 55),
+            Error::<Test>::ExcessiveBumberOfSeeds
+        );
+        System::set_block_number(<mock::Test as Config>::ConfirmationPeriod::get() + 100);
+        assert_err_ignore_postinfo!(
+            ZdRefreshReputation::challenge(Origin::signed(CHALLENGER), TARGET, PATHFINDER, 3, 55),
+            Error::<Test>::ChallengeTimeout
+        );
     });
 }

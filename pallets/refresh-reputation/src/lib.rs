@@ -165,6 +165,8 @@ pub mod pallet {
         NotYetStarted,
         /// Already started
         AlreadyStarted,
+        /// The challenged reputation is the same as the original reputation
+        SameReputation,
     }
 
     #[pallet::hooks]
@@ -310,7 +312,7 @@ pub mod pallet {
             );
             let reputation =
                 T::Reputation::get_reputation_new(&target).ok_or(Error::<T>::ReputationError)?;
-            ensure!(score != reputation, Error::<T>::ChallengeTimeout);
+            ensure!(score != reputation, Error::<T>::SameReputation);
             let record = <Records<T>>::take(&pathfinder, &target);
             ensure!(
                 record.update_at + T::ConfirmationPeriod::get() > Self::now(),
@@ -431,7 +433,7 @@ impl<T: Config> Pallet<T> {
             let now = Self::now();
             let is_ref_timeout = Self::check_timeout(&now).is_err();
             let is_last_ref_timeout =
-                T::Reputation::get_last_refresh_at() + T::ConfirmationPeriod::get() > now;
+                T::Reputation::get_last_refresh_at() + T::ConfirmationPeriod::get() < now;
             let is_cha_all_timeout = T::ChallengeBase::is_all_timeout(&APP_ID, &now);
             if (is_last_ref_timeout || is_ref_timeout) && is_cha_all_timeout {
                 T::TrustBase::remove_all_tmp();
