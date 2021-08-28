@@ -13,6 +13,7 @@ pub type AccountId = u64;
 pub type BlockNumber = u64;
 
 pub const ALICE: AccountId = 1;
+pub const BOB: AccountId = 2;
 
 pub const INIT_PERIOD: BlockNumber = 10;
 

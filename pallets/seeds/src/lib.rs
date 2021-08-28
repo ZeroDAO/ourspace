@@ -48,8 +48,6 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Exceeding the maximum number of seed users
-		SeedsLimitReached,
 		/// Seed users already exist
 		AlreadySeedUser,
 		/// Not a seed user
@@ -67,7 +65,7 @@ pub mod pallet {
 		pub fn new_seed(origin: OriginFor<T>,seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
 			ensure!(T::Reputation::is_step(&TIRStep::FREE), Error::<T>::StatusErr);
-			ensure!(!Seeds::<T>::contains_key(&seed), Error::<T>::SeedsLimitReached);
+			ensure!(!Seeds::<T>::contains_key(&seed), Error::<T>::AlreadySeedUser);
 			Self::add_seed(&seed);
 			Ok(().into())
 		}

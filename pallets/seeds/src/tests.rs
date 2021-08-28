@@ -60,3 +60,24 @@ fn remove_all_should_work() {
         assert!(System::events().iter().any(|record| record.event == seeds_event));
     });
 }
+
+#[test]
+fn new_seed_test() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            ZdSeeds::new_seed(Origin::signed(ALICE), ALICE),
+            dispatch::DispatchError::BadOrigin
+        );
+        assert_ok!(ZdSeeds::new_seed(Origin::root(), ALICE));
+        assert_eq!(ZdSeeds::is_seed(&ALICE), true);
+        assert_noop!(
+            ZdSeeds::new_seed(Origin::root(), ALICE),
+            Error::<Test>::AlreadySeedUser
+        );
+        ZdReputation::set_step(&TIRStep::REPUTATION);
+        assert_noop!(
+            ZdSeeds::new_seed(Origin::root(), BOB),
+            Error::<Test>::StatusErr
+        );
+    });
+}
