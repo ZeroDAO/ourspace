@@ -33,7 +33,7 @@ pub struct OperationStatus<BlockNumber> {
     pub step: TIRStep,
 }
 
-#[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
+#[derive(Encode, Decode, Clone, PartialEq, Default, Eq, RuntimeDebug)]
 pub struct ReputationScore {
     pub score: u32,
     pub nonce: u32,

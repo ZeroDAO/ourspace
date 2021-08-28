@@ -67,14 +67,46 @@ fn mutate_reputation_should_work() {
     });
 }
 
-#[test]
-fn refresh_reputation_should_work() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(ZdReputation::new_round());
-        assert_ok!(ZdReputation::refresh_reputation(&(ALICE, 18)));
+macro_rules! refresh_reputation_should_work {
+    ($($name:ident: $value:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                new_test_ext().execute_with(|| {
+                    assert_ok!(ZdReputation::new_round());
+                    let init_reputation = ReputationScore {
+                        score: 671u32,
+                        nonce: 1,
+                    };
+                    <ReputationScores<Test>>::mutate(ALICE,|s| *s[0] = init_reputation);
+                    let mut operation_status = <SystemInfo<Test>>::mutate(|s| *s.nonce = 2);
+                    assert_ok!(ZdReputation::refresh_reputation(&(ALICE, $value)));
 
-        assert_eq!(ZdReputation::get_reputation_new(&ALICE), Some(18));
-    });
+                    assert_eq!(ZdReputation::get_reputation_new(&ALICE), Some($value));
+
+                    assert_eq!(
+                        <ReputationScores<Test>>::get(ALICE)[0],
+                        ReputationScore {
+                            score: $value,
+                            nonce: 2,
+                        }
+                    );
+
+                    assert_eq!(
+                        <ReputationScores<Test>>::get(ALICE)[1],
+                        init_reputation
+                    );
+                });
+            }
+        )*
+    }
+}
+
+refresh_reputation_should_work! {
+    refresh_reputation_should_work_0: 18,
+    refresh_reputation_should_work_1: 1345,
+    refresh_reputation_should_work_2: 0,
+    refresh_reputation_should_work_3: u32.MAX(),
 }
 
 #[test]
