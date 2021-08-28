@@ -15,6 +15,7 @@ pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
         target: &AccountId,
         quantity: u32,
         score: u64,
+        remark: u32,
     ) -> DispatchResult;
 
     fn next(
@@ -52,7 +53,7 @@ pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
         app_id: &AppId,
         who: &AccountId,
         target: &AccountId,
-        up: impl Fn(u64) -> Result<(bool, bool, u64), DispatchError>,
+        up: impl Fn(u64,u32) -> Result<(bool, bool, u64), DispatchError>,
     ) -> DispatchResult;
 
     fn harvest(

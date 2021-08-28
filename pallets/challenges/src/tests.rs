@@ -38,6 +38,7 @@ pub struct NewChallengeData {
     staking: u128,
     total: u32,
     score: u64,
+    remark: u32,
     init: bool,
     set_now: BlockNumber,
 }
@@ -49,6 +50,7 @@ impl Default for NewChallengeData {
             staking: 0,
             total: 100,
             score: 0,
+            remark: 0,
             init: false,
             set_now: 1,
         }
@@ -92,7 +94,8 @@ macro_rules! new_challenge_should_work {
                         $value.staking,
                         &TARGET,
                         $value.total,
-                        $value.score
+                        $value.score,
+                        $value.remark
                     ));
                     assert_eq!(
                         ZdChallenges::get_metadata(&APP_ID, &TARGET),
@@ -106,6 +109,7 @@ macro_rules! new_challenge_should_work {
                                 done: 0,
                             },
                             score: $value.score,
+                            remark: $value.remark,
                             last_update: $value.set_now,
                             ..DEFAULT_METADATA
                         }
@@ -123,6 +127,7 @@ new_challenge_should_work! {
         earnings: 20000,
         staking: 1000,
         score: 100,
+        remark: 21,
         ..NewChallengeData::default()
     },
     new_challenge_should_work_1: NewChallengeData {
@@ -179,7 +184,7 @@ new_challenge_should_work! {
 #[test]
 fn new_challenge_staking_fail() {
     new_test_ext().execute_with(|| {
-        assert!(ZdChallenges::new(&APP_ID, &DAVE, &PATHINFER, 0, 1000, &TARGET, 100, 0).is_err());
+        assert!(ZdChallenges::new(&APP_ID, &DAVE, &PATHINFER, 0, 1000, &TARGET, 100, 0, 0).is_err());
         assert_eq!(
             ZdChallenges::get_metadata(&APP_ID, &TARGET),
             Metadata::default()
@@ -214,7 +219,8 @@ macro_rules! new_challenge_no_allowed {
                         10,
                         &TARGET,
                         20,
-                        10
+                        10,
+                        0,
                     ),Error::<Test>::NoChallengeAllowed);
                 });
             }
@@ -515,7 +521,7 @@ fn arbitral_should_work() {
             &APP_ID,
             &CHALLENGER,
             &TARGET,
-            |_| -> Result<(bool, bool, u64), DispatchError> {
+            |_,_| -> Result<(bool, bool, u64), DispatchError> {
                 // joint_benefits, restart, score
                 Ok((true, false, 18))
             }
@@ -530,7 +536,7 @@ fn arbitral_should_work() {
             &APP_ID,
             &CHALLENGER,
             &TARGET,
-            |_| -> Result<(bool, bool, u64), DispatchError> {
+            |_,_| -> Result<(bool, bool, u64), DispatchError> {
                 // joint_benefits, restart, score
                 Ok((true, false, 60))
             }
@@ -546,7 +552,7 @@ fn arbitral_should_work() {
             &APP_ID,
             &FERDIE,
             &TARGET,
-            |_| -> Result<(bool, bool, u64), DispatchError> {
+            |_,_| -> Result<(bool, bool, u64), DispatchError> {
                 // joint_benefits, restart, score
                 Ok((true, false, 60))
             }
@@ -574,7 +580,7 @@ fn arbitral_should_fail() {
                 &APP_ID,
                 &CHALLENGER,
                 &TARGET,
-                |_| -> Result<(bool, bool, u64), DispatchError> {
+                |_,_| -> Result<(bool, bool, u64), DispatchError> {
                     // joint_benefits, restart, score
                     Ok((true, false, 60))
                 }
@@ -587,7 +593,7 @@ fn arbitral_should_fail() {
                 &APP_ID,
                 &CHALLENGER,
                 &TARGET,
-                |_| -> Result<(bool, bool, u64), DispatchError> {
+                |_,_| -> Result<(bool, bool, u64), DispatchError> {
                     // joint_benefits, restart, score
                     Ok((true, false, 60))
                 }
@@ -601,7 +607,7 @@ fn arbitral_should_fail() {
                 &APP_ID,
                 &FERDIE,
                 &TARGET,
-                |_| -> Result<(bool, bool, u64), DispatchError> {
+                |_,_| -> Result<(bool, bool, u64), DispatchError> {
                     // joint_benefits, restart, score
                     Ok((true, false, 60))
                 }
@@ -613,7 +619,7 @@ fn arbitral_should_fail() {
             &APP_ID,
             &EVE,
             &TARGET,
-            |_| -> Result<(bool, bool, u64), DispatchError> {
+            |_,_| -> Result<(bool, bool, u64), DispatchError> {
                 // joint_benefits, restart, score
                 Ok((true, false, 60))
             }

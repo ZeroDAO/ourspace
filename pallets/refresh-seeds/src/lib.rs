@@ -148,6 +148,7 @@ pub mod pallet {
                 &target,
                 Zero::zero(),
                 score,
+                Zero::zero(),
             )?;
             T::Reputation::set_last_refresh_at();
             Ok(().into())
@@ -518,7 +519,7 @@ pub mod pallet {
                 &APP_ID,
                 &challenger,
                 &target,
-                |_| -> Result<(bool, bool, u64), DispatchError> { Ok((afer_target, true, score)) },
+                |_,_| -> Result<(bool, bool, u64), DispatchError> { Ok((afer_target, true, score)) },
             )?;
             if afer_target {
                 Self::restart(&target, &challenger, &score);

@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::mock::*;
-use frame_support::{assert_noop, assert_ok, assert_err_ignore_postinfo};
+use frame_support::{assert_err_ignore_postinfo, assert_noop, assert_ok};
 use zd_primitives::per_social_currency;
 
 fn new_test_ext() -> sp_io::TestExternalities {
@@ -217,7 +217,7 @@ macro_rules! next_step_should_work {
                     System::set_block_number($value.0);
 
                     ZdRefreshReputation::next_step();
-                    
+
                     assert_eq!(
                         !ZdTrust::is_trust_old(&ALICE,&BOB),
                         $value.1
@@ -354,13 +354,74 @@ fn challenge_should_fail() {
             Error::<Test>::ExcessiveBumberOfSeeds
         );
         assert_noop!(
-            ZdRefreshReputation::challenge(Origin::signed(CHALLENGER), TARGET, PATHFINDER, u32::MAX, 55),
+            ZdRefreshReputation::challenge(
+                Origin::signed(CHALLENGER),
+                TARGET,
+                PATHFINDER,
+                u32::MAX,
+                55
+            ),
             Error::<Test>::ExcessiveBumberOfSeeds
         );
         System::set_block_number(<mock::Test as Config>::ConfirmationPeriod::get() + 100);
         assert_err_ignore_postinfo!(
             ZdRefreshReputation::challenge(Origin::signed(CHALLENGER), TARGET, PATHFINDER, 3, 55),
             Error::<Test>::ChallengeTimeout
+        );
+    });
+}
+
+#[test]
+fn challenge_update_should_work() {
+    new_test_ext().execute_with(|| {
+        init_sys(100);
+        assert_ok!(ZdRefreshReputation::challenge(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            PATHFINDER,
+            3,
+            20
+        ));
+        /*
+        vec![SEED1, ALICE, TARGET],
+        vec![SEED2, ALICE, BOB, TARGET],
+        vec![SEED3, TARGET],
+        vec![SEED3, ALICE, TARGET],
+        vec![SEED3, ALICE, BOB, TARGET],
+         */
+        let (score1, score2, score3) = (18u32, 12u32, 99u32);
+        let seeds = vec![SEED1, SEED2];
+        let paths = vec![
+            Path {
+                nodes: vec![ALICE, TARGET],
+                score: score1,
+            },
+            Path {
+                nodes: vec![ALICE, BOB, TARGET],
+                score: score2,
+            },
+        ];
+        assert_ok!(ZdRefreshReputation::challenge_update(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            seeds.clone(),
+            paths.clone()
+        ));
+        for seed in seeds.iter() {
+            assert!(Paths::<Test>::contains_key(seed, TARGET));
+        }
+        assert_ok!(ZdRefreshReputation::challenge_update(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            vec![SEED3],
+            vec![Path {
+                nodes: vec![ALICE, TARGET],
+                score: score3
+            }]
+        ));
+        assert_eq!(
+            ZdReputation::get_reputation_new(&TARGET),
+            Some(score1 + score2 + score3)
         );
     });
 }

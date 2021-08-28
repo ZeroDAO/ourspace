@@ -166,7 +166,7 @@ pub mod pallet {
         /// Already started
         AlreadyStarted,
         /// The challenged reputation is the same as the original reputation
-        SameReputation
+        SameReputation,
     }
 
     #[pallet::hooks]
@@ -331,7 +331,8 @@ pub mod pallet {
                 Zero::zero(),
                 &target,
                 quantity,
-                reputation.into(),
+                Zero::zero(),
+                reputation,
             )?;
 
             Ok(().into())
@@ -352,11 +353,11 @@ pub mod pallet {
                 &APP_ID,
                 &who,
                 &target,
-                |score| -> Result<(bool, bool, u64), _> {
+                |score,remark| -> Result<(bool, bool, u64), _> {
                     let score = score as u32;
                     let new_score = Self::do_update_path_verify(&target, &seeds, &paths, score)?;
                     T::Reputation::mutate_reputation(&target, &new_score);
-                    Ok((new_score == score, false, new_score.into()))
+                    Ok((new_score == remark, false, new_score.into()))
                 },
             )?;
 

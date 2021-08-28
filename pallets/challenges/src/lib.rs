@@ -416,6 +416,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         target: &T::AccountId,
         quantity: u32,
         score: u64,
+        remark: u32,
     ) -> DispatchResult {
         let now_block_number = system::Module::<T>::block_number();
 
@@ -449,6 +450,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         challenge.last_update = now_block_number;
         challenge.status = Status::EXAMINE;
         challenge.score = score;
+        challenge.remark = remark;
         challenge.pathfinder = path_finder.clone();
         challenge.challenger = who.clone();
 
@@ -585,7 +587,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         app_id: &AppId,
         who: &T::AccountId,
         target: &T::AccountId,
-        up: impl Fn(u64) -> Result<(bool, bool, u64), DispatchError>,
+        up: impl Fn(u64,u32) -> Result<(bool, bool, u64), DispatchError>,
     ) -> DispatchResult {
         Self::mutate_metadata(
             app_id,
@@ -601,7 +603,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     Self::staking(&who, Self::challenge_staking_amount())?;
                     challenge.challenger = who.clone();
                 }
-                let (joint_benefits, restart, score) = up(challenge.score)?;
+                let (joint_benefits, restart, score) = up(challenge.score,challenge.remark)?;
                 Self::do_settle(challenge, &restart, &joint_benefits, &score)?;
                 Self::after_upload(&app_id);
                 Ok(())
