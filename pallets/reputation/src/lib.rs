@@ -226,10 +226,6 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
         }
     }
 
-    fn get_last_update_at() -> T::BlockNumber {
-        Self::system_info().last
-    }
-
     fn set_free() {
         let now = Self::now();
         let operation_status = Self::system_info();

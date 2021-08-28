@@ -18,7 +18,7 @@ fn set_period_should_work() {
         assert_eq!(<SystemInfo<Test>>::get().period, 18);
     });
 }
-/* 
+
 #[test]
 fn set_period_should_fail() {
     new_test_ext().execute_with(|| {
@@ -28,7 +28,6 @@ fn set_period_should_fail() {
         );
     });
 }
-*/
 
 #[test]
 fn new_round_should_work() {
@@ -46,21 +45,24 @@ fn new_round_should_work() {
         );
     });
 }
-/* 
+
 #[test]
 fn new_round_should_fail() {
     new_test_ext().execute_with(|| {
-        assert_ok!(ZdReputation::new_round());
+        ZdReputation::set_step(&TIRStep::REPUTATION);
         assert_noop!(ZdReputation::new_round(), Error::<Test>::AlreadyInUpdating);
+        ZdReputation::set_step(&TIRStep::FREE);
+        assert_ok!(ZdReputation::new_round());
+        ZdReputation::set_step(&TIRStep::FREE);
+        System::set_block_number(INIT_PERIOD - 1);
+        assert_noop!(ZdReputation::new_round(), Error::<Test>::IntervalIsTooShort);
     });
 }
-*/
 
 #[test]
 fn mutate_reputation_should_work() {
     new_test_ext().execute_with(|| {
-        assert_eq!(ZdReputation::mutate_reputation(&ALICE, &21), ());
-
+        ZdReputation::mutate_reputation(&ALICE, &21);
         assert_eq!(ZdReputation::get_reputation_new(&ALICE), Some(21));
     });
 }
@@ -93,12 +95,24 @@ fn last_refresh_at_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(ZdReputation::new_round());
         ZdReputation::set_last_refresh_at();
-
         assert_eq!(<SystemInfo<Test>>::get().last, 1);
+        assert_eq!(ZdReputation::get_last_refresh_at(), 1);
+        System::set_block_number(12000);
+        ZdReputation::set_last_refresh_at();
+        assert_eq!(ZdReputation::get_last_refresh_at(), 12000);
+        System::set_block_number(11);
+        ZdReputation::set_last_refresh_at();
+        assert_eq!(ZdReputation::get_last_refresh_at(), 11);
+        System::set_block_number(1666600);
+        ZdReputation::set_last_refresh_at();
+        assert_eq!(ZdReputation::get_last_refresh_at(), 1666600);
+        System::set_block_number(235783);
+        ZdReputation::set_last_refresh_at();
+        assert_eq!(ZdReputation::get_last_refresh_at(), 235783);
     });
 }
 
-/* 
+/*
 #[test]
 fn end_refresh_should_work() {
     new_test_ext().execute_with(|| {

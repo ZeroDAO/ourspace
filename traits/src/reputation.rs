@@ -14,8 +14,6 @@ pub trait Reputation<AccountId, BlockNumber, TIRStep> {
 		user_score: &(AccountId,u32)
 	) -> DispatchResult;
 
-	fn get_last_update_at() -> BlockNumber;
-
 	fn get_last_refresh_at() -> BlockNumber;
 
 	fn set_last_refresh_at();

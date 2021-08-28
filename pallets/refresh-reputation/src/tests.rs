@@ -286,7 +286,7 @@ harvest_ref_all_should_work! {
 }
 
 fn init_sys() -> DispatchResult {
-    ZdReputation::set_step(&TIRStep::FREE);
+    ZdReputation::new_round();
     let init_seeds = vec![SEED1, SEED2, SEED3];
     for seed in init_seeds {
         ZdSeeds::add_seed(&seed);
