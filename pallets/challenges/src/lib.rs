@@ -12,10 +12,8 @@ use sp_std::convert::{TryFrom, TryInto};
 
 use orml_traits::{MultiCurrency, StakingCurrency, arithmetic::{self, Signed}};
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
-use zd_traits::{ChallengeBase, Reputation};
+use zd_traits::{ChallengeBase, Reputation, ChallengeStatus};
 
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
 use sp_runtime::{
     traits::{AtLeast32Bit, Zero},
     DispatchError, DispatchResult, SaturatedConversion,
@@ -42,22 +40,6 @@ pub struct Progress {
     pub done: u32,
 }
 
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum Status {
-    FREE,
-    EXAMINE,
-    REPLY,
-    EVIDENCE,
-    ARBITRATION,
-}
-
-impl Default for Status {
-    fn default() -> Self {
-        Status::EXAMINE
-    }
-}
-
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
 pub struct Metadata<AccountId, BlockNumber> {
     pub pool: Pool,
@@ -67,7 +49,7 @@ pub struct Metadata<AccountId, BlockNumber> {
     pub remark: u32,
     pub score: u64,
     pub pathfinder: AccountId,
-    pub status: Status,
+    pub status: ChallengeStatus,
     pub challenger: AccountId,
 }
 
@@ -120,12 +102,12 @@ where
         self
     }
 
-    fn set_status(&mut self, status: &Status) {
+    fn set_status(&mut self, status: &ChallengeStatus) {
         self.status = *status;
     }
 
     fn restart(&mut self, full_probative: bool) {
-        self.status = Status::FREE;
+        self.status = ChallengeStatus::FREE;
         self.joint_benefits = false;
         if full_probative {
             self.pathfinder = self.challenger.clone();
@@ -230,6 +212,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+
     fn now() -> T::BlockNumber {
         system::Module::<T>::block_number()
     }
@@ -335,6 +318,7 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for Pallet<T> {
+
     fn is_all_harvest(app_id: &AppId) -> bool {
         <Metadatas<T>>::iter_prefix_values(app_id).next().is_none()
     }
@@ -342,6 +326,10 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
     fn is_all_timeout(app_id: &AppId, now: &T::BlockNumber) -> bool {
         let last = LastAt::<T>::get(app_id);
         *now > last + Self::get_challenge_timeout()
+    }
+
+    fn set_status(app_id: &AppId, target: &T::AccountId,status: &ChallengeStatus) {
+        <Metadatas<T>>::mutate(app_id,target,|c|c.set_status(status));
     }
 
     fn harvest(
@@ -357,10 +345,10 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         let mut maybe_score: Option<u64> = None;
         let is_all_done = challenge.is_all_done();
         match challenge.status {
-            Status::FREE => {
+            ChallengeStatus::FREE => {
                 pathfinder_amount = awards;
             }
-            Status::REPLY => match is_all_done {
+            ChallengeStatus::REPLY => match is_all_done {
                 true => {
                     pathfinder_amount = awards;
                 }
@@ -368,11 +356,11 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     challenger_amount = awards;
                 }
             },
-            Status::EXAMINE => {
+            ChallengeStatus::EXAMINE => {
                 challenger_amount = awards;
                 maybe_score = Some(challenge.score);
             }
-            Status::EVIDENCE => {
+            ChallengeStatus::EVIDENCE => {
                 maybe_score = Some(challenge.score);
                 match is_all_done {
                     true => {
@@ -383,7 +371,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     }
                 }
             }
-            Status::ARBITRATION => match challenge.joint_benefits {
+            ChallengeStatus::ARBITRATION => match challenge.joint_benefits {
                 true => {
                     pathfinder_amount = awards / 2;
                     challenger_amount = awards.saturating_sub(pathfinder_amount);
@@ -423,7 +411,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         let mut challenge = match <Metadatas<T>>::try_get(app_id, target) {
             Ok(challenge_storage) => {
                 ensure!(
-                    challenge_storage.status == Status::FREE &&
+                    challenge_storage.status == ChallengeStatus::FREE &&
                     challenge_storage.is_allowed_evidence::<T::ChallengeTimeout>(now_block_number),
                     Error::<T>::NoChallengeAllowed
                 );
@@ -448,7 +436,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             total: quantity,
         };
         challenge.last_update = now_block_number;
-        challenge.status = Status::EXAMINE;
+        challenge.status = ChallengeStatus::EXAMINE;
         challenge.score = score;
         challenge.remark = remark;
         challenge.pathfinder = path_finder.clone();
@@ -511,7 +499,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
                 ensure!(
-                    challenge.status == Status::REPLY && challenge.is_all_done(),
+                    challenge.status == ChallengeStatus::REPLY && challenge.is_all_done(),
                     Error::<T>::NoChallengeAllowed
                 );
                 ensure!(
@@ -519,7 +507,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     Error::<T>::NoPermission
                 );
 
-                challenge.status = Status::EXAMINE;
+                challenge.status = ChallengeStatus::EXAMINE;
                 challenge.remark = index;
 
                 Self::after_upload(&app_id);
@@ -542,14 +530,14 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
                 ensure!(challenge.is_pathfinder(&who), Error::<T>::NoPermission);
                 ensure!(
-                    challenge.status == Status::EXAMINE,
+                    challenge.status == ChallengeStatus::EXAMINE,
                     Error::<T>::StatusErr
                 );
                 ensure!(
                     challenge.new_progress(total).next(count).check_progress(),
                     Error::<T>::ProgressErr
                 );
-                challenge.status = Status::REPLY;
+                challenge.status = ChallengeStatus::REPLY;
                 challenge.score = up(challenge.is_all_done(), challenge.remark, challenge.score)?;
                 Ok(())
             },
@@ -566,11 +554,11 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             <Metadatas<T>>::try_get(app_id, target).map_err(|_| Error::<T>::NonExistent)?;
         ensure!(challenge.is_challenger(&who), Error::<T>::NoPermission);
         ensure!(challenge.is_all_done(), Error::<T>::ProgressErr);
-        ensure!(challenge.status != Status::EXAMINE, Error::<T>::StatusErr);
+        ensure!(challenge.status != ChallengeStatus::EXAMINE, Error::<T>::StatusErr);
         let needs_arbitration = up(challenge.remark, challenge.score)?;
         let score = challenge.score;
         match needs_arbitration {
-            true => challenge.set_status(&Status::ARBITRATION),
+            true => challenge.set_status(&ChallengeStatus::ARBITRATION),
             false => {
                 challenge.restart(true);
             }
@@ -593,7 +581,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             app_id,
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
-                ensure!(challenge.status != Status::EXAMINE, Error::<T>::StatusErr);
+                ensure!(challenge.status != ChallengeStatus::EXAMINE, Error::<T>::StatusErr);
                 ensure!(challenge.is_all_done(), Error::<T>::ProgressErr);
                 if !challenge.is_challenger(&who) {
                     ensure!(

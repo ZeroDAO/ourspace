@@ -1,10 +1,34 @@
 use sp_runtime::{DispatchResult,DispatchError};
+use frame_support::{
+    codec::{Decode, Encode},
+    RuntimeDebug,
+};
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum ChallengeStatus {
+    FREE,
+    EXAMINE,
+    REPLY,
+    EVIDENCE,
+    ARBITRATION,
+}
+
+impl Default for ChallengeStatus {
+    fn default() -> Self {
+        ChallengeStatus::EXAMINE
+    }
+}
 
 pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
-    
+
     fn is_all_harvest(app_id: &AppId) -> bool;
 
     fn is_all_timeout(app_id: &AppId,now: &BlockNumber) -> bool;
+
+    fn set_status(app_id: &AppId, target: &AccountId,status: &ChallengeStatus);
 
     fn new(
         app_id: &AppId,

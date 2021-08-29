@@ -32,6 +32,8 @@ pub const SEED2: AccountId = 11;
 pub const SEED3: AccountId = 12;
 pub const TARGET: AccountId = 13;
 
+pub const SUB_CHALLENGER: AccountId = 14;
+
 pub const ZDAO: CurrencyId = 1;
 
 pub const INIT_PERIOD: BlockNumber = 10;
@@ -218,6 +220,7 @@ impl Default for ExtBuilder {
                 (PATHFINDER, ZDAO, 1000_000_000_000_000u128),
                 (CHALLENGER, ZDAO, 1000_000_000_000_000u128),
                 (SWEEPRT, ZDAO, 1000_000_000u128),
+                (SUB_CHALLENGER, ZDAO, 1000_000_000_000_000u128),
             ],
             period: INIT_PERIOD,
         }

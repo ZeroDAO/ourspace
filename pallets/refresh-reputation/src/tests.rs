@@ -314,6 +314,7 @@ fn init_sys(score: u32) {
         1000
     ));
     assert_ok!(ZdReputation::new_round());
+
     ZdReputation::set_step(&TIRStep::REPUTATION);
     <StartedAt<Test>>::put(1);
 
@@ -393,11 +394,11 @@ fn challenge_update_should_work() {
         let seeds = vec![SEED1, SEED2];
         let paths = vec![
             Path {
-                nodes: vec![ALICE, TARGET],
+                nodes: vec![ALICE],
                 score: score1,
             },
             Path {
-                nodes: vec![ALICE, BOB, TARGET],
+                nodes: vec![ALICE, BOB],
                 score: score2,
             },
         ];
@@ -415,7 +416,7 @@ fn challenge_update_should_work() {
             TARGET,
             vec![SEED3],
             vec![Path {
-                nodes: vec![ALICE, TARGET],
+                nodes: vec![],
                 score: score3
             }]
         ));
@@ -444,7 +445,7 @@ fn challenge_update_should_fail() {
             TARGET,
             vec![SEED1,SEED3],
             vec![Path {
-                nodes: vec![ALICE, TARGET],
+                nodes: vec![ALICE],
                 score: 12
             }]
         ),Error::<Test>::NotMatch);
@@ -488,5 +489,77 @@ fn challenge_update_should_fail() {
                 score: u32::MAX
             }]
         ),Error::<Test>::Overflow);
+    });
+}
+
+
+#[test]
+fn arbitral_should_work() {
+    new_test_ext().execute_with(|| {
+        init_sys(100);
+        assert_ok!(ZdRefreshReputation::challenge(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            PATHFINDER,
+            3,
+            20
+        ));
+        /*
+        vec![SEED1, ALICE, TARGET],
+        vec![SEED2, ALICE, BOB, TARGET],
+        vec![SEED3, TARGET],
+        vec![SEED3, ALICE, TARGET],
+        vec![SEED3, ALICE, BOB, TARGET],
+        score1 : 1000 / 1.max(5) / (1000 - 0).ln() = 28.5714
+                28 / 2.max(5) / (28 - 0).ln() = 5.6
+        score2 : 1000 / 1.max(5) / (1000 - 0).ln() = 28.5714
+                28 / 2.max(5) / (28 - 0).ln() = 5.6
+                5 / 1.max(5) / (5 - 0).ln() = 0
+        score3 : 1000 / 2.max(5) / (1000 - 0).ln() = 28.5714
+         */
+        let paths = vec![
+            Path {
+                nodes: vec![],
+                score: 11,
+            },
+            Path {
+                nodes: vec![ALICE, BOB],
+                score: 21,
+            },
+            Path {
+                nodes: vec![ALICE, BOB],
+                score: 29,
+            },
+        ];
+        assert_ok!(ZdRefreshReputation::challenge_update(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            vec![SEED1,SEED2,SEED3],
+            paths.clone()
+        ));
+
+        assert_ok!(ZdRefreshReputation::check_step());
+
+        assert_ok!(ZdRefreshReputation::arbitral(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            vec![SEED1,SEED2,SEED3],
+            vec![
+                Path {
+                    nodes: vec![ALICE],
+                    score: 5,
+                },
+                Path {
+                    nodes: vec![ALICE, BOB],
+                    score: 0,
+                },
+                Path {
+                    nodes: vec![],
+                    score: 28,
+                },
+            ]
+        ));
+
+
     });
 }

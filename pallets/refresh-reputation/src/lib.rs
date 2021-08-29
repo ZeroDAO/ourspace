@@ -8,9 +8,8 @@ use frame_support::{
 };
 use frame_system::{self as system, ensure_signed};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
-// use sp_std::prelude::*;
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
-use zd_traits::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
+use zd_traits::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase, ChallengeStatus};
 
 #[cfg(test)]
 mod mock;
@@ -84,6 +83,11 @@ pub mod pallet {
         type SeedsBase: SeedsBase<Self::AccountId>;
         type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance, Self::BlockNumber>;
     }
+
+    // type ChallengeStatus = T::ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber>::ChallengeBase;
+
+    
+
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
@@ -335,6 +339,8 @@ pub mod pallet {
                 reputation,
             )?;
 
+            T::ChallengeBase::set_status(&APP_ID,&target,&ChallengeStatus::ARBITRATION);
+
             Ok(().into())
         }
 
@@ -359,8 +365,7 @@ pub mod pallet {
                     T::Reputation::mutate_reputation(&target, &new_score);
                     Ok((new_score == remark, false, new_score.into()))
                 },
-            )?;
-
+            )?; 
             Ok(().into())
         }
 
@@ -398,7 +403,7 @@ impl<T: Config> Pallet<T> {
     fn now() -> T::BlockNumber {
         system::Module::<T>::block_number()
     }
-    fn check_step() -> DispatchResult {
+    pub(crate) fn check_step() -> DispatchResult {
         ensure!(
             T::Reputation::is_step(&TIRStep::REPUTATION),
             Error::<T>::StatusErr

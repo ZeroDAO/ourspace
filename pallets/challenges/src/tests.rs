@@ -23,7 +23,7 @@ const DEFAULT_METADATA: Metadata<AccountId, BlockNumber> = Metadata {
     remark: 0,
     score: 0,
     pathfinder: PATHINFER,
-    status: Status::EXAMINE,
+    status: ChallengeStatus::EXAMINE,
     challenger: CHALLENGER,
 };
 
@@ -79,7 +79,7 @@ macro_rules! new_challenge_should_work {
                                 done: 0,
                             },
                             last_update: 1,
-                            status: Status::FREE,
+                            status: ChallengeStatus::FREE,
                             ..DEFAULT_METADATA
                         };
                         <Metadatas<Test>>::insert(&APP_ID,&TARGET,&init_metadata);
@@ -229,18 +229,18 @@ macro_rules! new_challenge_no_allowed {
 }
 
 new_challenge_no_allowed! {
-    new_challenge_no_allowed_0: (10,Status::FREE,5),
-    new_challenge_no_allowed_1: (10,Status::FREE,2),
-    new_challenge_no_allowed_2: (10,Status::FREE,0),
-    new_challenge_no_allowed_3: (0,Status::FREE,20),
-    new_challenge_no_allowed_4: (0,Status::FREE,1000),
-    new_challenge_no_allowed_5: (0,Status::EVIDENCE,5),
-    new_challenge_no_allowed_6: (0,Status::EXAMINE,5),
-    new_challenge_no_allowed_7: (0,Status::REPLY,5),
-    new_challenge_no_allowed_8: (0,Status::ARBITRATION,5),
+    new_challenge_no_allowed_0: (10,ChallengeStatus::FREE,5),
+    new_challenge_no_allowed_1: (10,ChallengeStatus::FREE,2),
+    new_challenge_no_allowed_2: (10,ChallengeStatus::FREE,0),
+    new_challenge_no_allowed_3: (0,ChallengeStatus::FREE,20),
+    new_challenge_no_allowed_4: (0,ChallengeStatus::FREE,1000),
+    new_challenge_no_allowed_5: (0,ChallengeStatus::EVIDENCE,5),
+    new_challenge_no_allowed_6: (0,ChallengeStatus::EXAMINE,5),
+    new_challenge_no_allowed_7: (0,ChallengeStatus::REPLY,5),
+    new_challenge_no_allowed_8: (0,ChallengeStatus::ARBITRATION,5),
 }
 
-fn init_challenge(total: u32, done: u32, status: Status) {
+fn init_challenge(total: u32, done: u32, status: ChallengeStatus) {
     let init_metadata = Metadata {
         progress: Progress {
             total: total,
@@ -256,7 +256,7 @@ fn init_challenge(total: u32, done: u32, status: Status) {
 #[test]
 fn next_should_work() {
     new_test_ext().execute_with(|| {
-        init_challenge(300, 20, Status::FREE);
+        init_challenge(300, 20, ChallengeStatus::FREE);
         System::set_block_number(3);
         assert_ok!(ZdChallenges::next(
             &APP_ID,
@@ -280,7 +280,7 @@ fn next_should_work() {
 #[test]
 fn next_should_fail() {
     new_test_ext().execute_with(|| {
-        init_challenge(100, 20, Status::FREE);
+        init_challenge(100, 20, ChallengeStatus::FREE);
         System::set_block_number(3);
         assert_noop!(
             ZdChallenges::next(
@@ -322,11 +322,11 @@ fn next_should_fail() {
 #[test]
 fn examine_should_work() {
     new_test_ext().execute_with(|| {
-        init_challenge(100, 100, Status::REPLY);
+        init_challenge(100, 100, ChallengeStatus::REPLY);
         assert_ok!(ZdChallenges::examine(&APP_ID, CHALLENGER, &TARGET, 22));
         let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
         assert_eq!(metadata.remark, 22);
-        assert_eq!(metadata.status, Status::EXAMINE);
+        assert_eq!(metadata.status, ChallengeStatus::EXAMINE);
         assert_eq!(metadata.last_update, 1);
     });
 }
@@ -334,31 +334,31 @@ fn examine_should_work() {
 #[test]
 fn examine_should_fail() {
     new_test_ext().execute_with(|| {
-        init_challenge(100, 100, Status::REPLY);
+        init_challenge(100, 100, ChallengeStatus::REPLY);
         assert_noop!(
             ZdChallenges::examine(&APP_ID, EVE, &TARGET, 22),
             Error::<Test>::NoPermission
         );
         let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
-        assert_eq!(metadata.status, Status::REPLY);
+        assert_eq!(metadata.status, ChallengeStatus::REPLY);
         assert_eq!(metadata.progress.total, 100);
         assert_eq!(metadata.progress.done, 100);
-        init_challenge(100, 10, Status::REPLY);
+        init_challenge(100, 10, ChallengeStatus::REPLY);
         assert_noop!(
             ZdChallenges::examine(&APP_ID, CHALLENGER, &TARGET, 22),
             Error::<Test>::NoChallengeAllowed
         );
         let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
-        assert_eq!(metadata.status, Status::REPLY);
+        assert_eq!(metadata.status, ChallengeStatus::REPLY);
         assert_eq!(metadata.progress.total, 100);
         assert_eq!(metadata.progress.done, 10);
-        init_challenge(100, 100, Status::FREE);
+        init_challenge(100, 100, ChallengeStatus::FREE);
         assert_noop!(
             ZdChallenges::examine(&APP_ID, CHALLENGER, &TARGET, 22),
             Error::<Test>::NoChallengeAllowed
         );
         let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
-        assert_eq!(metadata.status, Status::FREE);
+        assert_eq!(metadata.status, ChallengeStatus::FREE);
         assert_eq!(metadata.progress.total, 100);
         assert_eq!(metadata.progress.done, 100);
     });
@@ -367,7 +367,7 @@ fn examine_should_fail() {
 #[test]
 fn reply_should_work() {
     new_test_ext().execute_with(|| {
-        init_challenge(100, 100, Status::EXAMINE);
+        init_challenge(100, 100, ChallengeStatus::EXAMINE);
         assert_ok!(ZdChallenges::reply(
             &APP_ID,
             &PATHINFER,
@@ -381,7 +381,7 @@ fn reply_should_work() {
         ));
         let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
         assert_eq!(metadata.score, 60);
-        assert_eq!(metadata.status, Status::REPLY);
+        assert_eq!(metadata.status, ChallengeStatus::REPLY);
         assert_eq!(metadata.last_update, 1);
     });
 }
@@ -389,7 +389,7 @@ fn reply_should_work() {
 #[test]
 fn reply_should_fail() {
     new_test_ext().execute_with(|| {
-        init_challenge(100, 100, Status::EXAMINE);
+        init_challenge(100, 100, ChallengeStatus::EXAMINE);
         assert_noop!(
             ZdChallenges::reply(
                 &APP_ID,
@@ -404,7 +404,7 @@ fn reply_should_fail() {
             ),
             Error::<Test>::NoPermission
         );
-        init_challenge(100, 100, Status::FREE);
+        init_challenge(100, 100, ChallengeStatus::FREE);
         assert_noop!(
             ZdChallenges::reply(
                 &APP_ID,
@@ -419,7 +419,7 @@ fn reply_should_fail() {
             ),
             Error::<Test>::StatusErr
         );
-        init_challenge(100, 100, Status::EXAMINE);
+        init_challenge(100, 100, ChallengeStatus::EXAMINE);
         assert_noop!(
             ZdChallenges::reply(
                 &APP_ID,
@@ -440,7 +440,7 @@ fn reply_should_fail() {
 #[test]
 fn evidence_should_work() {
     new_test_ext().execute_with(|| {
-        init_challenge(100, 100, Status::REPLY);
+        init_challenge(100, 100, ChallengeStatus::REPLY);
         assert_ok!(
             ZdChallenges::evidence(
                 &APP_ID,
@@ -451,8 +451,8 @@ fn evidence_should_work() {
             None
         );
         let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
-        assert_eq!(metadata.status, Status::ARBITRATION);
-        init_challenge(100, 100, Status::REPLY);
+        assert_eq!(metadata.status, ChallengeStatus::ARBITRATION);
+        init_challenge(100, 100, ChallengeStatus::REPLY);
         assert_ok!(
             ZdChallenges::evidence(
                 &APP_ID,
@@ -463,7 +463,7 @@ fn evidence_should_work() {
             Some(0)
         );
         let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
-        assert_eq!(metadata.status, Status::FREE);
+        assert_eq!(metadata.status, ChallengeStatus::FREE);
         assert_eq!(metadata.pathfinder, CHALLENGER);
         assert_eq!(metadata.joint_benefits, false);
     });
@@ -481,7 +481,7 @@ fn evidence_should_fail() {
             ),
             Error::<Test>::NonExistent
         );
-        init_challenge(100, 10, Status::REPLY);
+        init_challenge(100, 10, ChallengeStatus::REPLY);
         assert_noop!(
             ZdChallenges::evidence(
                 &APP_ID,
@@ -500,7 +500,7 @@ fn evidence_should_fail() {
             ),
             Error::<Test>::ProgressErr
         );
-        init_challenge(100, 100, Status::EXAMINE);
+        init_challenge(100, 100, ChallengeStatus::EXAMINE);
         assert_noop!(
             ZdChallenges::evidence(
                 &APP_ID,
@@ -516,7 +516,7 @@ fn evidence_should_fail() {
 #[test]
 fn arbitral_should_work() {
     new_test_ext().execute_with(|| {
-        init_challenge(100, 100, Status::REPLY);
+        init_challenge(100, 100, ChallengeStatus::REPLY);
         assert_ok!(ZdChallenges::arbitral(
             &APP_ID,
             &CHALLENGER,
@@ -530,7 +530,7 @@ fn arbitral_should_work() {
         assert_eq!(metadata.joint_benefits, true);
         assert_eq!(metadata.score, 18);
 
-        init_challenge(100, 100, Status::REPLY);
+        init_challenge(100, 100, ChallengeStatus::REPLY);
         System::set_block_number(9);
         assert_ok!(ZdChallenges::arbitral(
             &APP_ID,
@@ -574,7 +574,7 @@ fn arbitral_should_work() {
 #[test]
 fn arbitral_should_fail() {
     new_test_ext().execute_with(|| {
-        init_challenge(100, 100, Status::EXAMINE);
+        init_challenge(100, 100, ChallengeStatus::EXAMINE);
         assert_noop!(
             ZdChallenges::arbitral(
                 &APP_ID,
@@ -587,7 +587,7 @@ fn arbitral_should_fail() {
             ),
             Error::<Test>::StatusErr
         );
-        init_challenge(100, 10, Status::REPLY);
+        init_challenge(100, 10, ChallengeStatus::REPLY);
         assert_noop!(
             ZdChallenges::arbitral(
                 &APP_ID,
@@ -600,7 +600,7 @@ fn arbitral_should_fail() {
             ),
             Error::<Test>::ProgressErr
         );
-        init_challenge(100, 100, Status::REPLY);
+        init_challenge(100, 100, ChallengeStatus::REPLY);
         System::set_block_number(3);
         assert_noop!(
             ZdChallenges::arbitral(
@@ -672,7 +672,7 @@ macro_rules! settle_should_work {
                             } else {
                                 assert_eq!(metadata.pathfinder, CHALLENGER);
                             }
-                            assert_eq!(metadata.status, Status::FREE);
+                            assert_eq!(metadata.status, ChallengeStatus::FREE);
                         },
                         false => {
                             assert_eq!(metadata.joint_benefits, joint_benefits);
@@ -737,13 +737,13 @@ macro_rules! harvest_should_work {
                     assert_ok!(ZdChallenges::harvest(&who, &APP_ID, &TARGET));
 
                     match status {
-                        Status::FREE => {
+                        ChallengeStatus::FREE => {
                             assert_eq!(Currencies::free_balance(ZDAO, &PATHINFER), pathfinder_balance + awards);
                         },
-                        Status::EXAMINE => {
+                        ChallengeStatus::EXAMINE => {
                             assert_eq!(Currencies::free_balance(ZDAO, &CHALLENGER), challenger_balance + awards);
                         },
-                        Status::REPLY => {
+                        ChallengeStatus::REPLY => {
                             match done == 100 {
                                 true => {
                                     assert_eq!(Currencies::free_balance(ZDAO, &PATHINFER), pathfinder_balance + awards);
@@ -753,7 +753,7 @@ macro_rules! harvest_should_work {
                                 },
                             }
                         },
-                        Status::EVIDENCE => {
+                        ChallengeStatus::EVIDENCE => {
                             match done == 100 {
                                 false => {
                                     assert_eq!(Currencies::free_balance(ZDAO, &PATHINFER), pathfinder_balance + awards);
@@ -763,7 +763,7 @@ macro_rules! harvest_should_work {
                                 },
                             }
                         },
-                        Status::ARBITRATION => {
+                        ChallengeStatus::ARBITRATION => {
                             match joint_benefits {
                                 true => {
                                     assert_eq!(Currencies::free_balance(ZDAO, &PATHINFER), pathfinder_balance + (awards / 2));
@@ -786,18 +786,18 @@ macro_rules! harvest_should_work {
 
 harvest_should_work! {
     // who, status, done, joint_benefits,staking
-    harvest_should_work_0: (SWEEPER,Status::FREE,10,false,200,2000),
-    harvest_should_work_1: (PATHINFER,Status::FREE,10,false,200221,8),
-    harvest_should_work_2: (CHALLENGER,Status::FREE,10,false,20784,8),
-    harvest_should_work_3: (CHALLENGER,Status::EXAMINE,10,false,10,8),
-    harvest_should_work_4: (SWEEPER,Status::EXAMINE,10,false,241111,2000),
-    harvest_should_work_5: (SWEEPER,Status::REPLY,100,false,2345564,2000),
-    harvest_should_work_6: (PATHINFER,Status::REPLY,100,false,22,8),
-    harvest_should_work_7: (CHALLENGER,Status::REPLY,10,false,46453,8),
-    harvest_should_work_8: (CHALLENGER,Status::EVIDENCE,100,false,42334,8),
-    harvest_should_work_9: (PATHINFER,Status::EVIDENCE,10,false,478786,8),
-    harvest_should_work_10: (SWEEPER,Status::EVIDENCE,10,false,45333,2000),
-    harvest_should_work_11: (SWEEPER,Status::ARBITRATION,10,true,75333,2000),
-    harvest_should_work_12: (PATHINFER,Status::ARBITRATION,10,false,46454,8),
-    harvest_should_work_13: (SWEEPER,Status::FREE,10,false,0,2000),
+    harvest_should_work_0: (SWEEPER,ChallengeStatus::FREE,10,false,200,2000),
+    harvest_should_work_1: (PATHINFER,ChallengeStatus::FREE,10,false,200221,8),
+    harvest_should_work_2: (CHALLENGER,ChallengeStatus::FREE,10,false,20784,8),
+    harvest_should_work_3: (CHALLENGER,ChallengeStatus::EXAMINE,10,false,10,8),
+    harvest_should_work_4: (SWEEPER,ChallengeStatus::EXAMINE,10,false,241111,2000),
+    harvest_should_work_5: (SWEEPER,ChallengeStatus::REPLY,100,false,2345564,2000),
+    harvest_should_work_6: (PATHINFER,ChallengeStatus::REPLY,100,false,22,8),
+    harvest_should_work_7: (CHALLENGER,ChallengeStatus::REPLY,10,false,46453,8),
+    harvest_should_work_8: (CHALLENGER,ChallengeStatus::EVIDENCE,100,false,42334,8),
+    harvest_should_work_9: (PATHINFER,ChallengeStatus::EVIDENCE,10,false,478786,8),
+    harvest_should_work_10: (SWEEPER,ChallengeStatus::EVIDENCE,10,false,45333,2000),
+    harvest_should_work_11: (SWEEPER,ChallengeStatus::ARBITRATION,10,true,75333,2000),
+    harvest_should_work_12: (PATHINFER,ChallengeStatus::ARBITRATION,10,false,46454,8),
+    harvest_should_work_13: (SWEEPER,ChallengeStatus::FREE,10,false,0,2000),
 }
