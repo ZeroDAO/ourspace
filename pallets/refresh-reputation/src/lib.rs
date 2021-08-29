@@ -557,10 +557,12 @@ impl<T: Config> Pallet<T> {
                 let old_path = Self::get_path(&seed, &target);
                 if let Some(old_dist) = Self::get_dist(&old_path, &seed, &target) {
                     ensure!(old_dist >= dist_new, Error::<T>::DistTooLong);
-                    ensure!(
-                        old_dist == dist_new && old_path.score > path.score,
-                        Error::<T>::ScoreTooLow
-                    );
+                    if old_dist == dist_new {
+                        ensure!(
+                            old_path.score > path.score,
+                            Error::<T>::ScoreTooLow
+                        );
+                    }
                 }
                 let acc = acc
                     .checked_sub(old_path.score)

@@ -557,8 +557,8 @@ fn arbitral_should_work() {
             vec![SEED3, SEED2, SEED1],
             vec![
                 Path {
-                    nodes: vec![],
-                    score: 28,
+                    nodes: vec![ALICE, BOB],
+                    score: 1,
                 },
                 Path {
                     nodes: vec![ALICE],
@@ -568,6 +568,18 @@ fn arbitral_should_work() {
                     nodes: vec![ALICE, BOB],
                     score: 1,
                 },
+            ]
+        ));
+
+        assert_ok!(ZdRefreshReputation::arbitral(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            vec![SEED3],
+            vec![
+                Path {
+                    nodes: vec![ALICE],
+                    score: 5,
+                }
             ]
         ));
     });
