@@ -20,7 +20,7 @@ mod tests;
 
 pub use module::*;
 
-pub const INIT_SEED_RANK: usize = 1000;
+pub const INIT_SEED_RANK: u32 = 1000;
 pub const MIN_TRUST_COUNT: u32 = 5;
 
 #[derive(Encode, Decode, Clone, Eq, PartialEq, Default)]
@@ -193,13 +193,13 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
 
     fn computed_path(users: &Vec<T::AccountId>) -> Result<(u32, u32), DispatchError> {
         ensure!(T::SeedsBase::is_seed(&users[0]), Error::<T>::NotSeed);
-        let mut start_ir = INIT_SEED_RANK as u32;
+        let mut start_ir = INIT_SEED_RANK;
         let users_v = &users;
         let (dist, score) = users_v
             .windows(2)
             .map(|u| -> Result<(u32, u32), Error<T>> {
                 if Self::is_trust(&u[0], &u[1]) {
-                    let end_ir = T::Reputation::get_reputation_new(&u[1]).unwrap_or(0);
+                    let end_ir = T::Reputation::get_reputation(&u[1]).unwrap_or(0);
                     let item_dist = appro_ln(start_ir.saturating_sub(end_ir));
                     start_ir = end_ir;
                     let trust_count = Self::get_trust_count_old(&u[0]) as u32;
@@ -209,7 +209,7 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
                 }
             })
             .try_fold::<_, _, Result<(u32, u32), Error<T>>>(
-                (0u32, INIT_SEED_RANK as u32),
+                (0u32, INIT_SEED_RANK),
                 |acc, d| {
                     let (dist,trust_count) = d?;
                     let item_score =

@@ -511,10 +511,10 @@ fn arbitral_should_work() {
         vec![SEED3, ALICE, TARGET],
         vec![SEED3, ALICE, BOB, TARGET],
         score1 : 1000 / 1.max(5) / (1000 - 0).ln() = 28.5714
-                28 / 2.max(5) / (28 - 0).ln() = 5.6
+                28 / 2.max(5) / 1 = 5.6
         score2 : 1000 / 1.max(5) / (1000 - 0).ln() = 28.5714
-                28 / 2.max(5) / (28 - 0).ln() = 5.6
-                5 / 1.max(5) / (5 - 0).ln() = 0
+                28 / 2.max(5) / (0 - 0).ln() = 5.6
+                5 / 1.max(5) / (0 - 0).ln() = 1
         score3 : 1000 / 2.max(5) / (1000 - 0).ln() = 28.5714
          */
         let paths = vec![
@@ -534,28 +534,29 @@ fn arbitral_should_work() {
         assert_ok!(ZdRefreshReputation::challenge_update(
             Origin::signed(CHALLENGER),
             TARGET,
-            vec![SEED1,SEED2,SEED3],
+            vec![SEED1, SEED1,SEED3],
             paths.clone()
         ));
 
-        assert_ok!(ZdRefreshReputation::check_step());
+        assert_eq!(ZdReputation::get_reputation(&TARGET),Some(0));
+        assert_eq!(ZdReputation::get_reputation(&ALICE),Some(0));
 
         assert_ok!(ZdRefreshReputation::arbitral(
             Origin::signed(CHALLENGER),
             TARGET,
-            vec![SEED1,SEED2,SEED3],
+            vec![SEED3,SEED2,SEED1],
             vec![
+                Path {
+                    nodes: vec![],
+                    score: 28,
+                },
                 Path {
                     nodes: vec![ALICE],
                     score: 5,
                 },
                 Path {
                     nodes: vec![ALICE, BOB],
-                    score: 0,
-                },
-                Path {
-                    nodes: vec![],
-                    score: 28,
+                    score: 1,
                 },
             ]
         ));

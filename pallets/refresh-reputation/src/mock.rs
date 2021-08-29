@@ -83,7 +83,7 @@ parameter_types! {
     pub const SelfRation: Perbill = Perbill::from_percent(3);
     pub const MaxUpdateCount: u32 = 4;
 
-    pub const DampingFactor: Perbill = Perbill::from_percent(80);
+    pub const DampingFactor: Perbill = Perbill::from_percent(100);
     pub const ExistentialDeposit: u128 = 500;
     pub const MaxLocks: u32 = 50;
 

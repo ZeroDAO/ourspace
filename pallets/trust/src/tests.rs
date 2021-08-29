@@ -103,6 +103,14 @@ fn computed_path_should_work() {
             ZdTrust::computed_path(&vec![ALICE, BOB, CHARLIE]),
             (1 + 7, 5)
         );
+        assert_ok!(
+            ZdTrust::computed_path(&vec![ALICE, BOB, CHARLIE, DAVE]),
+            (1 + 7 + 1, 1)
+        );
+        assert_ok!(
+            ZdTrust::computed_path(&vec![ALICE, BOB, CHARLIE, DAVE, EVE]),
+            (1 + 7 + 1 + 1, 0)
+        );
     });
 }
 

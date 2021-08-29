@@ -190,6 +190,27 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
         }
     }
 
+    fn get_reputation(target: &T::AccountId) -> Option<u32> {
+        let system_info = Self::system_info();
+        let nonce = system_info.nonce;
+        let irs = Self::get_ir(target);
+        match system_info.step == TIRStep::FREE {
+            true => {
+                if irs[0].nonce == nonce {
+                    return Some(irs[0].score);
+                }
+            },
+            false => {
+                if irs[0].nonce == nonce - 1 {
+                    return Some(irs[0].score);
+                } else if irs[1].nonce == nonce - 1 {
+                    return Some(irs[1].score);
+                }
+            },
+        }
+        None
+    }
+
     fn refresh_reputation(user_score: &(T::AccountId, u32)) -> DispatchResult {
         let who = &user_score.0;
         let nonce = Self::system_info().nonce;
