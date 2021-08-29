@@ -21,7 +21,7 @@ pub use pallet::*;
 const APP_ID: AppId = *b"repu    ";
 
 /// Maximum number of active paths
-const MAX_NODE_COUNT: u32 = 5;
+const MAX_NODE_COUNT: usize = 5;
 
 #[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
 pub struct Record<BlockNumber, Balance> {
@@ -52,7 +52,7 @@ pub struct Path<AccountId> {
 
 impl<AccountId> Path<AccountId> {
     fn check_nodes_leng(&self) -> bool {
-        self.nodes.len() as u32 <= MAX_NODE_COUNT
+        self.nodes.len() + 2 <= MAX_NODE_COUNT
     }
 
     fn exclude_zero(&self) -> bool {
@@ -502,7 +502,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn get_dist(paths: &Path<T::AccountId>, seed: &T::AccountId, target: &T::AccountId) -> Option<u32> {
-        if !paths.nodes.is_empty() && paths.check_nodes_leng() {
+        if paths.check_nodes_leng() {
             let mut nodes = paths.nodes.clone();
             nodes.insert(0, seed.clone());
             nodes.push(target.clone());
