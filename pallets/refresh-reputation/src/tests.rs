@@ -427,7 +427,6 @@ fn challenge_update_should_work() {
     });
 }
 
-
 #[test]
 fn challenge_update_should_fail() {
     new_test_ext().execute_with(|| {
@@ -440,15 +439,18 @@ fn challenge_update_should_fail() {
             20
         ));
 
-        assert_err_ignore_postinfo!(ZdRefreshReputation::challenge_update(
-            Origin::signed(CHALLENGER),
-            TARGET,
-            vec![SEED1,SEED3],
-            vec![Path {
-                nodes: vec![ALICE],
-                score: 12
-            }]
-        ),Error::<Test>::NotMatch);
+        assert_err_ignore_postinfo!(
+            ZdRefreshReputation::challenge_update(
+                Origin::signed(CHALLENGER),
+                TARGET,
+                vec![SEED1, SEED3],
+                vec![Path {
+                    nodes: vec![ALICE],
+                    score: 12
+                }]
+            ),
+            Error::<Test>::NotMatch
+        );
 
         assert_ok!(ZdRefreshReputation::challenge_update(
             Origin::signed(CHALLENGER),
@@ -460,38 +462,46 @@ fn challenge_update_should_fail() {
             }]
         ));
 
-        assert_err_ignore_postinfo!(ZdRefreshReputation::challenge_update(
-            Origin::signed(CHALLENGER),
-            TARGET,
-            vec![SEED3],
-            vec![Path {
-                nodes: vec![ALICE, TARGET],
-                score: 12
-            }]
-        ),Error::<Test>::PathAlreadyExist);
+        assert_err_ignore_postinfo!(
+            ZdRefreshReputation::challenge_update(
+                Origin::signed(CHALLENGER),
+                TARGET,
+                vec![SEED3],
+                vec![Path {
+                    nodes: vec![ALICE, TARGET],
+                    score: 12
+                }]
+            ),
+            Error::<Test>::PathAlreadyExist
+        );
 
-        assert_err_ignore_postinfo!(ZdRefreshReputation::challenge_update(
-            Origin::signed(CHALLENGER),
-            TARGET,
-            vec![SEED2],
-            vec![Path {
-                nodes: vec![ALICE, BOB, TARGET, TARGET, TARGET, BOB, TARGET],
-                score: 12
-            }]
-        ),Error::<Test>::WrongPath);
+        assert_err_ignore_postinfo!(
+            ZdRefreshReputation::challenge_update(
+                Origin::signed(CHALLENGER),
+                TARGET,
+                vec![SEED2],
+                vec![Path {
+                    nodes: vec![ALICE, BOB, TARGET, TARGET, TARGET, BOB, TARGET],
+                    score: 12
+                }]
+            ),
+            Error::<Test>::WrongPath
+        );
 
-        assert_err_ignore_postinfo!(ZdRefreshReputation::challenge_update(
-            Origin::signed(CHALLENGER),
-            TARGET,
-            vec![SEED2],
-            vec![Path {
-                nodes: vec![ALICE, BOB, TARGET],
-                score: u32::MAX
-            }]
-        ),Error::<Test>::Overflow);
+        assert_err_ignore_postinfo!(
+            ZdRefreshReputation::challenge_update(
+                Origin::signed(CHALLENGER),
+                TARGET,
+                vec![SEED2],
+                vec![Path {
+                    nodes: vec![ALICE, BOB, TARGET],
+                    score: u32::MAX
+                }]
+            ),
+            Error::<Test>::Overflow
+        );
     });
 }
-
 
 #[test]
 fn arbitral_should_work() {
@@ -534,17 +544,17 @@ fn arbitral_should_work() {
         assert_ok!(ZdRefreshReputation::challenge_update(
             Origin::signed(CHALLENGER),
             TARGET,
-            vec![SEED1, SEED1,SEED3],
+            vec![SEED1, SEED1, SEED3],
             paths.clone()
         ));
 
-        assert_eq!(ZdReputation::get_reputation(&TARGET),Some(0));
-        assert_eq!(ZdReputation::get_reputation(&ALICE),Some(0));
+        assert_eq!(ZdReputation::get_reputation(&TARGET), Some(0));
+        assert_eq!(ZdReputation::get_reputation(&ALICE), Some(0));
 
         assert_ok!(ZdRefreshReputation::arbitral(
             Origin::signed(CHALLENGER),
             TARGET,
-            vec![SEED3,SEED2,SEED1],
+            vec![SEED3, SEED2, SEED1],
             vec![
                 Path {
                     nodes: vec![],
@@ -560,7 +570,5 @@ fn arbitral_should_work() {
                 },
             ]
         ));
-
-
     });
 }

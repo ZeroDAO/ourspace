@@ -9,7 +9,7 @@ use frame_support::{
 use frame_system::{self as system, ensure_signed};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
-use zd_traits::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase, ChallengeStatus};
+use zd_traits::{ChallengeBase, ChallengeStatus, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
 #[cfg(test)]
 mod mock;
@@ -85,8 +85,6 @@ pub mod pallet {
     }
 
     // type ChallengeStatus = T::ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber>::ChallengeBase;
-
-    
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
@@ -171,6 +169,10 @@ pub mod pallet {
         AlreadyStarted,
         /// The challenged reputation is the same as the original reputation
         SameReputation,
+        /// Exceeds the allowed refresh time
+        RefreshTiomeOut,
+        /// Same path length, but score too low
+        ScoreTooLow,
     }
 
     #[pallet::hooks]
@@ -339,7 +341,7 @@ pub mod pallet {
                 reputation,
             )?;
 
-            T::ChallengeBase::set_status(&APP_ID,&target,&ChallengeStatus::ARBITRATION);
+            T::ChallengeBase::set_status(&APP_ID, &target, &ChallengeStatus::ARBITRATION);
 
             Ok(().into())
         }
@@ -359,13 +361,13 @@ pub mod pallet {
                 &APP_ID,
                 &who,
                 &target,
-                |score,remark| -> Result<(bool, bool, u64), _> {
+                |score, remark| -> Result<(bool, bool, u64), _> {
                     let score = score as u32;
                     let new_score = Self::do_update_path_verify(&target, &seeds, &paths, score)?;
                     T::Reputation::mutate_reputation(&target, &new_score);
                     Ok((new_score == remark, false, new_score.into()))
                 },
-            )?; 
+            )?;
             Ok(().into())
         }
 
@@ -452,7 +454,7 @@ impl<T: Config> Pallet<T> {
     fn check_timeout(now: &T::BlockNumber) -> DispatchResult {
         ensure!(
             *now < <StartedAt<T>>::get() + T::RefRepuTiomeOut::get(),
-            Error::<T>::DistTooLong
+            Error::<T>::RefreshTiomeOut
         );
         Ok(())
     }
@@ -501,7 +503,11 @@ impl<T: Config> Pallet<T> {
         T::MultiBaseToken::share(user, &targets)
     }
 
-    pub(crate) fn get_dist(paths: &Path<T::AccountId>, seed: &T::AccountId, target: &T::AccountId) -> Option<u32> {
+    pub(crate) fn get_dist(
+        paths: &Path<T::AccountId>,
+        seed: &T::AccountId,
+        target: &T::AccountId,
+    ) -> Option<u32> {
         if paths.check_nodes_leng() {
             let mut nodes = paths.nodes.clone();
             nodes.insert(0, seed.clone());
@@ -553,7 +559,7 @@ impl<T: Config> Pallet<T> {
                     ensure!(old_dist >= dist_new, Error::<T>::DistTooLong);
                     ensure!(
                         old_dist == dist_new && old_path.score > path.score,
-                        Error::<T>::DistTooLong
+                        Error::<T>::ScoreTooLow
                     );
                 }
                 let acc = acc
