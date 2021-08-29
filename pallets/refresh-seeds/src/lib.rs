@@ -27,9 +27,7 @@ pub use self::types::*;
 pub mod pallet {
 
     use super::*;
-
     use frame_system::{ensure_signed, pallet_prelude::*};
-
     use frame_support::pallet_prelude::*;
 
     #[pallet::config]
@@ -87,15 +85,66 @@ pub mod pallet {
 
     #[pallet::error]
     pub enum Error<T> {
-        // Already exists
+        /// Already exists
         AlreadyExist,
+        /// No permission or wrong time
         NoUpdatesAllowed,
         // No corresponding data exists
         NotExist,
-        // Depth limit exceeded
+        /// Depth limit exceeded
         DepthLimitExceeded,
-        // Overflow
+        /// Overflow
         Overflow,
+        /// Index Exceeds maximum
+        IndexExceedsMaximum,
+        /// Quantity exceeds limit
+        QuantityExceedsLimit,
+        /// Already exists
+        AlreadyExists,
+        /// NonExistent
+        NonExistent,
+        /// Path vector is empty
+        NoPath,
+        /// Certain data do not match
+        NotMatch,
+        /// The path is too long
+        PathTooLong,
+        /// Path length limit exceeded
+        ExceededLengthLimit,
+        /// Depth not yet reached
+        DepthDoesNotMatch,
+        /// Path lengths are not equal
+        LengthNotEqual,
+        /// The data at this index position does not match
+        PathIndexError,
+        /// Too Few In Number
+        TooFewInNumber,
+        /// Path length too long or not short enough
+        WrongPathLength,
+        /// There are still unearned challenges
+        StillUnharvestedChallenges,
+        /// score list is not empty
+        ScoreListNotEmpty,
+        /// Step is not match 
+        StepNotMatch,
+        /// Path does not exist
+        PathDoesNotExist,
+        /// The path is too short
+        PathTooTooShort,
+        /// Order does not match
+        OrderNotMatch,
+        /// An error occurred converting the data
+        ConverError,
+        /// Data is empty, cannot call next
+        DataEmpty,
+        /// No duplicate data allowed
+        DataDuplication,
+        /// Excessive number of paths
+        LengthTooLong,
+        /// Hash mismatch
+        HashMismatch,
+        /// Score mismatch
+        ScoreMismatch,
     }
 
     #[pallet::hooks]
@@ -168,14 +217,14 @@ pub mod pallet {
                 Ok(paths) => {
                     ensure!(
                         (index as usize) < paths.len(),
-                        Error::<T>::DepthLimitExceeded
+                        Error::<T>::IndexExceedsMaximum
                     );
                 }
                 Err(_) => {
                     let result_hash_set = result_hash_sets.last().unwrap();
                     ensure!(
                         (index as usize) < result_hash_set.len(),
-                        Error::<T>::DepthLimitExceeded
+                        Error::<T>::IndexExceedsMaximum
                     );
                 }
             }
@@ -194,7 +243,7 @@ pub mod pallet {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
             let count = result_hashs.len();
-            ensure!(quantity <= MAX_HASH_COUNT, Error::<T>::DepthLimitExceeded);
+            ensure!(quantity <= MAX_HASH_COUNT, Error::<T>::QuantityExceedsLimit);
             let _ = T::ChallengeBase::reply(
                 &APP_ID,
                 &challenger,
@@ -245,16 +294,16 @@ pub mod pallet {
             let count = paths.len();
             ensure!(
                 <Paths<T>>::try_get(&target).is_err(),
-                Error::<T>::DepthLimitExceeded
+                Error::<T>::AlreadyExists
             );
             let hash_len = <ResultHashsSets<T>>::decode_len(&target)
-                .ok_or_else(|| Error::<T>::DepthLimitExceeded)?;
-            ensure!(hash_len == DEEP as usize, Error::<T>::DepthLimitExceeded);
-            ensure!(!paths.is_empty(), Error::<T>::DepthLimitExceeded);
+                .ok_or_else(|| Error::<T>::NonExistent)?;
+            ensure!(hash_len == DEEP as usize, Error::<T>::DepthDoesNotMatch);
+            ensure!(!paths.is_empty(), Error::<T>::NoPath);
             let mut paths = paths;
             paths.sort();
             paths.dedup();
-            ensure!(count == paths.len(), Error::<T>::DepthLimitExceeded);
+            ensure!(count == paths.len(), Error::<T>::NotMatch);
             let _ = T::ChallengeBase::reply(
                 &APP_ID,
                 &pathfinder,
@@ -262,7 +311,7 @@ pub mod pallet {
                 quantity,
                 count as u32,
                 |is_all_done, index, order| -> Result<u64, DispatchError> {
-                    let deep = <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::DepthLimitExceeded)?;
+                    let deep = <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::NonExistent)?;
                     let r_hashs =
                         <ResultHashsSets<T>>::get(&target).last().unwrap().0[index as usize].clone();
                     Self::checked_paths_vec(&paths, &target, &FullOrder::from_u64(&order, deep).0, deep)?;
@@ -303,7 +352,7 @@ pub mod pallet {
                     full_paths.sort();
                     full_paths.dedup();
 
-                    ensure!(old_len == full_paths.len(), Error::<T>::DepthLimitExceeded);
+                    ensure!(old_len == full_paths.len(), Error::<T>::NotMatch);
 
                     Self::checked_paths_vec(&paths, &target, &FullOrder::from_u64(&order, deep).0, deep)?;
 
@@ -361,22 +410,22 @@ pub mod pallet {
                     let r_order = FullOrder::from_u64(&order, deep);
                     ensure!(
                         r_order.0 == full_order[..deep].to_vec(),
-                        Error::<T>::DepthLimitExceeded
+                        Error::<T>::NotMatch
                     );
                     match <Paths<T>>::try_get(&target) {
                         Ok(path_vec) => {
                             let mut same_ends = false;
                             ensure!(
                                 !<MissedPaths<T>>::contains_key(&target),
-                                Error::<T>::DepthLimitExceeded
+                                Error::<T>::AlreadyExist
                             );
                             for p in path_vec {
                                 if *start == p.nodes[0] && stop == p.nodes.last().unwrap() {
                                     ensure!(
                                         p.nodes.len() == nodes.len(),
-                                        Error::<T>::DepthLimitExceeded
+                                        Error::<T>::LengthNotEqual
                                     );
-                                    ensure!(p.nodes != nodes, Error::<T>::DepthLimitExceeded);
+                                    ensure!(p.nodes != nodes, Error::<T>::AlreadyExist);
                                     same_ends = true;
                                 }
                             }
@@ -388,19 +437,19 @@ pub mod pallet {
                             let last_r_hash = &result_hash_sets.last().unwrap().0;
                             ensure!(
                                 index < last_r_hash.len(),
-                                Error::<T>::DepthLimitExceeded
+                                Error::<T>::IndexExceedsMaximum
                             );
                             let segment_order = full_order[deep..].to_vec();
                             if index > 0 {
                                 ensure!(
                                     last_r_hash[index - 1].order[..].to_vec() < segment_order,
-                                    Error::<T>::DepthLimitExceeded
+                                    Error::<T>::PathIndexError
                                 );
                             }
                             if index < last_r_hash.len() - 1 {
                                 ensure!(
                                     last_r_hash[index].order[..].to_vec() > segment_order,
-                                    Error::<T>::DepthLimitExceeded
+                                    Error::<T>::PathIndexError
                                 );
                             }
                             // arbitration : Unable to determine the shortest path
@@ -434,12 +483,12 @@ pub mod pallet {
 
             ensure!(
                 *start == nodes[0] && stop == nodes.last().unwrap(),
-                Error::<T>::DepthLimitExceeded
+                Error::<T>::NotMatch
             );
 
             ensure!(
                 p_path.nodes.len() + 2 > nodes.len(),
-                Error::<T>::DepthLimitExceeded
+                Error::<T>::PathTooLong
             );
 
             let maybe_score = T::ChallengeBase::evidence(
@@ -471,7 +520,7 @@ pub mod pallet {
 
             ensure!(
                 mid_paths.len() <= (MAX_SHORTEST_PATH + 1) as usize,
-                Error::<T>::DepthLimitExceeded
+                Error::<T>::ExceededLengthLimit
             );
 
             let (start, stop) = Self::get_ends(&p_path);
@@ -485,11 +534,11 @@ pub mod pallet {
                         if path.len() < p_path_len {
                             return Ok(true);
                         }
-                        ensure!(path.len() == p_path_len, Error::<T>::DepthLimitExceeded);
+                        ensure!(path.len() == p_path_len, Error::<T>::LengthNotEqual);
                     }
                     ensure!(
                         mid_paths.len() > p_path_total,
-                        Error::<T>::DepthLimitExceeded
+                        Error::<T>::TooFewInNumber
                     );
                     Ok(false)
                 },
@@ -511,7 +560,7 @@ pub mod pallet {
                 <MissedPaths<T>>::try_get(&target).map_err(|_| Error::<T>::DepthLimitExceeded)?;
             ensure!(
                 paths.len() < missed_path.len() && paths.len() >= 2,
-                Error::<T>::DepthLimitExceeded
+                Error::<T>::WrongPathLength
             );
             T::TrustBase::valid_nodes(&paths)?;
             let afer_target = paths.contains(&target);
@@ -549,11 +598,11 @@ pub mod pallet {
             Self::check_step()?;
             ensure!(
                 T::ChallengeBase::is_all_harvest(&APP_ID),
-                Error::<T>::DepthLimitExceeded
+                Error::<T>::StillUnharvestedChallenges
             );
             let is_sweeper = who == target;
             let mut score_list = Self::get_score_list();
-            ensure!(score_list.is_empty(), Error::<T>::DepthLimitExceeded);
+            ensure!(score_list.is_empty(), Error::<T>::ScoreListNotEmpty);
             let len = Self::hand_first_time(&mut score_list);
             let candidate = <Candidates<T>>::take(&target);
             if !score_list.is_empty() && candidate.score >= score_list[0] {
@@ -613,7 +662,7 @@ impl<T: Config> Pallet<T> {
     fn check_step() -> DispatchResult {
         ensure!(
             T::Reputation::is_step(&TIRStep::SEED),
-            Error::<T>::DepthLimitExceeded
+            Error::<T>::StepNotMatch
         );
         Ok(())
     }
@@ -648,9 +697,9 @@ impl<T: Config> Pallet<T> {
         target: &T::AccountId,
         index: &u32,
     ) -> Result<Path<T::AccountId>, DispatchError> {
-        let paths = <Paths<T>>::try_get(&target).map_err(|_| Error::<T>::DepthLimitExceeded)?;
+        let paths = <Paths<T>>::try_get(&target).map_err(|_| Error::<T>::PathDoesNotExist)?;
         let index = *index as usize;
-        ensure!(paths.len() > index, Error::<T>::DepthLimitExceeded);
+        ensure!(paths.len() > index, Error::<T>::IndexExceedsMaximum);
         Ok(paths[index].clone())
     }
 
@@ -749,8 +798,8 @@ impl<T: Config> Pallet<T> {
         nodes: &Vec<T::AccountId>,
         target: &T::AccountId,
     ) -> DispatchResult {
-        ensure!(nodes.len() >= 2, Error::<T>::DepthLimitExceeded);
-        ensure!(nodes.contains(&target), Error::<T>::DepthLimitExceeded);
+        ensure!(nodes.len() >= 2, Error::<T>::PathTooTooShort);
+        ensure!(nodes.contains(&target), Error::<T>::PathDoesNotExist);
         T::TrustBase::valid_nodes(&nodes)?;
         Ok(())
     }
@@ -764,12 +813,12 @@ impl<T: Config> Pallet<T> {
         for p in paths {
             ensure!(
                 p.total > 0 && p.total < MAX_SHORTEST_PATH,
-                Error::<T>::DepthLimitExceeded
+                Error::<T>::PathTooLong
             );
             let (start,stop) = Self::get_ends(&p);
             ensure!(
                 Self::to_full_order(start,stop,deep) == *order,
-                Error::<T>::DepthLimitExceeded
+                Error::<T>::OrderNotMatch
             );
             Self::checked_nodes(&p.nodes, target)?;
         }
@@ -781,7 +830,7 @@ impl<T: Config> Pallet<T> {
         let next_level_order = r_hashs_sets.last().unwrap().0[*index].order.to_vec();
         let deep = r_hashs_sets.len();
         let mut full_order = FullOrder::from_u64(old_order, deep);
-        full_order.connect_to_u64(&next_level_order).ok_or(Error::<T>::DepthLimitExceeded)
+        full_order.connect_to_u64(&next_level_order).ok_or(Error::<T>::ConverError)
     }
 
     pub(crate) fn update_result_hashs(
@@ -797,16 +846,16 @@ impl<T: Config> Pallet<T> {
 
         match next {
             true => {
-                ensure!(!r_hashs_sets.is_empty(), Error::<T>::DepthLimitExceeded);
+                ensure!(!r_hashs_sets.is_empty(), Error::<T>::DataEmpty);
                 let mut r_hashs_vec = r_hashs_sets[current_deep - 1].0.clone();
                 r_hashs_vec.extend_from_slice(&new_r_hashs[..]);
                 let full_hashs_set = OrderedSet::from(r_hashs_vec.clone());
-                ensure!(r_hashs_vec.len() == full_hashs_set.len(), Error::<T>::DepthLimitExceeded);
+                ensure!(r_hashs_vec.len() == full_hashs_set.len(), Error::<T>::DataDuplication);
                 r_hashs_sets[current_deep -1] = full_hashs_set;
             },
             false => {
                 let r_hashs_set = OrderedSet::from(new_r_hashs.clone());
-                ensure!(new_r_hashs.len() == r_hashs_set.len(), Error::<T>::DepthLimitExceeded);
+                ensure!(new_r_hashs.len() == r_hashs_set.len(), Error::<T>::DataDuplication);
                 r_hashs_sets.push(r_hashs_set);
             },
         }
@@ -831,7 +880,7 @@ impl<T: Config> Pallet<T> {
                     Self::checked_nodes(&p.nodes, &target)?;
                     ensure!(
                         p.total < 100,
-                        Error::<T>::DepthLimitExceeded
+                        Error::<T>::LengthTooLong
                     );
                     // Two-digit accuracy
                     let score = 100 / p.total;
@@ -839,7 +888,7 @@ impl<T: Config> Pallet<T> {
                 })?;
         let total_score = enlarged_total_score
             .checked_div(100)
-            .ok_or(Error::<T>::DepthLimitExceeded)?;
+            .ok_or(Error::<T>::Overflow)?;
 
         // [AccountId,AccountId,total-...AccountId,AccountId,total-]
         let list_v = paths
@@ -865,12 +914,12 @@ impl<T: Config> Pallet<T> {
 
         ensure!(
             Self::check_hash(&list_v[..], &result_hash.hash),
-            Error::<T>::DepthLimitExceeded
+            Error::<T>::HashMismatch
         );
 
         ensure!(
             total_score as u64 == result_hash.score,
-            Error::<T>::DepthLimitExceeded
+            Error::<T>::ScoreMismatch
         );
         Ok(())
     }
@@ -895,7 +944,7 @@ impl<T: Config> Pallet<T> {
                 }
                 ensure!(
                     r.order.len() == RANGE as usize,
-                    Error::<T>::DepthLimitExceeded
+                    Error::<T>::OrderNotMatch
                 );
                 acc.checked_add(r.score)
                     .ok_or_else(|| Error::<T>::Overflow.into())
@@ -908,12 +957,12 @@ impl<T: Config> Pallet<T> {
                         data.as_slice(),
                         &result_hashs[deep - 2].0[index as usize].hash
                     ),
-                    Error::<T>::DepthLimitExceeded
+                    Error::<T>::HashMismatch
                 );
                 result_hashs[deep - 2].0[index as usize].score
             }
         };
-        ensure!(fold_score == total_score, Error::<T>::DepthLimitExceeded);
+        ensure!(fold_score == total_score, Error::<T>::ScoreMismatch);
         Ok(())
     }
 
@@ -933,7 +982,7 @@ impl<T: Config> Pallet<T> {
                 let p_path = Self::get_pathfinder_paths(&target, &index)?;
                 ensure!(
                     (count as u32) == p_path.total,
-                    Error::<T>::DepthLimitExceeded
+                    Error::<T>::LengthNotEqual
                 );
                 let (start, stop) = Self::get_ends(&p_path);
                 for mid_path in mid_paths {
