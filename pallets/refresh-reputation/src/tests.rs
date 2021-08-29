@@ -287,7 +287,7 @@ harvest_ref_all_should_work! {
 }
 
 fn init_sys(score: u32) {
-    let init_seeds = vec![SEED1, SEED2, SEED3];
+    let init_seeds = vec![SEED1, SEED2, SEED3, SEED4];
     for seed in init_seeds {
         ZdSeeds::add_seed(&seed);
     }
@@ -297,6 +297,7 @@ fn init_sys(score: u32) {
         vec![SEED3, TARGET],
         vec![SEED3, ALICE, TARGET],
         vec![SEED3, ALICE, BOB, TARGET],
+        vec![SEED4, TARGET],
     ];
     for path in init_paths {
         // println!("path: {:?}",path);
@@ -544,7 +545,7 @@ fn arbitral_should_work() {
         assert_ok!(ZdRefreshReputation::challenge_update(
             Origin::signed(CHALLENGER),
             TARGET,
-            vec![SEED1, SEED1, SEED3],
+            vec![SEED1, SEED2, SEED3],
             paths.clone()
         ));
 
@@ -571,16 +572,144 @@ fn arbitral_should_work() {
             ]
         ));
 
+        // Allow challengers to fix errors within ChallengeTimeout
         assert_ok!(ZdRefreshReputation::arbitral(
             Origin::signed(CHALLENGER),
             TARGET,
             vec![SEED3],
-            vec![
-                Path {
-                    nodes: vec![ALICE],
-                    score: 5,
-                }
-            ]
+            vec![Path {
+                nodes: vec![ALICE],
+                score: 5,
+            }]
         ));
+
+        System::set_block_number(ChallengeTimeout::get() + 10);
+
+        assert_ok!(ZdRefreshReputation::arbitral(
+            Origin::signed(SUB_CHALLENGER),
+            TARGET,
+            vec![SEED3],
+            vec![Path {
+                nodes: vec![],
+                score: 28,
+            }]
+        ));
+        assert_eq!(ZdTrust::is_trust(&SEED4, &TARGET),true);
+        assert_ok!(ZdRefreshReputation::arbitral(
+            Origin::signed(SUB_CHALLENGER),
+            TARGET,
+            vec![SEED4],
+            vec![Path {
+                nodes: vec![],
+                score: 28,
+            }]
+        ));
+    });
+}
+
+#[test]
+fn arbitral_should_fail() {
+    new_test_ext().execute_with(|| {
+        init_sys(100);
+        let paths = vec![
+            Path {
+                nodes: vec![],
+                score: 11,
+            },
+            Path {
+                nodes: vec![ALICE, BOB],
+                score: 21,
+            },
+            Path {
+                nodes: vec![ALICE],
+                score: 5,
+            },
+        ];
+        assert_ok!(ZdRefreshReputation::challenge(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            PATHFINDER,
+            3,
+            20
+        ));
+        assert_ok!(ZdRefreshReputation::challenge_update(
+            Origin::signed(CHALLENGER),
+            TARGET,
+            vec![SEED1, SEED2, SEED3],
+            paths.clone()
+        ));
+        /*
+        vec![SEED1, ALICE, TARGET],
+        vec![SEED2, ALICE, BOB, TARGET],
+        vec![SEED3, TARGET],
+        vec![SEED3, ALICE, TARGET],
+        vec![SEED3, ALICE, BOB, TARGET],
+        score1 : 1000 / 1.max(5) / (1000 - 0).ln() = 28.5714
+                28 / 2.max(5) / 1 = 5.6
+        score2 : 1000 / 1.max(5) / (1000 - 0).ln() = 28.5714
+                28 / 2.max(5) / (0 - 0).ln() = 5.6
+                5 / 1.max(5) / (0 - 0).ln() = 1
+        score3 : 1000 / 2.max(5) / (1000 - 0).ln() = 28.5714
+         */
+
+        assert_err_ignore_postinfo!(
+            ZdRefreshReputation::arbitral(
+                Origin::signed(CHALLENGER),
+                TARGET,
+                vec![SEED3],
+                vec![
+                    Path {
+                        nodes: vec![ALICE],
+                        score: 5,
+                    },
+                    Path {
+                        nodes: vec![ALICE],
+                        score: 5,
+                    }
+                ]
+            ),
+            Error::<Test>::NotMatch
+        );
+
+        assert_err_ignore_postinfo!(
+            ZdRefreshReputation::arbitral(
+                Origin::signed(CHALLENGER),
+                TARGET,
+                vec![SEED3],
+                vec![
+                    Path {
+                        nodes: vec![BOB],
+                        score: 5,
+                    },
+                ]
+            ),
+            Error::<Test>::DistErr
+        );
+
+        assert_err_ignore_postinfo!(
+            ZdRefreshReputation::arbitral(
+                Origin::signed(CHALLENGER),
+                TARGET,
+                vec![SEED3],
+                vec![Path {
+                    nodes: vec![],
+                    score: 25,
+                }]
+            ),
+            Error::<Test>::DistErr
+        );
+
+        assert_err_ignore_postinfo!(
+            ZdRefreshReputation::arbitral(
+                Origin::signed(CHALLENGER),
+                TARGET,
+                vec![SEED3],
+                vec![Path {
+                    nodes: vec![ALICE, BOB],
+                    score: 1,
+                }]
+            ),
+            Error::<Test>::DistTooLong
+        );
     });
 }

@@ -34,6 +34,8 @@ pub const TARGET: AccountId = 13;
 
 pub const SUB_CHALLENGER: AccountId = 14;
 
+pub const SEED4: AccountId = 15;
+
 pub const ZDAO: CurrencyId = 1;
 
 pub const INIT_PERIOD: BlockNumber = 10;
@@ -126,7 +128,7 @@ parameter_types! {
     pub const UpdateStakingAmount: Balance = 1_000_000_000;
 	/// Response time period of challenge system.
 	pub const ChallengeTimeout: BlockNumber = 100;
-    	/// Response time period of challenge system.
+    /// Response time period of challenge system.
 	pub const ChallengeStakingAmount: Balance = 100;
 }
 
