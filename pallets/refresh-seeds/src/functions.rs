@@ -219,7 +219,7 @@ impl<T: Config> Pallet<T> {
         target: &T::AccountId,
         result_hash: &ResultHash,
     ) -> DispatchResult {
-        let enlarged_total_score =
+        let total_score =
             paths
                 .iter()
                 .try_fold::<_, _, Result<u32, DispatchError>>(0u32, |acc, p| {
@@ -232,9 +232,6 @@ impl<T: Config> Pallet<T> {
                     let score = 100 / p.total;
                     Ok(acc.saturating_add(score))
                 })?;
-        let total_score = enlarged_total_score
-            .checked_div(100)
-            .ok_or(Error::<T>::Overflow)?;
 
         // [AccountId,AccountId,total-...AccountId,AccountId,total-]
         let list_v = paths
