@@ -233,7 +233,7 @@ impl<T: Config> Pallet<T> {
                     Ok(acc.saturating_add(score))
                 })?;
 
-        // [AccountId,AccountId,total-...AccountId,AccountId,total-]
+        // [AccountId,AccountId,total;...AccountId,AccountId,total;]
         let list_v = paths
             .iter()
             .flat_map(|path| {
@@ -249,8 +249,8 @@ impl<T: Config> Pallet<T> {
                     .collect::<Vec<u8>>();
                 // path.total < 100
                 nodes_v.push(path.total as u8);
-                // push `-`
-                nodes_v.push(45u8);
+                // push `;`
+                nodes_v.push(59u8);
                 nodes_v
             })
             .collect::<Vec<u8>>();
