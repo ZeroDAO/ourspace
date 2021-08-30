@@ -17,24 +17,15 @@ pub type AccountId = u32;
 pub type CurrencyId = u128;
 pub type BlockNumber = u64;
 
-pub const ALICE: AccountId = 1;
-pub const BOB: AccountId = 2;
-pub const CHARLIE: AccountId = 3;
-pub const DAVE: AccountId = 4;
-pub const EVE: AccountId = 5;
-pub const FERDIE: AccountId = 6;
+pub const A: AccountId = 1;
+pub const B: AccountId = 2;
+pub const C: AccountId = 3;
+pub const D: AccountId = 4;
+pub const E: AccountId = 5;
+
 pub const CHALLENGER: AccountId = 7;
 pub const PATHFINDER: AccountId = 8;
 pub const SWEEPRT: AccountId = 9;
-
-pub const SEED1: AccountId = 10;
-pub const SEED2: AccountId = 11;
-pub const SEED3: AccountId = 12;
-pub const TARGET: AccountId = 13;
-
-pub const SUB_CHALLENGER: AccountId = 14;
-
-pub const SEED4: AccountId = 15;
 
 pub const ZDAO: CurrencyId = 1;
 
@@ -220,13 +211,12 @@ impl Default for ExtBuilder {
     fn default() -> Self {
         Self {
             endowed_accounts: vec![
-                (ALICE, ZDAO, 1000_000_000_000_000u128),
-                (BOB, ZDAO, 1000_000_000_000_000u128),
-                (FERDIE, ZDAO, 1000_000_000_000_000u128),
+                (A, ZDAO, 1000_000_000_000_000u128),
+                (B, ZDAO, 1000_000_000_000_000u128),
+                (C, ZDAO, 1000_000_000_000_000u128),
                 (PATHFINDER, ZDAO, 1000_000_000_000_000u128),
                 (CHALLENGER, ZDAO, 1000_000_000_000_000u128),
                 (SWEEPRT, ZDAO, 1000_000_000u128),
-                (SUB_CHALLENGER, ZDAO, 1000_000_000_000_000u128),
             ],
             period: INIT_PERIOD,
         }
