@@ -151,6 +151,8 @@ pub mod pallet {
         HashMismatch,
         /// Score mismatch
         ScoreMismatch,
+        /// The data submitted is invalid
+        PostConverFail,
     }
 
     #[pallet::hooks]
@@ -243,12 +245,12 @@ pub mod pallet {
         pub fn reply_hash(
             origin: OriginFor<T>,
             target: T::AccountId,
-            result_hashs: Vec<ResultHash>,
+            hashs: Vec<PostResultHash>,
             quantity: u32,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
-            let count = result_hashs.len();
+            let count = hashs.len();
             ensure!(quantity <= MAX_HASH_COUNT, Error::<T>::QuantityExceedsLimit);
             let _ = T::ChallengeBase::reply(
                 &APP_ID,
@@ -258,7 +260,7 @@ pub mod pallet {
                 count as u32,
                 |is_all_done, index,order| -> Result<u64, DispatchError> {
                     let new_order = Self::get_next_order(&target, &order, &(index as usize))?;
-                    Self::update_result_hashs(&target, &result_hashs, is_all_done, index,false)?;
+                    Self::update_result_hashs(&target, &hashs, is_all_done, index,false)?;
                     Ok(new_order)
                 },
             )?;
@@ -270,18 +272,18 @@ pub mod pallet {
         pub fn reply_hash_next(
             origin: OriginFor<T>,
             target: T::AccountId,
-            result_hashs: Vec<ResultHash>,
+            hashs: Vec<PostResultHash>,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
-            let count = result_hashs.len();
+            let count = hashs.len();
             T::ChallengeBase::next(
                 &APP_ID,
                 &challenger,
                 &target,
                 &(count as u32),
                 |_, index, is_all_done| -> Result<(u64,u32), DispatchError> {
-                    Self::update_result_hashs(&target, &result_hashs, is_all_done, index,true)?;
+                    Self::update_result_hashs(&target, &hashs, is_all_done, index,true)?;
                     Ok((Zero::zero(), index))
                 },
             )?;

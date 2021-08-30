@@ -16,7 +16,8 @@ pub struct Candidate<AccountId> {
     pub pathfinder: AccountId,
 }
 
-#[derive(Encode, Decode, Clone, Default, Ord, PartialOrd, PartialEq, Eq, RuntimeDebug)]pub struct FullOrder(pub Vec<u8>);
+#[derive(Encode, Decode, Clone, Default, Ord, PartialOrd, PartialEq, Eq, RuntimeDebug)]
+pub struct FullOrder(pub Vec<u8>);
 impl FullOrder {
     pub fn to_u64(&mut self) -> Option<u64> {
         let len = self.0.len();
@@ -46,6 +47,30 @@ impl FullOrder {
     pub fn connect_to_u64(&mut self, order: &Vec<u8>) -> Option<u64> {
         self.connect(order);
         self.to_u64()
+    }
+}
+
+#[derive(Encode, Decode, Clone, Ord, PartialOrd, PartialEq, Eq, Default, RuntimeDebug)]
+pub struct PostResultHash(String, u64, String);
+
+impl PostResultHash {
+    // TODO Adopt more efficient encoding
+    pub fn to_result_hash(&self) -> Option<ResultHash> {
+        // TODO too wordy 
+        let order_slice = self.0.as_bytes();
+        let hash_slice = self.2.as_bytes();
+        if order_slice.len() != RANGE || hash_slice.len() != 8 {
+            return None;
+        }
+        let mut order: [u8;RANGE] = Default::default();
+        let mut hash: [u8;8] = Default::default();
+        order.clone_from_slice(order_slice);
+        hash.clone_from_slice(hash_slice);
+        Some(ResultHash {
+            order,
+            score: self.1,
+            hash,
+        })
     }
 }
 
@@ -83,4 +108,3 @@ pub struct Path<AccountId> {
     pub nodes: Vec<AccountId>,
     pub total: u32,
 }
-

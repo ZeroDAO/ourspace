@@ -181,11 +181,14 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn update_result_hashs(
         target: &T::AccountId,
-        new_r_hashs: &Vec<ResultHash>,
+        hashs: &Vec<PostResultHash>,
         do_verify: bool,
         index: u32,
         next: bool,
     ) -> DispatchResult {
+        let new_r_hashs = hashs.iter()
+            .map(|h|h.to_result_hash().ok_or(Error::<T>::PostConverFail))
+            .collect::<Result<Vec<ResultHash>, Error<T>>>()?;
         let mut r_hashs_sets = <ResultHashsSets<T>>::get(target);
         let current_deep = r_hashs_sets.len();
         ensure!((current_deep as u8) < DEEP, Error::<T>::DepthLimitExceeded);
