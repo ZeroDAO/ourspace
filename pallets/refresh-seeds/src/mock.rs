@@ -17,11 +17,11 @@ pub type AccountId = u32;
 pub type CurrencyId = u128;
 pub type BlockNumber = u64;
 
-pub const A: AccountId = 1;
-pub const B: AccountId = 2;
-pub const C: AccountId = 3;
-pub const D: AccountId = 4;
-pub const E: AccountId = 5;
+pub const A: AccountId = u32::from_le_bytes([48,48,48,49]); // 0001
+pub const B: AccountId = u32::from_le_bytes([48,48,48,50]); // 0002
+pub const C: AccountId = u32::from_le_bytes([48,48,48,51]); // 0003
+pub const D: AccountId = u32::from_le_bytes([48,48,48,52]); // 0004
+pub const E: AccountId = u32::from_le_bytes([48,48,48,53]); // 0005
 
 pub const CHALLENGER: AccountId = 7;
 pub const PATHFINDER: AccountId = 8;
@@ -114,6 +114,7 @@ impl zd_refresh_seeds::Config for Test {
 	type MultiBaseToken = ZdToken;
 	type SeedStakingAmount = SeedStakingAmount;
 	type MaxSeedCount = MaxSeedCount;
+    type ConfirmationPeriod = ConfirmationPeriod;
 }
 
 parameter_types! {

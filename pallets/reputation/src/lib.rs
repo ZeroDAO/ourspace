@@ -174,6 +174,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
             operation_status.nonce += 1;
             operation_status.next = next;
             operation_status.last = now_block_number;
+            operation_status.step = TIRStep::SEED;
             Ok(())
         })
     }

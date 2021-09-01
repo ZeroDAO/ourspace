@@ -11,9 +11,11 @@ pub const MAX_SHORTEST_PATH: u32 = 100;
 pub const MAX_HASH_COUNT: u32 = 16u32.pow(RANGE as u32);
 
 #[derive(Encode, Decode, Clone, Default, Ord, PartialOrd, PartialEq, Eq, RuntimeDebug)]
-pub struct Candidate<AccountId> {
+pub struct Candidate<AccountId,BlockNumber> {
     pub score: u64,
     pub pathfinder: AccountId,
+    pub has_challenge: bool,
+    pub add_at: BlockNumber,
 }
 
 #[derive(Encode, Decode, Clone, Default, Ord, PartialOrd, PartialEq, Eq, RuntimeDebug)]
@@ -32,10 +34,11 @@ impl FullOrder {
 
     pub fn from_u64(from: &u64, deep: usize) -> Self {
         let mut full_order = FullOrder::default();
-        if deep > 8 {
+        let len = (deep - 1) * (RANGE as usize);
+        if len > 10 {
             full_order.0 = u64::to_le_bytes(*from).to_vec();
         } else {
-            full_order.0 = u64::to_le_bytes(*from)[..deep].to_vec();
+            full_order.0 = u64::to_le_bytes(*from)[..len].to_vec();
         }
         full_order
     }
@@ -51,7 +54,7 @@ impl FullOrder {
 }
 
 #[derive(Encode, Decode, Clone, Ord, PartialOrd, PartialEq, Eq, Default, RuntimeDebug)]
-pub struct PostResultHash(String, u64, String);
+pub struct PostResultHash(pub String, pub u64, pub String);
 
 impl PostResultHash {
     // TODO Adopt more efficient encoding
@@ -107,4 +110,23 @@ impl PartialEq for ResultHash {
 pub struct Path<AccountId> {
     pub nodes: Vec<AccountId>,
     pub total: u32,
+}
+
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn from_u64() {
+		let mut full_order = FullOrder::from_u64(&0u64,1);
+        assert_eq!(full_order.0, Vec::<u8>::new());
+        let order_u64 = full_order.to_u64();
+        assert_eq!(order_u64, Some(0));
+
+        let mut full_order = FullOrder::from_u64(&0u64,0);
+        let connect_vec = vec![12u8,16u8];
+        let order_u64 = full_order.connect_to_u64(&connect_vec).unwrap();
+        assert_eq!(FullOrder::from_u64(&order_u64,2).0, connect_vec);
+	}
 }

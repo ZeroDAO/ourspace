@@ -473,10 +473,21 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
                 ensure!(*count <= MAX_UPDATE_COUNT, Error::<T>::TooMany);
 
-                ensure!(
-                    challenge.is_challenger(&who),
-                    Error::<T>::NoPermission
-                );
+                match challenge.status {
+                    ChallengeStatus::REPLY => {
+                        ensure!(
+                            challenge.is_pathfinder(&who),
+                            Error::<T>::NoPermission
+                        );
+                    },
+                    _ => {
+                        ensure!(
+                            challenge.is_challenger(&who),
+                            Error::<T>::NoPermission
+                        );
+                    },
+                }
+
                 ensure!(challenge.next(*count).check_progress(), Error::<T>::ProgressErr);
                 let is_all_done = challenge.is_all_done();
                 let (score, remark) = up(challenge.score, challenge.remark, is_all_done)?;

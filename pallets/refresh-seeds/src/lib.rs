@@ -7,15 +7,12 @@ use frame_support::{
     RuntimeDebug,
 };
 use frame_system::{self as system};
-use sha1::{Digest, Sha1};
 use orml_utilities::OrderedSet;
+use sha1::{Digest, Sha1};
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
 use zd_traits::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
-use sp_runtime::{
-    traits::Zero,
-    DispatchError, DispatchResult,
-};
+use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
 use sp_std::{cmp::Ordering, vec::Vec};
 
 pub use pallet::*;
@@ -33,8 +30,8 @@ mod tests;
 pub mod pallet {
 
     use super::*;
-    use frame_system::{ensure_signed, pallet_prelude::*};
     use frame_support::pallet_prelude::*;
+    use frame_system::{ensure_signed, pallet_prelude::*};
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -48,6 +45,8 @@ pub mod pallet {
         type SeedStakingAmount: Get<Balance>;
         #[pallet::constant]
         type MaxSeedCount: Get<u32>;
+        #[pallet::constant]
+        type ConfirmationPeriod: Get<Self::BlockNumber>;
     }
 
     #[pallet::pallet]
@@ -61,8 +60,13 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn get_candidate)]
-    pub type Candidates<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, Candidate<T::AccountId>, ValueQuery>;
+    pub type Candidates<T: Config> = StorageMap<
+        _,
+        Twox64Concat,
+        T::AccountId,
+        Candidate<T::AccountId, T::BlockNumber>,
+        ValueQuery,
+    >;
 
     #[pallet::storage]
     #[pallet::getter(fn get_score_list)]
@@ -79,8 +83,8 @@ pub mod pallet {
         StorageMap<_, Twox64Concat, T::AccountId, Vec<T::AccountId>, ValueQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn get_last_refresh_at)]
-    pub type LastRefreshAt<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
+    #[pallet::getter(fn seeds_confirmed)]
+    pub type SeedsConfirmed<T: Config> = StorageValue<_, bool, ValueQuery>;
 
     #[pallet::event]
     #[pallet::metadata(T::AccountId = "AccountId")]
@@ -93,8 +97,8 @@ pub mod pallet {
     pub enum Error<T> {
         /// Already exists
         AlreadyExist,
-        /// No permission or wrong time
-        NoUpdatesAllowed,
+        /// No candidate exists
+        NoCandidateExists,
         // No corresponding data exists
         NotExist,
         /// Depth limit exceeded
@@ -130,8 +134,8 @@ pub mod pallet {
         /// There are still unearned challenges
         StillUnharvestedChallenges,
         /// score list is not empty
-        ScoreListNotEmpty,
-        /// Step is not match 
+        ScoreListEmpty,
+        /// Step is not match
         StepNotMatch,
         /// Path does not exist
         PathDoesNotExist,
@@ -153,6 +157,12 @@ pub mod pallet {
         ScoreMismatch,
         /// The data submitted is invalid
         PostConverFail,
+        /// Already challenged
+        AlreadyChallenged,
+        ///
+        ResultHashNotExit,
+        /// Unconfirmed data still available
+        StillUnconfirmed,
     }
 
     #[pallet::hooks]
@@ -177,7 +187,7 @@ pub mod pallet {
             let pathfinder = ensure_signed(origin)?;
             Self::check_step()?;
             ensure!(
-                <Candidates<T>>::contains_key(target.clone()),
+                !<Candidates<T>>::contains_key(target.clone()),
                 Error::<T>::AlreadyExist
             );
             T::MultiBaseToken::staking(&pathfinder, &T::SeedStakingAmount::get())?;
@@ -194,8 +204,10 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
+            // TODO 是否超过确认周期
             let candidate = <Candidates<T>>::try_get(target.clone())
-                .map_err(|_err| Error::<T>::NoUpdatesAllowed)?;
+                .map_err(|_err| Error::<T>::NoCandidateExists)?;
+            ensure!(!candidate.has_challenge, Error::<T>::AlreadyChallenged);
             T::ChallengeBase::new(
                 &APP_ID,
                 &challenger,
@@ -207,6 +219,7 @@ pub mod pallet {
                 score,
                 Zero::zero(),
             )?;
+            <Candidates<T>>::mutate(&target, |c| c.has_challenge = true);
             T::Reputation::set_last_refresh_at();
             Ok(().into())
         }
@@ -219,8 +232,8 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
-            let result_hash_sets =
-                <ResultHashsSets<T>>::try_get(&target).map_err(|_| Error::<T>::DepthLimitExceeded)?;
+            let result_hash_sets = <ResultHashsSets<T>>::try_get(&target)
+                .map_err(|_| Error::<T>::DepthLimitExceeded)?;
             match <Paths<T>>::try_get(&target) {
                 Ok(paths) => {
                     ensure!(
@@ -258,9 +271,9 @@ pub mod pallet {
                 &target,
                 quantity,
                 count as u32,
-                |is_all_done, index,order| -> Result<u64, DispatchError> {
+                |is_all_done, index, order| -> Result<u64, DispatchError> {
                     let new_order = Self::get_next_order(&target, &order, &(index as usize))?;
-                    Self::update_result_hashs(&target, &hashs, is_all_done, index,false)?;
+                    Self::update_result_hashs(&target, &hashs, is_all_done, index, false)?;
                     Ok(new_order)
                 },
             )?;
@@ -282,8 +295,8 @@ pub mod pallet {
                 &challenger,
                 &target,
                 &(count as u32),
-                |_, index, is_all_done| -> Result<(u64,u32), DispatchError> {
-                    Self::update_result_hashs(&target, &hashs, is_all_done, index,true)?;
+                |_, index, is_all_done| -> Result<(u64, u32), DispatchError> {
+                    Self::update_result_hashs(&target, &hashs, is_all_done, index, true)?;
                     Ok((Zero::zero(), index))
                 },
             )?;
@@ -304,8 +317,8 @@ pub mod pallet {
                 <Paths<T>>::try_get(&target).is_err(),
                 Error::<T>::AlreadyExists
             );
-            let hash_len = <ResultHashsSets<T>>::decode_len(&target)
-                .ok_or_else(|| Error::<T>::NonExistent)?;
+            let hash_len =
+                <ResultHashsSets<T>>::decode_len(&target).ok_or_else(|| Error::<T>::NonExistent)?;
             ensure!(hash_len == DEEP as usize, Error::<T>::DepthDoesNotMatch);
             ensure!(!paths.is_empty(), Error::<T>::NoPath);
             let mut paths = paths;
@@ -319,12 +332,18 @@ pub mod pallet {
                 quantity,
                 count as u32,
                 |is_all_done, index, order| -> Result<u64, DispatchError> {
-                    let deep = <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::NonExistent)?;
-                    let r_hashs =
-                        <ResultHashsSets<T>>::get(&target).last().unwrap().0[index as usize].clone();
-                    Self::checked_paths_vec(&paths, &target, &FullOrder::from_u64(&order, deep).0, deep)?;
+                    let index = index as usize;
+                    let deep =
+                        <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::NonExistent)?;
+                    let r_hashs_sets = <ResultHashsSets<T>>::get(&target);
+                    let full_order = Self::get_full_order(&r_hashs_sets, &order, &index)?;
+                    Self::checked_paths_vec(&paths, &target, &full_order.0, deep)?;
                     if is_all_done {
-                        Self::verify_paths(&paths, &target, &r_hashs)?;
+                        Self::verify_paths(
+                            &paths,
+                            &target,
+                            &r_hashs_sets.last().unwrap().0[index].clone(),
+                        )?;
                     }
                     <Paths<T>>::insert(&target, &paths);
                     Ok(order)
@@ -350,9 +369,11 @@ pub mod pallet {
                 &target,
                 &(count as u32),
                 |order, index, is_all_done| -> Result<(u64, u32), DispatchError> {
-                    let deep = <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::DepthLimitExceeded)?;
-                    let r_hashs =
-                        <ResultHashsSets<T>>::get(&target).last().unwrap().0[index as usize].clone();
+                    let deep = <ResultHashsSets<T>>::decode_len(&target)
+                        .ok_or(Error::<T>::DepthLimitExceeded)?;
+                    let r_hashs = <ResultHashsSets<T>>::get(&target).last().unwrap().0
+                        [index as usize]
+                        .clone();
                     let mut full_paths = <Paths<T>>::get(&target);
 
                     full_paths.extend_from_slice(&paths);
@@ -362,7 +383,12 @@ pub mod pallet {
 
                     ensure!(old_len == full_paths.len(), Error::<T>::NotMatch);
 
-                    Self::checked_paths_vec(&paths, &target, &FullOrder::from_u64(&order, deep).0, deep)?;
+                    Self::checked_paths_vec(
+                        &paths,
+                        &target,
+                        &FullOrder::from_u64(&order, deep).0,
+                        deep,
+                    )?;
 
                     if is_all_done {
                         Self::verify_paths(&full_paths, &target, &r_hashs)?;
@@ -404,10 +430,11 @@ pub mod pallet {
             Self::check_step()?;
             Self::checked_nodes(&nodes, &target)?;
 
-            let (start,stop) = Self::get_nodes_ends(&nodes);
+            let (start, stop) = Self::get_nodes_ends(&nodes);
 
-            let deep = <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::DepthLimitExceeded)?;
-            let full_order = Self::to_full_order(&start,&stop,deep + 1);
+            let deep =
+                <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::DepthLimitExceeded)?;
+            let full_order = Self::to_full_order(&start, &stop, deep + 1);
 
             let maybe_score = T::ChallengeBase::evidence(
                 &APP_ID,
@@ -443,10 +470,7 @@ pub mod pallet {
                             let result_hash_sets = <ResultHashsSets<T>>::try_get(&target)
                                 .map_err(|_| Error::<T>::DepthLimitExceeded)?;
                             let last_r_hash = &result_hash_sets.last().unwrap().0;
-                            ensure!(
-                                index < last_r_hash.len(),
-                                Error::<T>::IndexExceedsMaximum
-                            );
+                            ensure!(index < last_r_hash.len(), Error::<T>::IndexExceedsMaximum);
                             let segment_order = full_order[deep..].to_vec();
                             if index > 0 {
                                 ensure!(
@@ -487,7 +511,7 @@ pub mod pallet {
             Self::checked_nodes(&nodes, &target)?;
 
             let p_path = Self::get_pathfinder_paths(&target, &index)?;
-            let (start,stop) = Self::get_ends(&p_path);
+            let (start, stop) = Self::get_ends(&p_path);
 
             ensure!(
                 *start == nodes[0] && stop == nodes.last().unwrap(),
@@ -544,10 +568,7 @@ pub mod pallet {
                         }
                         ensure!(path.len() == p_path_len, Error::<T>::LengthNotEqual);
                     }
-                    ensure!(
-                        mid_paths.len() > p_path_total,
-                        Error::<T>::TooFewInNumber
-                    );
+                    ensure!(mid_paths.len() > p_path_total, Error::<T>::TooFewInNumber);
                     Ok(false)
                 },
             )?;
@@ -576,7 +597,9 @@ pub mod pallet {
                 &APP_ID,
                 &challenger,
                 &target,
-                |_,_| -> Result<(bool, bool, u64), DispatchError> { Ok((afer_target, true, score)) },
+                |_, _| -> Result<(bool, bool, u64), DispatchError> {
+                    Ok((afer_target, true, score))
+                },
             )?;
             if afer_target {
                 Self::restart(&target, &challenger, &score);
@@ -604,59 +627,66 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             Self::check_step()?;
-            ensure!(
-                T::ChallengeBase::is_all_harvest(&APP_ID),
-                Error::<T>::StillUnharvestedChallenges
-            );
-            let is_sweeper = who == target;
             let mut score_list = Self::get_score_list();
-            ensure!(score_list.is_empty(), Error::<T>::ScoreListNotEmpty);
-            let len = Self::hand_first_time(&mut score_list);
+            let is_all_confirmed = Self::seeds_confirmed();
+            if !is_all_confirmed {
+                ensure!(
+                    T::ChallengeBase::is_all_harvest(&APP_ID),
+                    Error::<T>::StillUnharvestedChallenges
+                );
+                ensure!(Self::is_all_timeout(), Error::<T>::StillUnconfirmed);
+                Self::hand_first_time(&mut score_list);
+            }
+            let len = score_list.len();
             let candidate = <Candidates<T>>::take(&target);
-            if !score_list.is_empty() && candidate.score >= score_list[0] {
-                if let Ok(index) = score_list.binary_search(&candidate.score) {
-                    T::SeedsBase::add_seed(&target);
-                    score_list.remove(index);
-                    let bonus = T::MultiBaseToken::get_bonus_amount();
-                    let amount = bonus / (len as Balance);
-                    match is_sweeper {
-                        true => {
-                            let now_block_number = system::Module::<T>::block_number();
-                            let last = Self::get_last_refresh_at();
-                            if let Some((s_amount, p_amount)) =
-                                amount.checked_with_fee(last, now_block_number)
-                            {
-                                T::MultiBaseToken::release(&who, &s_amount)?;
-                                T::MultiBaseToken::release(&candidate.pathfinder, &p_amount)?;
-                            }
-                        }
-                        false => {
-                            T::MultiBaseToken::release(&candidate.pathfinder, &amount)?;
+            let staking_amount = if candidate.has_challenge {
+                T::SeedStakingAmount::get()
+            } else {
+                Zero::zero()
+            };
+            let (bonus, maybe_index) =
+                match !score_list.is_empty() && candidate.score >= score_list[0] {
+                    true => {
+                        if let Ok(index) = score_list.binary_search(&candidate.score) {
+                            (
+                                T::MultiBaseToken::get_bonus_amount() / (len as Balance),
+                                Some(index),
+                            )
+                        } else {
+                            (Zero::zero(), None)
                         }
                     }
-                }
-            }
-
-            if score_list.is_empty() || Self::is_all_harvest() {
-                T::Reputation::set_step(&TIRStep::REPUTATION);
-            }
-            <ScoreList<T>>::put(score_list);
-            Ok(().into())
-        }
-
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn skim(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
-            let _ = ensure_signed(origin)?;
-            match Self::is_all_harvest() {
+                    false => (Zero::zero(), None),
+                };
+            let total_amount = bonus
+                .checked_add(staking_amount)
+                .ok_or(Error::<T>::Overflow)?;
+            match who == candidate.pathfinder {
                 true => {
-                    <ScoreList<T>>::kill();
+                    let last = T::Reputation::get_last_refresh_at();
+                    let (s_amount, p_amount) = total_amount
+                        .checked_with_fee(last, Self::now())
+                        .ok_or(Error::<T>::Overflow)?;
+                    T::MultiBaseToken::release(&who, &s_amount)?;
+                    T::MultiBaseToken::release(&candidate.pathfinder, &p_amount)?;
                 }
                 false => {
-                    if <ScoreList<T>>::get().is_empty() {
-                        <Candidates<T>>::remove_all();
-                    }
+                    T::MultiBaseToken::release(&candidate.pathfinder, &total_amount)?;
                 }
             }
+            if let Some(index) = maybe_index {
+                T::SeedsBase::add_seed(&target);
+                score_list.remove(index);
+            }
+            if Self::is_all_harvest() {
+                <SeedsConfirmed<T>>::put(false);
+                T::Reputation::set_step(&TIRStep::REPUTATION);
+            } else {
+                if !is_all_confirmed {
+                    <SeedsConfirmed<T>>::put(true);
+                } 
+            }
+            <ScoreList<T>>::put(score_list);
             Ok(().into())
         }
     }

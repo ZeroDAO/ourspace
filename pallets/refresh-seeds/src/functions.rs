@@ -1,6 +1,15 @@
 use crate::*;
 
 impl<T: Config> Pallet<T> {
+    pub fn now() -> T::BlockNumber {
+        system::Module::<T>::block_number()
+    }
+
+    pub(crate) fn is_all_timeout() -> bool {
+        let last = T::Reputation::get_last_refresh_at();
+        last + T::ConfirmationPeriod::get() < Self::now()
+    }
+
     pub(crate) fn is_all_harvest() -> bool {
         <Candidates<T>>::iter_values().next().is_none()
     }
@@ -13,30 +22,26 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    pub(crate) fn hand_first_time(score_list: &mut Vec<u64>) -> usize {
+    pub(crate) fn hand_first_time(score_list: &mut Vec<u64>) {
         let max_seed_count = T::MaxSeedCount::get() as usize;
-
-        let mut len = score_list.len();
+        let len = score_list.len();
         if len > max_seed_count {
             *score_list = score_list[(len - max_seed_count)..].to_vec();
-            len = max_seed_count;
         }
         T::SeedsBase::remove_all();
-        len
     }
 
     pub(crate) fn to_full_order(start: &T::AccountId, stop: &T::AccountId, deep: usize) -> Vec<u8> {
         let mut points = T::AccountId::encode(start);
         points.extend(T::AccountId::encode(stop).iter().cloned());
-        let points_hash = Self::sha1_hasher(&points);
-        let index = points_hash.len() - deep;
+        let hash = hex::encode(Self::sha1_hasher(&points));
+        let points_hash = hash.as_bytes();
+        let index = points_hash.len() - (deep * RANGE);
         points_hash[index..].to_vec()
     }
 
-    // pub(crate) fn full_order(start: &T::AccountId, stop: &T::AccountId, deep: u8) -> [u8] {}
-
     pub(crate) fn check_hash(data: &[u8], hash: &[u8; 8]) -> bool {
-        Self::sha1_hasher(data)[..8] == hash[..]
+        hex::encode(Self::sha1_hasher(data)).as_bytes()[..8] == hash[..]
     }
 
     pub(crate) fn get_pathfinder_paths(
@@ -53,17 +58,17 @@ impl<T: Config> Pallet<T> {
         who: &T::AccountId,
         target: &'a T::AccountId,
     ) -> DispatchResult {
-        match T::ChallengeBase::harvest(&who, &APP_ID, &target)? {
-            Some(score) => {
-                <Candidates<T>>::mutate(target, |c| {
-                    Self::mutate_score(&c.score, &score);
-                    c.score = score
-                });
+        <Candidates<T>>::try_mutate(target,|c| {
+            match T::ChallengeBase::harvest(&who, &APP_ID, &target)? {
+                Some(score) => {
+                    c.score = score;
+                },
+                None => (),
             }
-            None => (),
-        }
-        Self::remove_challenge(&target);
-        Ok(())
+            c.has_challenge = false;
+            Self::remove_challenge(&target);
+            Ok(())
+        })
     }
 
     pub(crate) fn get_ends(path: &Path<T::AccountId>) -> (&T::AccountId, &T::AccountId) {
@@ -81,6 +86,8 @@ impl<T: Config> Pallet<T> {
             Candidate {
                 score: *score,
                 pathfinder: pathfinder.clone(),
+                has_challenge: false,
+                add_at: Self::now(),
             },
         );
         let mut score_list = Self::get_score_list();
@@ -172,11 +179,28 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn get_next_order(target: &T::AccountId, old_order: &u64,index: &usize) -> Result<u64, Error<T>> {
-        let r_hashs_sets = <ResultHashsSets<T>>::try_get(target).map_err(|_| Error::<T>::DepthLimitExceeded)?;
-        let next_level_order = r_hashs_sets.last().unwrap().0[*index].order.to_vec();
-        let deep = r_hashs_sets.len();
-        let mut full_order = FullOrder::from_u64(old_order, deep);
-        full_order.connect_to_u64(&next_level_order).ok_or(Error::<T>::ConverError)
+        match <ResultHashsSets<T>>::try_get(target) {
+            Ok(r_hashs_sets) => {
+                let mut full_order = Self::get_full_order(&r_hashs_sets,old_order,index)?;
+                full_order.to_u64().ok_or(Error::<T>::ConverError)
+            },
+            Err(_) => Ok(0u64),
+        }
+    }
+
+    // index
+    pub(crate) fn get_full_order(result_hashs_sets: &Vec<OrderedSet<ResultHash>>,old_order: &u64,index: &usize) -> Result<FullOrder, Error<T>> {
+        match result_hashs_sets.is_empty() {
+            false => {
+                let next_level_order = result_hashs_sets.last().unwrap().0[*index].order.to_vec();
+                let mut full_order = FullOrder::from_u64(old_order, result_hashs_sets.len());
+                full_order.connect(&next_level_order);
+                Ok(full_order)
+            },
+            true => {
+                Ok(FullOrder::default())
+            },
+        }
     }
 
     pub(crate) fn update_result_hashs(
@@ -245,13 +269,17 @@ impl<T: Config> Pallet<T> {
                     .iter()
                     .flat_map(|node| {
                         // push `,`
-                        let mut node = node.encode();
+                        let mut node = T::AccountId::encode(node).to_vec();
                         node.push(44u8);
                         node
                     })
                     .collect::<Vec<u8>>();
                 // path.total < 100
-                nodes_v.push(path.total as u8);
+                // Much faster this way
+                if path.total > 9 {
+                    nodes_v.push( (path.total / 10) as u8 + 48);
+                }
+                nodes_v.push((path.total % 10) as u8 + 48);
                 // push `;`
                 nodes_v.push(59u8);
                 nodes_v
@@ -276,6 +304,7 @@ impl<T: Config> Pallet<T> {
         target: &T::AccountId,
     ) -> DispatchResult {
         let deep = result_hashs.len();
+
         if deep == 0 {
             return Ok(());
         }
@@ -285,11 +314,11 @@ impl<T: Config> Pallet<T> {
             .0
             .iter()
             .try_fold::<_, _, Result<u64, Error<T>>>(0u64, |acc, r| {
-                if deep < 2 {
+                if deep > 1 {
                     data.extend_from_slice(&r.hash);
                 }
                 ensure!(
-                    r.order.len() == RANGE as usize,
+                    r.order.len() == RANGE,
                     Error::<T>::OrderNotMatch
                 );
                 acc.checked_add(r.score)
@@ -299,6 +328,7 @@ impl<T: Config> Pallet<T> {
             1 => Self::get_candidate(&target).score,
             _ => {
                 ensure!(
+
                     Self::check_hash(
                         data.as_slice(),
                         &result_hashs[deep - 2].0[index as usize].hash

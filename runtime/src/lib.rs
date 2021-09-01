@@ -381,7 +381,6 @@ impl zd_refresh_reputation::Config for Runtime {
 }
 
 parameter_types! {
-    /// 
     pub const SeedStakingAmount: Balance = 1_000_000_000;
 	pub const MaxSeedCount: u32 = 200;
 }
@@ -395,6 +394,7 @@ impl zd_refresh_seeds::Config for Runtime {
 	type MultiBaseToken = ZdToken;
 	type SeedStakingAmount = SeedStakingAmount;
 	type MaxSeedCount = MaxSeedCount;
+    type ConfirmationPeriod = ConfirmationPeriod;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
