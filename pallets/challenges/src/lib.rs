@@ -241,7 +241,7 @@ impl<T: Config> Pallet<T> {
             Ok((sweeper_fee, awards))
         } else {
             ensure!(
-                !Self::is_challenge_timeout(&challenge.last_update),
+                Self::is_challenge_timeout(&challenge.last_update),
                 Error::<T>::TooSoon
             );
             Ok((Zero::zero(), *total_amount))

@@ -144,7 +144,7 @@ pub mod pallet {
         /// Path does not exist
         PathDoesNotExist,
         /// The path is too short
-        PathTooTooShort,
+        PathTooShort,
         /// Order does not match
         OrderNotMatch,
         /// An error occurred converting the data
@@ -161,7 +161,7 @@ pub mod pallet {
         ScoreMismatch,
         /// The data submitted is invalid
         PostConverFail,
-        ///
+        /// ResultHash does not exist
         ResultHashNotExit,
         /// Unconfirmed data still available
         StillUnconfirmed,
@@ -171,6 +171,10 @@ pub mod pallet {
         SeedAlreadyConfirmed,
         /// No target node found
         NoTargetNode,
+        /// Maximum depth has been reached
+        MaximumDepth,
+        /// Missed Paths does not exist
+        MissedPathsNotExist,
     }
 
     #[pallet::hooks]
@@ -246,8 +250,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
-            let result_hash_sets = <ResultHashsSets<T>>::try_get(&target)
-                .map_err(|_| Error::<T>::DepthLimitExceeded)?;
+            let result_hash_sets = Self::try_get_rhash(&target)?;
             match <Paths<T>>::try_get(&target) {
                 Ok(paths) => {
                     ensure!(
@@ -331,9 +334,9 @@ pub mod pallet {
                 <Paths<T>>::try_get(&target).is_err(),
                 Error::<T>::AlreadyExists
             );
-            let hash_len =
-                <ResultHashsSets<T>>::decode_len(&target).ok_or_else(|| Error::<T>::NonExistent)?;
-            ensure!(hash_len == DEEP as usize, Error::<T>::DepthDoesNotMatch);
+            let r_hashs_sets = Self::try_get_rhash(&target)?;
+            let deep = r_hashs_sets.len();
+            ensure!(deep == DEEP as usize, Error::<T>::DepthDoesNotMatch);
             ensure!(!paths.is_empty(), Error::<T>::NoPath);
             let mut paths = paths;
             paths.sort();
@@ -347,10 +350,8 @@ pub mod pallet {
                 count as u32,
                 |is_all_done, index, order| -> Result<u64, DispatchError> {
                     let index = index as usize;
-                    let deep =
-                        <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::NonExistent)?;
-                    let r_hashs_sets = <ResultHashsSets<T>>::get(&target);
-                    let full_order = Self::get_full_order(&r_hashs_sets, &order, &index)?;
+                    let mut full_order = Self::get_full_order(&r_hashs_sets, &order, &index)?;
+                    let new_order = full_order.to_u64().ok_or(Error::<T>::ConverError)?;
                     Self::checked_paths_vec(&paths, &target, &full_order.0, deep)?;
                     if is_all_done {
                         Self::verify_paths(
@@ -360,7 +361,7 @@ pub mod pallet {
                         )?;
                     }
                     <Paths<T>>::insert(&target, &paths);
-                    Ok(order)
+                    Ok(new_order)
                 },
             )?;
 
@@ -383,9 +384,9 @@ pub mod pallet {
                 &target,
                 &(count as u32),
                 |order, index, is_all_done| -> Result<(u64, u32), DispatchError> {
-                    let deep = <ResultHashsSets<T>>::decode_len(&target)
-                        .ok_or(Error::<T>::DepthLimitExceeded)?;
-                    let r_hashs = <ResultHashsSets<T>>::get(&target).last().unwrap().0
+                    let r_hashs_sets = Self::try_get_rhash(&target)?;
+                    let deep = r_hashs_sets.len();
+                    let r_hashs = r_hashs_sets.last().unwrap().0
                         [index as usize]
                         .clone();
                     let mut full_paths = <Paths<T>>::get(&target);
@@ -397,10 +398,12 @@ pub mod pallet {
 
                     ensure!(old_len == full_paths.len(), Error::<T>::NotMatch);
 
+                    let full_order = FullOrder::from_u64(&order,deep + 1);
+
                     Self::checked_paths_vec(
                         &paths,
                         &target,
-                        &FullOrder::from_u64(&order, deep).0,
+                        &full_order.0,
                         deep,
                     )?;
 
@@ -424,9 +427,12 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
+            let old_len = mid_paths.len();
             let mut mid_paths = mid_paths;
             mid_paths.sort();
             mid_paths.dedup();
+
+            ensure!(old_len == mid_paths.len(), Error::<T>::NotMatch);
 
             Self::do_reply_num(&challenger, &target, &mid_paths)?;
             T::Reputation::set_last_refresh_at();
@@ -447,29 +453,22 @@ pub mod pallet {
             let (start, stop) = Self::get_nodes_ends(&nodes);
 
             let deep =
-                <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::DepthLimitExceeded)?;
-            let full_order = Self::to_full_order(&start, &stop, deep + 1);
-
+                <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::ResultHashNotExit)?;
+            
+            let user_full_order = Self::to_full_order(&start, &stop, deep);
             let maybe_score = T::ChallengeBase::evidence(
                 &APP_ID,
                 &challenger,
                 &target,
                 |_, order| -> Result<bool, DispatchError> {
                     let index = index as usize;
-                    let r_order = FullOrder::from_u64(&order, deep);
-                    if deep > 1 {
-                        ensure!(
-                            r_order.0 == full_order[..deep].to_vec(),
-                            Error::<T>::NotMatch
-                        );
-                    }
                     match <Paths<T>>::try_get(&target) {
                         Ok(path_vec) => {
-                            let mut same_ends = false;
                             ensure!(
-                                !<MissedPaths<T>>::contains_key(&target),
-                                Error::<T>::AlreadyExist
+                                FullOrder::from_u64(&order, deep + 1).0 == user_full_order,
+                                Error::<T>::NotMatch
                             );
+                            let mut same_ends = false;
                             for p in path_vec {
                                 if *start == p.nodes[0] && stop == p.nodes.last().unwrap() {
                                     ensure!(
@@ -483,20 +482,24 @@ pub mod pallet {
                             Ok(!same_ends)
                         }
                         Err(_) => {
-                            let result_hash_sets = <ResultHashsSets<T>>::try_get(&target)
-                                .map_err(|_| Error::<T>::DepthLimitExceeded)?;
+                            let result_hash_sets = Self::try_get_rhash(&target)?;
                             let last_r_hash = &result_hash_sets.last().unwrap().0;
-                            ensure!(index < last_r_hash.len(), Error::<T>::IndexExceedsMaximum);
-                            let segment_order = full_order[deep..].to_vec();
+                            ensure!(index <= last_r_hash.len(), Error::<T>::IndexExceedsMaximum);
+                            if deep > 1 {
+                                ensure!(
+                                    FullOrder::from_u64(&order, deep).0 == user_full_order[..RANGE * (deep - 1)],
+                                    Error::<T>::NotMatch
+                                );
+                            }
                             if index > 0 {
                                 ensure!(
-                                    last_r_hash[index - 1].order[..].to_vec() < segment_order,
+                                    last_r_hash[index - 1].order[..] < user_full_order[..RANGE],
                                     Error::<T>::PathIndexError
                                 );
                             }
-                            if index < last_r_hash.len() - 1 {
+                            if index + 1 < last_r_hash.len() {
                                 ensure!(
-                                    last_r_hash[index].order[..].to_vec() > segment_order,
+                                    last_r_hash[index].order[..] > user_full_order[..RANGE],
                                     Error::<T>::PathIndexError
                                 );
                             }
@@ -551,7 +554,6 @@ pub mod pallet {
             Self::check_step()?;
             let p_path = Self::get_pathfinder_paths(&target, &index)?;
             let p_path_total = p_path.total as usize;
-            let p_path_len = p_path.nodes.len() + 2;
 
             let mut mid_paths = mid_paths;
             mid_paths.sort();
@@ -569,11 +571,8 @@ pub mod pallet {
                 &target,
                 |_, _| -> Result<bool, DispatchError> {
                     for mid_path in mid_paths.clone() {
-                        let path = Self::check_mid_path(&mid_path, &start, &stop)?;
-                        if path.len() < p_path_len {
-                            return Ok(true);
-                        }
-                        ensure!(path.len() == p_path_len, Error::<T>::LengthNotEqual);
+                        ensure!(mid_path.len() + 2 == p_path.nodes.len(), Error::<T>::LengthNotEqual);
+                        let _ = Self::check_mid_path(&mid_path, &start, &stop)?;
                     }
                     ensure!(mid_paths.len() > p_path_total, Error::<T>::TooFewInNumber);
                     Ok(false)
@@ -593,7 +592,7 @@ pub mod pallet {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
             let missed_path =
-                <MissedPaths<T>>::try_get(&target).map_err(|_| Error::<T>::DepthLimitExceeded)?;
+                <MissedPaths<T>>::try_get(&target).map_err(|_| Error::<T>::MissedPathsNotExist)?;
             ensure!(
                 mid_path.len() + 2 < missed_path.len(),
                 Error::<T>::WrongPathLength

@@ -26,6 +26,7 @@ pub const C: AccountId = u32::from_le_bytes([48,48,48,51]); // 0003
 pub const D: AccountId = u32::from_le_bytes([48,48,48,52]); // 0004
 pub const E: AccountId = u32::from_le_bytes([48,48,48,53]); // 0005
 pub const F: AccountId = u32::from_le_bytes([48,48,48,54]); // 0006
+pub const G: AccountId = u32::from_le_bytes([48,48,48,55]); // 0007
 
 pub const CHALLENGER: AccountId = 7;
 pub const PATHFINDER: AccountId = 8;

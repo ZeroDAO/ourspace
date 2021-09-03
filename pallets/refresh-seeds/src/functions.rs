@@ -5,6 +5,12 @@ impl<T: Config> Pallet<T> {
         system::Module::<T>::block_number()
     }
 
+    pub(crate) fn try_get_rhash(
+        target: &T::AccountId,
+    ) -> Result<Vec<OrderedSet<ResultHash>>, DispatchError> {
+        <ResultHashsSets<T>>::try_get(target).map_err(|_| Error::<T>::NonExistent.into())
+    }
+
     pub(crate) fn is_all_timeout() -> bool {
         let last = T::Reputation::get_last_refresh_at();
         last + T::ConfirmationPeriod::get() < Self::now()
@@ -149,7 +155,7 @@ impl<T: Config> Pallet<T> {
         nodes: &Vec<T::AccountId>,
         target: &T::AccountId,
     ) -> DispatchResult {
-        ensure!(nodes.len() >= 2, Error::<T>::PathTooTooShort);
+        ensure!(nodes.len() >= 2, Error::<T>::PathTooShort);
         ensure!(nodes.contains(&target), Error::<T>::NoTargetNode);
         T::TrustBase::valid_nodes(&nodes)?;
         Ok(())
@@ -181,7 +187,7 @@ impl<T: Config> Pallet<T> {
         old_order: &u64,
         index: &usize,
     ) -> Result<u64, Error<T>> {
-        match <ResultHashsSets<T>>::try_get(target) {
+        match Self::try_get_rhash(target) {
             Ok(r_hashs_sets) => {
                 let mut full_order = Self::get_full_order(&r_hashs_sets, old_order, index)?;
                 full_order.to_u64().ok_or(Error::<T>::ConverError)
@@ -220,7 +226,7 @@ impl<T: Config> Pallet<T> {
             .collect::<Result<Vec<ResultHash>, Error<T>>>()?;
         let mut r_hashs_sets = <ResultHashsSets<T>>::get(target);
         let current_deep = r_hashs_sets.len();
-        ensure!((current_deep as u8) < DEEP, Error::<T>::DepthLimitExceeded);
+        ensure!((current_deep as u8) < DEEP, Error::<T>::MaximumDepth);
 
         match next {
             true => {
@@ -362,12 +368,9 @@ impl<T: Config> Pallet<T> {
                 let p_path = Self::get_pathfinder_paths(&target, &index)?;
                 ensure!((count as u32) == p_path.total, Error::<T>::LengthNotEqual);
                 let (start, stop) = Self::get_ends(&p_path);
-                println!("mid_path: {:?}",mid_paths);
-
                 for mid_path in mid_paths {
                     let _ = Self::check_mid_path(&mid_path, &start, &stop)?;
                 }
-
                 Ok(Zero::zero())
             },
         )?;

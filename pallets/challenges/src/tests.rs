@@ -3,6 +3,7 @@
 use super::*;
 use crate::mock::*;
 use frame_support::{assert_noop, assert_ok};
+use zd_primitives::PROXY_PERIOD;
 
 const APP_ID: AppId = *b"test    ";
 const CHALLENGER: AccountId = ALICE;
@@ -198,18 +199,19 @@ macro_rules! new_challenge_no_allowed {
             #[test]
             fn $name() {
                 new_test_ext().execute_with(|| {
+                    let (total,status,now) = $value;
                     let init_metadata = Metadata {
                         progress: Progress {
-                            total: $value.0,
+                            total: total,
                             done: 0,
                         },
                         last_update: 1,
-                        status: $value.1,
+                        status: status,
                         ..DEFAULT_METADATA
                     };
                     <Metadatas<Test>>::insert(&APP_ID,&TARGET,&init_metadata);
                     // ChallengeTimeout
-                    System::set_block_number($value.2);
+                    System::set_block_number(now);
 
                     assert_noop!(ZdChallenges::new(
                         &APP_ID,
@@ -229,15 +231,10 @@ macro_rules! new_challenge_no_allowed {
 }
 
 new_challenge_no_allowed! {
-    new_challenge_no_allowed_0: (10,ChallengeStatus::FREE,5),
-    new_challenge_no_allowed_1: (10,ChallengeStatus::FREE,2),
-    new_challenge_no_allowed_2: (10,ChallengeStatus::FREE,0),
-    new_challenge_no_allowed_3: (0,ChallengeStatus::FREE,20),
-    new_challenge_no_allowed_4: (0,ChallengeStatus::FREE,1000),
     new_challenge_no_allowed_5: (0,ChallengeStatus::EVIDENCE,5),
-    new_challenge_no_allowed_6: (0,ChallengeStatus::EXAMINE,5),
-    new_challenge_no_allowed_7: (0,ChallengeStatus::REPLY,5),
-    new_challenge_no_allowed_8: (0,ChallengeStatus::ARBITRATION,5),
+    new_challenge_no_allowed_6: (0,ChallengeStatus::EXAMINE,21345),
+    new_challenge_no_allowed_7: (0,ChallengeStatus::REPLY,51),
+    new_challenge_no_allowed_8: (0,ChallengeStatus::ARBITRATION,533314),
 }
 
 fn init_challenge(total: u32, done: u32, status: ChallengeStatus) {
@@ -786,18 +783,18 @@ macro_rules! harvest_should_work {
 
 harvest_should_work! {
     // who, status, done, joint_benefits,staking
-    harvest_should_work_0: (SWEEPER,ChallengeStatus::FREE,10,false,200,2000),
-    harvest_should_work_1: (PATHINFER,ChallengeStatus::FREE,10,false,200221,8),
-    harvest_should_work_2: (CHALLENGER,ChallengeStatus::FREE,10,false,20784,8),
-    harvest_should_work_3: (CHALLENGER,ChallengeStatus::EXAMINE,10,false,10,8),
-    harvest_should_work_4: (SWEEPER,ChallengeStatus::EXAMINE,10,false,241111,2000),
-    harvest_should_work_5: (SWEEPER,ChallengeStatus::REPLY,100,false,2345564,2000),
-    harvest_should_work_6: (PATHINFER,ChallengeStatus::REPLY,100,false,22,8),
-    harvest_should_work_7: (CHALLENGER,ChallengeStatus::REPLY,10,false,46453,8),
-    harvest_should_work_8: (CHALLENGER,ChallengeStatus::EVIDENCE,100,false,42334,8),
-    harvest_should_work_9: (PATHINFER,ChallengeStatus::EVIDENCE,10,false,478786,8),
-    harvest_should_work_10: (SWEEPER,ChallengeStatus::EVIDENCE,10,false,45333,2000),
-    harvest_should_work_11: (SWEEPER,ChallengeStatus::ARBITRATION,10,true,75333,2000),
-    harvest_should_work_12: (PATHINFER,ChallengeStatus::ARBITRATION,10,false,46454,8),
-    harvest_should_work_13: (SWEEPER,ChallengeStatus::FREE,10,false,0,2000),
+    harvest_should_work_0: (SWEEPER,ChallengeStatus::FREE,10,false,200, PROXY_PERIOD + 2),
+    harvest_should_work_1: (PATHINFER,ChallengeStatus::FREE,10,false,200221,ChallengeTimeout::get() + 2),
+    harvest_should_work_2: (CHALLENGER,ChallengeStatus::FREE,10,false,20784,ChallengeTimeout::get() + 2),
+    harvest_should_work_3: (CHALLENGER,ChallengeStatus::EXAMINE,10,false,10,ChallengeTimeout::get() + 2),
+    harvest_should_work_4: (SWEEPER,ChallengeStatus::EXAMINE,10,false,241111,PROXY_PERIOD + 2),
+    harvest_should_work_5: (SWEEPER,ChallengeStatus::REPLY,100,false,2345564,PROXY_PERIOD + 2),
+    harvest_should_work_6: (PATHINFER,ChallengeStatus::REPLY,100,false,22,ChallengeTimeout::get() + 2),
+    harvest_should_work_7: (CHALLENGER,ChallengeStatus::REPLY,10,false,46453,ChallengeTimeout::get() + 2),
+    harvest_should_work_8: (CHALLENGER,ChallengeStatus::EVIDENCE,100,false,42334,ChallengeTimeout::get() + 2),
+    harvest_should_work_9: (PATHINFER,ChallengeStatus::EVIDENCE,10,false,478786,ChallengeTimeout::get() + 2),
+    harvest_should_work_10: (SWEEPER,ChallengeStatus::EVIDENCE,10,false,45333,PROXY_PERIOD + 2),
+    harvest_should_work_11: (SWEEPER,ChallengeStatus::ARBITRATION,10,true,75333,PROXY_PERIOD + 2),
+    harvest_should_work_12: (PATHINFER,ChallengeStatus::ARBITRATION,10,false,46454,ChallengeTimeout::get() + 2),
+    harvest_should_work_13: (SWEEPER,ChallengeStatus::FREE,10,false,0,PROXY_PERIOD + 2),
 }
