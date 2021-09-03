@@ -8,4 +8,6 @@ pub trait MultiBaseToken<AccountId, Balance> {
 	fn free_balance(who: &AccountId) -> Balance;
 	fn social_balance(who: &AccountId) -> Balance;
 	fn share(who: &AccountId, target: &Vec<AccountId>) -> Result<Balance, DispatchError>;
+	fn increase_bonus(who: &AccountId, amount: &Balance) -> DispatchResult;
+	fn cut_bonus(amount: &Balance) -> DispatchResult;
 }

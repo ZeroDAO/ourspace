@@ -34,6 +34,9 @@ impl FullOrder {
 
     pub fn from_u64(from: &u64, deep: usize) -> Self {
         let mut full_order = FullOrder::default();
+        if deep <= 1 {
+            return full_order;
+        }
         let len = (deep - 1) * (RANGE as usize);
         if len > 10 {
             full_order.0 = u64::to_le_bytes(*from).to_vec();
@@ -124,7 +127,7 @@ mod tests {
         let order_u64 = full_order.to_u64();
         assert_eq!(order_u64, Some(0));
 
-        let mut full_order = FullOrder::from_u64(&0u64,0);
+        let mut full_order = FullOrder::from_u64(&0u64,1);
         let connect_vec = vec![12u8,16u8];
         let order_u64 = full_order.connect_to_u64(&connect_vec).unwrap();
         assert_eq!(FullOrder::from_u64(&order_u64,2).0, connect_vec);

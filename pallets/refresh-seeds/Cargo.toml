@@ -28,7 +28,6 @@ zd-primitives = { path = "../../primitives", default-features = false, version =
 orml-utilities = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
 
 [dev-dependencies]
-time = "0.1"
 sp-core = { default-features = false, version = '3.0.0' }
 sp-io = { default-features = false, version = '3.0.0' }
 

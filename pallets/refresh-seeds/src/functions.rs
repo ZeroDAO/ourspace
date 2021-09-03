@@ -58,14 +58,13 @@ impl<T: Config> Pallet<T> {
         who: &T::AccountId,
         target: &'a T::AccountId,
     ) -> DispatchResult {
-        <Candidates<T>>::try_mutate(target,|c| {
+        <Candidates<T>>::try_mutate(target, |c| {
             match T::ChallengeBase::harvest(&who, &APP_ID, &target)? {
                 Some(score) => {
                     c.score = score;
-                },
+                }
                 None => (),
             }
-            c.has_challenge = false;
             Self::remove_challenge(&target);
             Ok(())
         })
@@ -79,7 +78,7 @@ impl<T: Config> Pallet<T> {
         let stop = nodes.last().unwrap();
         (&nodes[0], stop)
     }
-    
+
     pub(crate) fn candidate_insert(targer: &T::AccountId, pathfinder: &T::AccountId, score: &u64) {
         <Candidates<T>>::insert(
             targer,
@@ -114,13 +113,12 @@ impl<T: Config> Pallet<T> {
         mid_path: &Vec<T::AccountId>,
         start: &T::AccountId,
         stop: &T::AccountId,
-        target: &T::AccountId,
     ) -> Result<Vec<T::AccountId>, DispatchError> {
-        let mut path = mid_path.clone();
-        path.insert(0, start.clone());
-        path.insert(path.len(), stop.clone());
-        Self::checked_nodes(&path, &target)?;
-        Ok(path.to_vec())
+        let mut nodes = mid_path.clone();
+        nodes.insert(0, start.clone());
+        nodes.push(stop.clone());
+        T::TrustBase::valid_nodes(&nodes)?;
+        Ok(nodes.to_vec())
     }
 
     pub(crate) fn sha1_hasher(data: &[u8]) -> [u8; 20] {
@@ -152,7 +150,7 @@ impl<T: Config> Pallet<T> {
         target: &T::AccountId,
     ) -> DispatchResult {
         ensure!(nodes.len() >= 2, Error::<T>::PathTooTooShort);
-        ensure!(nodes.contains(&target), Error::<T>::PathDoesNotExist);
+        ensure!(nodes.contains(&target), Error::<T>::NoTargetNode);
         T::TrustBase::valid_nodes(&nodes)?;
         Ok(())
     }
@@ -168,9 +166,9 @@ impl<T: Config> Pallet<T> {
                 p.total > 0 && p.total < MAX_SHORTEST_PATH,
                 Error::<T>::PathTooLong
             );
-            let (start,stop) = Self::get_ends(&p);
+            let (start, stop) = Self::get_ends(&p);
             ensure!(
-                Self::to_full_order(start,stop,deep) == *order,
+                Self::to_full_order(start, stop, deep) == *order,
                 Error::<T>::OrderNotMatch
             );
             Self::checked_nodes(&p.nodes, target)?;
@@ -178,28 +176,34 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    pub(crate) fn get_next_order(target: &T::AccountId, old_order: &u64,index: &usize) -> Result<u64, Error<T>> {
+    pub(crate) fn get_next_order(
+        target: &T::AccountId,
+        old_order: &u64,
+        index: &usize,
+    ) -> Result<u64, Error<T>> {
         match <ResultHashsSets<T>>::try_get(target) {
             Ok(r_hashs_sets) => {
-                let mut full_order = Self::get_full_order(&r_hashs_sets,old_order,index)?;
+                let mut full_order = Self::get_full_order(&r_hashs_sets, old_order, index)?;
                 full_order.to_u64().ok_or(Error::<T>::ConverError)
-            },
+            }
             Err(_) => Ok(0u64),
         }
     }
 
     // index
-    pub(crate) fn get_full_order(result_hashs_sets: &Vec<OrderedSet<ResultHash>>,old_order: &u64,index: &usize) -> Result<FullOrder, Error<T>> {
+    pub(crate) fn get_full_order(
+        result_hashs_sets: &Vec<OrderedSet<ResultHash>>,
+        old_order: &u64,
+        index: &usize,
+    ) -> Result<FullOrder, Error<T>> {
         match result_hashs_sets.is_empty() {
             false => {
                 let next_level_order = result_hashs_sets.last().unwrap().0[*index].order.to_vec();
                 let mut full_order = FullOrder::from_u64(old_order, result_hashs_sets.len());
                 full_order.connect(&next_level_order);
                 Ok(full_order)
-            },
-            true => {
-                Ok(FullOrder::default())
-            },
+            }
+            true => Ok(FullOrder::default()),
         }
     }
 
@@ -210,8 +214,9 @@ impl<T: Config> Pallet<T> {
         index: u32,
         next: bool,
     ) -> DispatchResult {
-        let new_r_hashs = hashs.iter()
-            .map(|h|h.to_result_hash().ok_or(Error::<T>::PostConverFail))
+        let new_r_hashs = hashs
+            .iter()
+            .map(|h| h.to_result_hash().ok_or(Error::<T>::PostConverFail))
             .collect::<Result<Vec<ResultHash>, Error<T>>>()?;
         let mut r_hashs_sets = <ResultHashsSets<T>>::get(target);
         let current_deep = r_hashs_sets.len();
@@ -223,21 +228,27 @@ impl<T: Config> Pallet<T> {
                 let mut r_hashs_vec = r_hashs_sets[current_deep - 1].0.clone();
                 r_hashs_vec.extend_from_slice(&new_r_hashs[..]);
                 let full_hashs_set = OrderedSet::from(r_hashs_vec.clone());
-                ensure!(r_hashs_vec.len() == full_hashs_set.len(), Error::<T>::DataDuplication);
-                r_hashs_sets[current_deep -1] = full_hashs_set;
-            },
+                ensure!(
+                    r_hashs_vec.len() == full_hashs_set.len(),
+                    Error::<T>::DataDuplication
+                );
+                r_hashs_sets[current_deep - 1] = full_hashs_set;
+            }
             false => {
                 let r_hashs_set = OrderedSet::from(new_r_hashs.clone());
-                ensure!(new_r_hashs.len() == r_hashs_set.len(), Error::<T>::DataDuplication);
+                ensure!(
+                    new_r_hashs.len() == r_hashs_set.len(),
+                    Error::<T>::DataDuplication
+                );
                 r_hashs_sets.push(r_hashs_set);
-            },
+            }
         }
 
         if do_verify {
             Self::verify_result_hashs(&r_hashs_sets, index, &target)?;
         }
 
-        <ResultHashsSets<T>>::mutate(target,|rs| *rs = r_hashs_sets);
+        <ResultHashsSets<T>>::mutate(target, |rs| *rs = r_hashs_sets);
         Ok(())
     }
 
@@ -251,10 +262,7 @@ impl<T: Config> Pallet<T> {
                 .iter()
                 .try_fold::<_, _, Result<u32, DispatchError>>(0u32, |acc, p| {
                     Self::checked_nodes(&p.nodes, &target)?;
-                    ensure!(
-                        p.total < 100,
-                        Error::<T>::LengthTooLong
-                    );
+                    ensure!(p.total < 100, Error::<T>::LengthTooLong);
                     // Two-digit accuracy
                     let score = 100 / p.total;
                     Ok(acc.saturating_add(score))
@@ -277,7 +285,7 @@ impl<T: Config> Pallet<T> {
                 // path.total < 100
                 // Much faster this way
                 if path.total > 9 {
-                    nodes_v.push( (path.total / 10) as u8 + 48);
+                    nodes_v.push((path.total / 10) as u8 + 48);
                 }
                 nodes_v.push((path.total % 10) as u8 + 48);
                 // push `;`
@@ -317,10 +325,7 @@ impl<T: Config> Pallet<T> {
                 if deep > 1 {
                     data.extend_from_slice(&r.hash);
                 }
-                ensure!(
-                    r.order.len() == RANGE,
-                    Error::<T>::OrderNotMatch
-                );
+                ensure!(r.order.len() == RANGE, Error::<T>::OrderNotMatch);
                 acc.checked_add(r.score)
                     .ok_or_else(|| Error::<T>::Overflow.into())
             })?;
@@ -328,7 +333,6 @@ impl<T: Config> Pallet<T> {
             1 => Self::get_candidate(&target).score,
             _ => {
                 ensure!(
-
                     Self::check_hash(
                         data.as_slice(),
                         &result_hashs[deep - 2].0[index as usize].hash
@@ -354,16 +358,16 @@ impl<T: Config> Pallet<T> {
             target,
             Zero::zero(),
             Zero::zero(),
-            |_, index,_| -> Result<u64, DispatchError> {
+            |_, index, _| -> Result<u64, DispatchError> {
                 let p_path = Self::get_pathfinder_paths(&target, &index)?;
-                ensure!(
-                    (count as u32) == p_path.total,
-                    Error::<T>::LengthNotEqual
-                );
+                ensure!((count as u32) == p_path.total, Error::<T>::LengthNotEqual);
                 let (start, stop) = Self::get_ends(&p_path);
+                println!("mid_path: {:?}",mid_paths);
+
                 for mid_path in mid_paths {
-                    let _ = Self::check_mid_path(&mid_path, &start, &stop, &target)?;
+                    let _ = Self::check_mid_path(&mid_path, &start, &stop)?;
                 }
+
                 Ok(Zero::zero())
             },
         )?;

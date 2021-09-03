@@ -133,6 +133,9 @@ pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 pub const HOURS: BlockNumber = MINUTES * 60;
 pub const DAYS: BlockNumber = HOURS * 24;
 
+pub const SEED_CHALLENGE_AMOUNT: Balance = 100_000_000;
+pub const SEED_RESERV_STAKING: Balance = 900_000_000;
+
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
@@ -381,7 +384,9 @@ impl zd_refresh_reputation::Config for Runtime {
 }
 
 parameter_types! {
-    pub const SeedStakingAmount: Balance = 1_000_000_000;
+    pub const SeedStakingAmount: Balance = SEED_CHALLENGE_AMOUNT + SEED_RESERV_STAKING;
+    pub const SeedChallengeAmount: Balance = SEED_CHALLENGE_AMOUNT;
+    pub const SeedReservStaking: Balance = SEED_RESERV_STAKING;
 	pub const MaxSeedCount: u32 = 200;
 }
 
@@ -395,6 +400,8 @@ impl zd_refresh_seeds::Config for Runtime {
 	type SeedStakingAmount = SeedStakingAmount;
 	type MaxSeedCount = MaxSeedCount;
     type ConfirmationPeriod = ConfirmationPeriod;
+    type SeedChallengeAmount = SeedChallengeAmount;
+    type SeedReservStaking = SeedReservStaking;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.

@@ -65,6 +65,8 @@ pub mod module {
     #[pallet::error]
     pub enum Error<T> {
         Overflow,
+        /// Bonus too low
+        BonusTooLow,
     }
 
     #[pallet::event]
@@ -103,6 +105,25 @@ pub mod module {
             Self::deposit_event(Event::TransferSocial(currency_id, from, to, amount));
             Ok(().into())
         }
+    }
+}
+
+impl<T: Config> Pallet<T> {
+
+    fn try_add_bonus(amount: &Balance) -> DispatchResult {
+        <Bonus<T>>::try_mutate(|b| -> DispatchResult {
+            let old_balance = *b;
+            *b = old_balance.checked_add(*amount).ok_or(Error::<T>::Overflow)?;
+            Ok(())
+        })
+    }
+
+    fn try_cut_bonus(amount: &Balance) -> DispatchResult {
+        <Bonus<T>>::try_mutate(|b| -> DispatchResult {
+            let old_balance = *b;
+            *b = old_balance.checked_sub(*amount).ok_or(Error::<T>::BonusTooLow)?;
+            Ok(())
+        })
     }
 }
 
@@ -148,17 +169,17 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
         T::Currency::bat_share(T::BaceToken::get(), &who, targets, share_amount)?;
         T::Currency::thaw(T::BaceToken::get(), &who, reserved_amount)?;
         T::Currency::social_burn(T::BaceToken::get(), &who, burn_amount)?;
-        <Bonus<T>>::try_mutate(|balance| -> DispatchResult {
-            *balance = balance
-                .checked_add(pre_reward)
-                .ok_or(Error::<T>::Overflow)?;
-            Ok(())
-        })?;
+        Self::cut_bonus(&pre_reward)?;
         T::Currency::social_staking(T::BaceToken::get(), &who, fee_amount)?;
         Ok(fee_amount)
     }
 
-    // fn increase_bonus() -> DispatchResult {
-    //     Ok(())
-    // }
+    fn increase_bonus(who: &T::AccountId, amount: &Balance) -> DispatchResult {
+        T::Currency::staking(T::BaceToken::get(),who,*amount)?;
+        Self::try_add_bonus(amount)
+    }
+
+    fn cut_bonus(amount: &Balance) -> DispatchResult {
+        Self::try_cut_bonus(amount)
+    }
 }

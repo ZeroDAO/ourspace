@@ -1,7 +1,6 @@
 #![cfg(test)]
 
-extern crate time;
-use time::*;
+// extern crate time;
 
 use super::*;
 use crate::mock::{Event, *};
@@ -99,6 +98,7 @@ fn add_should_work() {
             ZdRefreshSeeds::add(Origin::signed(PATHFINDER), A, 60),
             Error::<Test>::StepNotMatch
         );
+
         let free_balance = ZdToken::free_balance(&PATHFINDER);
         assert_ok!(ZdRefreshSeeds::add(Origin::signed(PATHFINDER), A, 60));
 
@@ -128,10 +128,7 @@ fn challenge_should_work() {
         init_graph();
         assert_ok!(ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,));
         assert!(<Candidates<Test>>::get(A).has_challenge);
-        assert_noop!(
-            ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,),
-            Error::<Test>::AlreadyChallenged
-        );
+        assert!(ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,).is_err());
         assert_noop!(
             ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), A, 50,),
             Error::<Test>::NoCandidateExists
@@ -139,77 +136,88 @@ fn challenge_should_work() {
     });
 }
 
+fn init_challenge(total_bonus: &Balance) {
+    assert_ok!(ZdRefreshSeeds::add(Origin::signed(PATHFINDER), D, 50));
+    assert_ok!(ZdRefreshSeeds::add(Origin::signed(PATHFINDER), C, 100));
+    assert_ok!(ZdToken::increase_bonus(&TREASURY, total_bonus));
+
+    assert_ok!(ZdRefreshSeeds::challenge(
+        Origin::signed(CHALLENGER),
+        B,
+        150,
+    ));
+
+    // Deep 1:
+    // +---------+--------------+--------+
+    // |  order  | hash         | score  |
+    // +---------+--------------+--------+
+    // |   f9    | b3b4e091     |  50    |
+    // +---------+--------------+--------+
+    // |   7c    | 781bbaf6     |  100   |
+    // +---------+--------------+--------+
+    assert_ok!(ZdRefreshSeeds::reply_hash(
+        Origin::signed(PATHFINDER),
+        B,
+        vec![PostResultHash("f9".to_string(), 50, "b3b4e091".to_string())],
+        2,
+    ));
+    assert_ok!(ZdRefreshSeeds::reply_hash_next(
+        Origin::signed(PATHFINDER),
+        B,
+        vec![PostResultHash(
+            "7c".to_string(),
+            100,
+            "781bbaf6".to_string()
+        )],
+    ));
+    assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 1,));
+    // Deep 2:
+    // +---------+--------------+--------+
+    // |  order  | hash         | score  |
+    // +---------+--------------+--------+
+    // |   90    | c248b273     |  50    |
+    // +---------+--------------+--------+
+    assert_ok!(ZdRefreshSeeds::reply_hash(
+        Origin::signed(PATHFINDER),
+        B,
+        vec![PostResultHash("90".to_string(), 50, "c248b273".to_string())],
+        1,
+    ));
+    assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
+    // Deep 3:
+    // +---------+--------------+--------+
+    // |  order  | hash         | score  |
+    // +---------+--------------+--------+
+    // |   6c    | 43eb70aa     |  50    |
+    // +---------+--------------+--------+
+    assert_ok!(ZdRefreshSeeds::reply_hash(
+        Origin::signed(PATHFINDER),
+        B,
+        vec![PostResultHash("6c".to_string(), 50, "43eb70aa".to_string())],
+        1,
+    ));
+    assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
+    // Deep 4:
+    // +---------+--------------+--------+
+    // |  order  | hash         | score  |
+    // +---------+--------------+--------+
+    // |   f1    | a0e8df2a     |  50    |
+    // +---------+--------------+--------+
+    assert_ok!(ZdRefreshSeeds::reply_hash(
+        Origin::signed(PATHFINDER),
+        B,
+        vec![PostResultHash("f1".to_string(), 50, "a0e8df2a".to_string())],
+        1,
+    ));
+}
+
 #[test]
-fn reply_hash_should_work() {
+fn pathfinder_win() {
     new_test_ext().execute_with(|| {
         init_graph();
-        assert_ok!(ZdRefreshSeeds::challenge(
-            Origin::signed(CHALLENGER),
-            B,
-            150,
-        ));
-        // Deep 1:
-        // +---------+--------------+--------+
-        // |  order  | hash         | score  |
-        // +---------+--------------+--------+
-        // |   f9    | b3b4e091     |  50    |
-        // +---------+--------------+--------+
-        // |   7c    | 781bbaf6     |  100   |
-        // +---------+--------------+--------+
-        assert_ok!(ZdRefreshSeeds::reply_hash(
-            Origin::signed(PATHFINDER),
-            B,
-            vec![PostResultHash("f9".to_string(), 50, "b3b4e091".to_string())],
-            2,
-        ));
-        assert_ok!(ZdRefreshSeeds::reply_hash_next(
-            Origin::signed(PATHFINDER),
-            B,
-            vec![PostResultHash(
-                "7c".to_string(),
-                100,
-                "781bbaf6".to_string()
-            )],
-        ));
-        assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 1,));
-        // Deep 2:
-        // +---------+--------------+--------+
-        // |  order  | hash         | score  |
-        // +---------+--------------+--------+
-        // |   90    | c248b273     |  50    |
-        // +---------+--------------+--------+
-        assert_ok!(ZdRefreshSeeds::reply_hash(
-            Origin::signed(PATHFINDER),
-            B,
-            vec![PostResultHash("90".to_string(), 50, "c248b273".to_string())],
-            1,
-        ));
-        assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
-        // Deep 3:
-        // +---------+--------------+--------+
-        // |  order  | hash         | score  |
-        // +---------+--------------+--------+
-        // |   6c    | 43eb70aa     |  50    |
-        // +---------+--------------+--------+
-        assert_ok!(ZdRefreshSeeds::reply_hash(
-            Origin::signed(PATHFINDER),
-            B,
-            vec![PostResultHash("6c".to_string(), 50, "43eb70aa".to_string())],
-            1,
-        ));
-        assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
-        // Deep 4:
-        // +---------+--------------+--------+
-        // |  order  | hash         | score  |
-        // +---------+--------------+--------+
-        // |   f1    | a0e8df2a     |  50    |
-        // +---------+--------------+--------+
-        assert_ok!(ZdRefreshSeeds::reply_hash(
-            Origin::signed(PATHFINDER),
-            B,
-            vec![PostResultHash("f1".to_string(), 50, "a0e8df2a".to_string())],
-            1,
-        ));
+        let total_bonus: Balance = 991;
+        init_challenge(&total_bonus);
+
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
         // Path hash:
         // +-----------------------+------------------------------------------+
@@ -227,6 +235,191 @@ fn reply_hash_should_work() {
             1,
         ));
 
+        assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
+
+        assert_ok!(ZdRefreshSeeds::reply_num(
+            Origin::signed(PATHFINDER),
+            B,
+            vec![
+                vec![B], // ABD
+                vec![C], // ACD
+            ],
+        ));
+
+        let mut pathfinder_balance = ZdToken::free_balance(&PATHFINDER);
+
+        System::set_block_number(ChallengeTimeout::get() + 1);
+
+        assert_ok!(ZdRefreshSeeds::harvest_challenge(
+            Origin::signed(PATHFINDER),
+            B,
+        ));
+
+        pathfinder_balance += ChallengeStakingAmount::get() + SeedChallengeAmount::get();
+
+        assert_eq!(ZdToken::free_balance(&PATHFINDER), pathfinder_balance);
+
+        System::set_block_number(ChallengeTimeout::get() + ConfirmationPeriod::get());
+
+        assert_ok!(ZdRefreshSeeds::harvest_seed(Origin::signed(PATHFINDER), B,));
+
+        let bonus_1 = total_bonus / (MaxSeedCount::get() as u128);
+
+        pathfinder_balance += bonus_1 + SeedReservStaking::get();
+
+        assert_eq!(ZdToken::free_balance(&PATHFINDER), pathfinder_balance);
+
+        assert_ok!(ZdRefreshSeeds::harvest_seed(Origin::signed(PATHFINDER), C,));
+
+        let rel_total_amount = total_bonus - bonus_1 + SeedStakingAmount::get();
+        pathfinder_balance += rel_total_amount;
+
+        assert_eq!(ZdToken::free_balance(&PATHFINDER), pathfinder_balance);
+
+        assert_ok!(ZdRefreshSeeds::harvest_seed(Origin::signed(PATHFINDER), D,));
+        pathfinder_balance += SeedStakingAmount::get();
+
+        assert_eq!(ZdToken::free_balance(&PATHFINDER), pathfinder_balance);
+    });
+}
+
+#[test]
+fn missed_path_at_rhashs() {
+    new_test_ext().execute_with(|| {
+        //
+        //                     F
+        //                     ↑
+        //                     B
+        //                 ↗  ↓  ↘
+        //               A     E <-  D
+        //                 ↘     ↗
+        //                     C
+        //
+        // A -> B -> F order 4ed0601f
+
+        assert_ok!(ZdTrust::trust(Origin::signed(B), F));
+
+        // A -> F for test invalid_evidence
+        assert_ok!(ZdTrust::trust(Origin::signed(A), F));
+
+        init_graph();
+
+        assert_ok!(ZdRefreshSeeds::challenge(
+            Origin::signed(CHALLENGER),
+            B,
+            150,
+        ));
+
+        assert_ok!(ZdRefreshSeeds::reply_hash(
+            Origin::signed(PATHFINDER),
+            B,
+            vec![
+                PostResultHash("f9".to_string(), 50, "b3b4e091".to_string()),
+                PostResultHash("7c".to_string(), 100, "781bbaf6".to_string())
+            ],
+            2,
+        ));
+
+        assert_ok!(ZdRefreshSeeds::evidence_of_missed(
+            Origin::signed(CHALLENGER),
+            B,
+            vec![A, B, F],
+            0
+        ));
+
+        assert_ok!(ZdRefreshSeeds::invalid_evidence(
+            Origin::signed(CHALLENGER),
+            B,
+            vec![],
+            60
+        ));
+    });
+}
+
+#[test]
+fn evidence_of_shorter_test() {
+    new_test_ext().execute_with(|| {
+        //
+        //                     B
+        //                 ↗  ↓  ↘
+        //               A     E <-  D
+        //                 ↘     ↗
+        //                     C
+        //
+        // A -> D
+
+        assert_ok!(ZdTrust::trust(Origin::signed(A), D));
+
+        init_graph();
+
+        let total_bonus: Balance = 991;
+        init_challenge(&total_bonus);
+
+        assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
+        assert_ok!(ZdRefreshSeeds::reply_path(
+            Origin::signed(PATHFINDER),
+            B,
+            vec![Path {
+                nodes: vec![A, B, D],
+                total: 2
+            }],
+            1,
+        ));
+
+        assert_ok!(ZdRefreshSeeds::evidence_of_shorter(
+            Origin::signed(CHALLENGER),
+            B,
+            0,
+            vec![]
+        ));
+
+    });
+}
+
+
+#[test]
+fn number_too_low_test() {
+    new_test_ext().execute_with(|| {
+
+        //
+        //                     B
+        //                 ↗  ↓  ↘
+        //               A     E <-  D
+        //                 ↘     ↗
+        //               ↓     C     ^
+        //               F __________|
+        //
+        // 
+
+        assert_ok!(ZdTrust::trust(Origin::signed(A), F));
+        assert_ok!(ZdTrust::trust(Origin::signed(F), D));
+
+        init_graph();
+
+        let total_bonus: Balance = 991;
+        init_challenge(&total_bonus);
+
+        assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
+        assert_ok!(ZdRefreshSeeds::reply_path(
+            Origin::signed(PATHFINDER),
+            B,
+            vec![Path {
+                nodes: vec![A, B, D],
+                total: 2
+            }],
+            1,
+        ));
+
+        assert_ok!(ZdRefreshSeeds::number_too_low(
+            Origin::signed(CHALLENGER),
+            B,
+            0,
+            vec![
+                vec![B],
+                vec![C],
+                vec![F],
+            ],
+        ));
 
     });
 }

@@ -17,15 +17,21 @@ pub type AccountId = u32;
 pub type CurrencyId = u128;
 pub type BlockNumber = u64;
 
+pub const SEED_CHALLENGE_AMOUNT: Balance = 100_000_000;
+pub const SEED_RESERV_STAKING: Balance = 900_000_000;
+
 pub const A: AccountId = u32::from_le_bytes([48,48,48,49]); // 0001
 pub const B: AccountId = u32::from_le_bytes([48,48,48,50]); // 0002
 pub const C: AccountId = u32::from_le_bytes([48,48,48,51]); // 0003
 pub const D: AccountId = u32::from_le_bytes([48,48,48,52]); // 0004
 pub const E: AccountId = u32::from_le_bytes([48,48,48,53]); // 0005
+pub const F: AccountId = u32::from_le_bytes([48,48,48,54]); // 0006
 
 pub const CHALLENGER: AccountId = 7;
 pub const PATHFINDER: AccountId = 8;
 pub const SWEEPRT: AccountId = 9;
+pub const TREASURY: AccountId = 10;
+pub const SUB_CHALLENGER: AccountId = 11;
 
 pub const ZDAO: CurrencyId = 1;
 
@@ -100,9 +106,10 @@ impl zd_reputation::Config for Test {
 }
 
 parameter_types! {
-    /// 
-    pub const SeedStakingAmount: Balance = 1_000_000_000;
-	pub const MaxSeedCount: u32 = 200;
+    pub const SeedStakingAmount: Balance = SEED_CHALLENGE_AMOUNT + SEED_RESERV_STAKING;
+    pub const SeedChallengeAmount: Balance = SEED_CHALLENGE_AMOUNT;
+    pub const SeedReservStaking: Balance = SEED_RESERV_STAKING;
+	pub const MaxSeedCount: u32 = 2;
 }
 
 impl zd_refresh_seeds::Config for Test {
@@ -115,6 +122,8 @@ impl zd_refresh_seeds::Config for Test {
 	type SeedStakingAmount = SeedStakingAmount;
 	type MaxSeedCount = MaxSeedCount;
     type ConfirmationPeriod = ConfirmationPeriod;
+    type SeedChallengeAmount = SeedChallengeAmount;
+    type SeedReservStaking = SeedReservStaking;
 }
 
 parameter_types! {
@@ -218,6 +227,8 @@ impl Default for ExtBuilder {
                 (PATHFINDER, ZDAO, 1000_000_000_000_000u128),
                 (CHALLENGER, ZDAO, 1000_000_000_000_000u128),
                 (SWEEPRT, ZDAO, 1000_000_000u128),
+                (TREASURY, ZDAO, 1000_000_000u128),
+                (SUB_CHALLENGER, ZDAO, 1000_000_000u128),
             ],
             period: INIT_PERIOD,
         }

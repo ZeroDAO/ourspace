@@ -44,11 +44,15 @@ pub mod pallet {
         #[pallet::constant]
         type SeedStakingAmount: Get<Balance>;
         #[pallet::constant]
+        type SeedChallengeAmount: Get<Balance>;
+        #[pallet::constant]
+        type SeedReservStaking: Get<Balance>;
+        #[pallet::constant]
         type MaxSeedCount: Get<u32>;
         #[pallet::constant]
         type ConfirmationPeriod: Get<Self::BlockNumber>;
     }
-
+    
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
@@ -157,12 +161,16 @@ pub mod pallet {
         ScoreMismatch,
         /// The data submitted is invalid
         PostConverFail,
-        /// Already challenged
-        AlreadyChallenged,
         ///
         ResultHashNotExit,
         /// Unconfirmed data still available
         StillUnconfirmed,
+        /// Time not yet reached or overflow
+        SweeprtFail,
+        /// Seed have been confirmed and are unchallengeable
+        SeedAlreadyConfirmed,
+        /// No target node found
+        NoTargetNode,
     }
 
     #[pallet::hooks]
@@ -170,6 +178,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn start(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
@@ -204,16 +213,21 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
-            // TODO 是否超过确认周期
             let candidate = <Candidates<T>>::try_get(target.clone())
                 .map_err(|_err| Error::<T>::NoCandidateExists)?;
-            ensure!(!candidate.has_challenge, Error::<T>::AlreadyChallenged);
+            let staking = if candidate.has_challenge { Zero::zero() } else {T::SeedChallengeAmount::get()};
+            if !candidate.has_challenge {
+                ensure!(
+                    candidate.add_at + T::ConfirmationPeriod::get() > Self::now(),
+                    Error::<T>::SeedAlreadyConfirmed
+                );
+            }
             T::ChallengeBase::new(
                 &APP_ID,
                 &challenger,
                 &candidate.pathfinder,
                 Zero::zero(),
-                T::SeedStakingAmount::get(),
+                staking,
                 &target,
                 Zero::zero(),
                 score,
@@ -420,7 +434,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn evidence_of_missing(
+        pub fn evidence_of_missed(
             origin: OriginFor<T>,
             target: T::AccountId,
             nodes: Vec<T::AccountId>,
@@ -443,10 +457,12 @@ pub mod pallet {
                 |_, order| -> Result<bool, DispatchError> {
                     let index = index as usize;
                     let r_order = FullOrder::from_u64(&order, deep);
-                    ensure!(
-                        r_order.0 == full_order[..deep].to_vec(),
-                        Error::<T>::NotMatch
-                    );
+                    if deep > 1 {
+                        ensure!(
+                            r_order.0 == full_order[..deep].to_vec(),
+                            Error::<T>::NotMatch
+                        );
+                    }
                     match <Paths<T>>::try_get(&target) {
                         Ok(path_vec) => {
                             let mut same_ends = false;
@@ -504,24 +520,15 @@ pub mod pallet {
             origin: OriginFor<T>,
             target: T::AccountId,
             index: u32,
-            nodes: Vec<T::AccountId>,
+            mid_path: Vec<T::AccountId>,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
-            Self::checked_nodes(&nodes, &target)?;
 
             let p_path = Self::get_pathfinder_paths(&target, &index)?;
             let (start, stop) = Self::get_ends(&p_path);
 
-            ensure!(
-                *start == nodes[0] && stop == nodes.last().unwrap(),
-                Error::<T>::NotMatch
-            );
-
-            ensure!(
-                p_path.nodes.len() + 2 > nodes.len(),
-                Error::<T>::PathTooLong
-            );
+            Self::check_mid_path(&mid_path, &start, &stop)?;
 
             let maybe_score = T::ChallengeBase::evidence(
                 &APP_ID,
@@ -562,7 +569,7 @@ pub mod pallet {
                 &target,
                 |_, _| -> Result<bool, DispatchError> {
                     for mid_path in mid_paths.clone() {
-                        let path = Self::check_mid_path(&mid_path, &start, &stop, &target)?;
+                        let path = Self::check_mid_path(&mid_path, &start, &stop)?;
                         if path.len() < p_path_len {
                             return Ok(true);
                         }
@@ -580,7 +587,7 @@ pub mod pallet {
         pub fn invalid_evidence(
             origin: OriginFor<T>,
             target: T::AccountId,
-            paths: Vec<T::AccountId>,
+            mid_path: Vec<T::AccountId>,
             score: u64,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
@@ -588,20 +595,21 @@ pub mod pallet {
             let missed_path =
                 <MissedPaths<T>>::try_get(&target).map_err(|_| Error::<T>::DepthLimitExceeded)?;
             ensure!(
-                paths.len() < missed_path.len() && paths.len() >= 2,
+                mid_path.len() + 2 < missed_path.len(),
                 Error::<T>::WrongPathLength
             );
-            T::TrustBase::valid_nodes(&paths)?;
-            let afer_target = paths.contains(&target);
+            let (start, stop) = Self::get_nodes_ends(&missed_path);
+            Self::check_mid_path(&mid_path, start, stop)?;
+            let through_target = mid_path.contains(&target);
             T::ChallengeBase::arbitral(
                 &APP_ID,
                 &challenger,
                 &target,
                 |_, _| -> Result<(bool, bool, u64), DispatchError> {
-                    Ok((afer_target, true, score))
+                    Ok((through_target, true, score))
                 },
             )?;
-            if afer_target {
+            if through_target {
                 Self::restart(&target, &challenger, &score);
             }
             Ok(().into())
@@ -640,9 +648,9 @@ pub mod pallet {
             let len = score_list.len();
             let candidate = <Candidates<T>>::take(&target);
             let staking_amount = if candidate.has_challenge {
-                T::SeedStakingAmount::get()
+                T::SeedReservStaking::get()
             } else {
-                Zero::zero()
+                T::SeedStakingAmount::get()
             };
             let (bonus, maybe_index) =
                 match !score_list.is_empty() && candidate.score >= score_list[0] {
@@ -661,12 +669,12 @@ pub mod pallet {
             let total_amount = bonus
                 .checked_add(staking_amount)
                 .ok_or(Error::<T>::Overflow)?;
-            match who == candidate.pathfinder {
+            match who != candidate.pathfinder {
                 true => {
                     let last = T::Reputation::get_last_refresh_at();
                     let (s_amount, p_amount) = total_amount
                         .checked_with_fee(last, Self::now())
-                        .ok_or(Error::<T>::Overflow)?;
+                        .ok_or(Error::<T>::SweeprtFail)?;
                     T::MultiBaseToken::release(&who, &s_amount)?;
                     T::MultiBaseToken::release(&candidate.pathfinder, &p_amount)?;
                 }
@@ -674,6 +682,7 @@ pub mod pallet {
                     T::MultiBaseToken::release(&candidate.pathfinder, &total_amount)?;
                 }
             }
+            T::MultiBaseToken::cut_bonus(&bonus)?;
             if let Some(index) = maybe_index {
                 T::SeedsBase::add_seed(&target);
                 score_list.remove(index);

@@ -62,23 +62,10 @@ where
         self.pool.staking.checked_add(self.pool.earnings)
     }
 
-    fn is_allowed_evidence<ChallengeTimeout>(&self, now: BlockNumber) -> bool
-    where
-        ChallengeTimeout: Get<BlockNumber>,
-    {
-        let challenge_perior = ChallengeTimeout::get().saturated_into::<BlockNumber>();
-
-        match self.is_all_done() {
-            true => self.last_update + challenge_perior > now,
-            false => self.last_update + challenge_perior <= now,
-        }
-        
-    }
-
     fn is_all_done(&self) -> bool {
         self.progress.total == self.progress.done
     }
-
+  
     fn check_progress(&self) -> bool {
         self.progress.total >= self.progress.done
     }
@@ -411,8 +398,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         let mut challenge = match <Metadatas<T>>::try_get(app_id, target) {
             Ok(challenge_storage) => {
                 ensure!(
-                    challenge_storage.status == ChallengeStatus::FREE &&
-                    challenge_storage.is_allowed_evidence::<T::ChallengeTimeout>(now_block_number),
+                    challenge_storage.status == ChallengeStatus::FREE,
                     Error::<T>::NoChallengeAllowed
                 );
                 challenge_storage
