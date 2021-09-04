@@ -129,6 +129,20 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// Some reputations have been updated. \[pathfinder, count, fee\]
         ReputationRefreshed(T::AccountId, u32, Balance),
+        /// Reputation renewal has begun \[who\]
+        Started(T::AccountId),
+        /// Refreshed earnings are harvested \[pathfinder, amount\]
+        RefreshedHarvested(T::AccountId, Balance),
+        /// Refreshed earnings are harvested \[pathfinder, sweeper, pathfinder_amount, sweeper_amount\]
+        RefreshedHarvestedBySweeper(T::AccountId, T::AccountId, Balance, Balance),
+        /// Refreshed earnings are harvested \[pathfinder, target\]
+        ChallengeHarvested(T::AccountId, T::AccountId),
+        /// A new challenge has been launched \[challenger, target\]
+        Challenge(T::AccountId,T::AccountId),
+        /// A new arbitral has been launched \[challenger, target\]
+        Arbitral(T::AccountId,T::AccountId),
+        /// The new path is uploaded \[challenger, target\]
+        PathUpdated(T::AccountId,T::AccountId)
     }
 
     #[pallet::error]
@@ -209,6 +223,7 @@ pub mod pallet {
                 )?;
             T::MultiBaseToken::release(&who, &total_fee)?;
             <StartedAt<T>>::put(now);
+            Self::deposit_event(Event::Started(who));
             Ok(().into())
         }
 
@@ -266,28 +281,36 @@ pub mod pallet {
             let now_block_number = Self::now();
             let payroll = Payrolls::<T>::take(&pathfinder);
             Self::can_harvest(&payroll, &now_block_number)?;
-            T::MultiBaseToken::release(&pathfinder, &payroll.total_amount::<T>())?;
+            let total_amount = payroll.total_amount::<T>();
+            T::MultiBaseToken::release(&pathfinder, &total_amount)?;
             <Records<T>>::remove_prefix(&pathfinder);
+            Self::deposit_event(Event::RefreshedHarvested(pathfinder, total_amount));
             Ok(().into())
         }
 
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn harvest_ref_all_proxy(
+        pub fn harvest_ref_all_sweeper(
             origin: OriginFor<T>,
             pathfinder: T::AccountId,
         ) -> DispatchResultWithPostInfo {
-            let proxy = ensure_signed(origin)?;
+            let sweeper = ensure_signed(origin)?;
             Self::next_step();
             let payroll = Payrolls::<T>::take(&pathfinder);
             let now_block_number = Self::now();
             Self::can_harvest(&payroll, &now_block_number)?;
-            let (proxy_fee, without_fee) = payroll
+            let (sweeper_fee, without_fee) = payroll
                 .total_amount::<T>()
                 .checked_with_fee(payroll.update_at, Self::now())
                 .ok_or(Error::<T>::FailedProxy)?;
             <Records<T>>::remove_prefix(&pathfinder);
-            T::MultiBaseToken::release(&proxy, &proxy_fee)?;
+            T::MultiBaseToken::release(&sweeper, &sweeper_fee)?;
             T::MultiBaseToken::release(&pathfinder, &without_fee)?;
+            Self::deposit_event(Event::RefreshedHarvestedBySweeper(
+                pathfinder,
+                sweeper,
+                without_fee,
+                sweeper_fee,
+            ));
             Ok(().into())
         }
 
@@ -299,6 +322,7 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
             Self::next_step();
             T::ChallengeBase::harvest(&who, &APP_ID, &target)?;
+            Self::deposit_event(Event::ChallengeHarvested(who, target));
             Ok(().into())
         }
 
@@ -342,7 +366,7 @@ pub mod pallet {
             )?;
 
             T::ChallengeBase::set_status(&APP_ID, &target, &ChallengeStatus::ARBITRATION);
-
+            Self::deposit_event(Event::Challenge(challenger, target));
             Ok(().into())
         }
 
@@ -368,6 +392,7 @@ pub mod pallet {
                     Ok((new_score == remark, false, new_score.into()))
                 },
             )?;
+            Self::deposit_event(Event::Arbitral(who, target));
             Ok(().into())
         }
 
@@ -396,6 +421,7 @@ pub mod pallet {
                     Ok((new_score as u64, remark))
                 },
             )?;
+            Self::deposit_event(Event::PathUpdated(challenger, target));
             Ok(().into())
         }
     }
@@ -558,10 +584,7 @@ impl<T: Config> Pallet<T> {
                 if let Some(old_dist) = Self::get_dist(&old_path, &seed, &target) {
                     ensure!(old_dist >= dist_new, Error::<T>::DistTooLong);
                     if old_dist == dist_new {
-                        ensure!(
-                            old_path.score > path.score,
-                            Error::<T>::ScoreTooLow
-                        );
+                        ensure!(old_path.score > path.score, Error::<T>::ScoreTooLow);
                     }
                 }
                 let acc = acc

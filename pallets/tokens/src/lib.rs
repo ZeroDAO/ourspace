@@ -169,7 +169,7 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
         T::Currency::bat_share(T::BaceToken::get(), &who, targets, share_amount)?;
         T::Currency::thaw(T::BaceToken::get(), &who, reserved_amount)?;
         T::Currency::social_burn(T::BaceToken::get(), &who, burn_amount)?;
-        Self::cut_bonus(&pre_reward)?;
+        Self::try_add_bonus(&pre_reward)?;
         T::Currency::social_staking(T::BaceToken::get(), &who, fee_amount)?;
         Ok(fee_amount)
     }

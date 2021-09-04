@@ -89,7 +89,9 @@ fn start_should_work() {
     new_test_ext().execute_with(|| {
         assert_ok!(ZdRefreshSeeds::start(Origin::signed(PATHFINDER),));
         let seeds_event = Event::zd_refresh_seeds(crate::Event::RefershSeedStared(PATHFINDER));
-        assert!(System::events().iter().any(|record| record.event == seeds_event));
+        assert!(System::events()
+            .iter()
+            .any(|record| record.event == seeds_event));
     });
 }
 
@@ -102,8 +104,13 @@ fn add_should_work() {
         );
         assert_ok!(ZdRefreshSeeds::start(Origin::signed(PATHFINDER),));
         let free_balance = ZdToken::free_balance(&PATHFINDER);
-        
+
         assert_ok!(ZdRefreshSeeds::add(Origin::signed(PATHFINDER), A, 60));
+
+        let add_event = Event::zd_refresh_seeds(crate::Event::NewCandidate(PATHFINDER, A, 60));
+        assert!(System::events()
+            .iter()
+            .any(|record| record.event == add_event));
 
         let new_free_balance = ZdToken::free_balance(&PATHFINDER);
         assert_eq!(free_balance - new_free_balance, SeedStakingAmount::get());
@@ -130,6 +137,10 @@ fn challenge_should_work() {
     new_test_ext().execute_with(|| {
         init_graph(150);
         assert_ok!(ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,));
+
+        let event = Event::zd_refresh_seeds(crate::Event::NewChallenge(CHALLENGER, B));
+        assert!(System::events().iter().any(|record| record.event == event));
+
         assert!(<Candidates<Test>>::get(B).has_challenge);
         assert!(ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,).is_err());
         assert_noop!(
@@ -170,6 +181,9 @@ fn init_challenge(total_bonus: &Balance) {
         vec![PostResultHash("f9".to_string(), 50, "b3b4e091".to_string())],
         2,
     ));
+    let event = Event::zd_refresh_seeds(crate::Event::RepliedHash(PATHFINDER, B, 2, false));
+    assert!(System::events().iter().any(|record| record.event == event));
+
     assert_ok!(ZdRefreshSeeds::reply_hash_next(
         Origin::signed(PATHFINDER),
         B,
@@ -179,7 +193,13 @@ fn init_challenge(total_bonus: &Balance) {
             "781bbaf6".to_string()
         )],
     ));
+    let event = Event::zd_refresh_seeds(crate::Event::ContinueRepliedHash(PATHFINDER, B, true));
+    assert!(System::events().iter().any(|record| record.event == event));
+
     assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 1,));
+    let event = Event::zd_refresh_seeds(crate::Event::NewExamine(CHALLENGER, B));
+    assert!(System::events().iter().any(|record| record.event == event));
+
     // Deep 2:
     // +---------+--------------+--------+
     // |  order  | hash         | score  |
@@ -192,6 +212,10 @@ fn init_challenge(total_bonus: &Balance) {
         vec![PostResultHash("90".to_string(), 50, "c248b273".to_string())],
         1,
     ));
+
+    let event = Event::zd_refresh_seeds(crate::Event::RepliedHash(PATHFINDER, B, 1, true));
+    assert!(System::events().iter().any(|record| record.event == event));
+
     assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
     // Deep 3:
     // +---------+--------------+--------+
@@ -229,9 +253,7 @@ fn pathfinder_win() {
 
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
 
-        assert!(
-            ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,).is_err()
-        );
+        assert!(ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,).is_err());
         // Path hash:
         // +-----------------------+------------------------------------------+
         // |  "0001,0002,0004,2;"  | a0e8df2a2f413bb7f3339c66130b770debb57796 |
@@ -239,12 +261,7 @@ fn pathfinder_win() {
         // |  "0001,0002,0005,1;"  | b339911bcb3a3080a2b6fcbd033facd968aecc4c |
         // +-----------------------+------------------------------------------+
         assert_noop!(
-            ZdRefreshSeeds::reply_path(
-                Origin::signed(PATHFINDER),
-                B,
-                vec![],
-                1,
-            ),
+            ZdRefreshSeeds::reply_path(Origin::signed(PATHFINDER), B, vec![], 1,),
             Error::<Test>::NoPath
         );
 
@@ -276,10 +293,10 @@ fn pathfinder_win() {
             }],
             1,
         ));
+        let event = Event::zd_refresh_seeds(crate::Event::RepliedPath(PATHFINDER, B, 1, true));
+        assert!(System::events().iter().any(|record| record.event == event));
 
-        assert!(
-            ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,).is_err()
-        );
+        assert!(ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,).is_err());
 
         assert_noop!(
             ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 5,),
@@ -288,9 +305,7 @@ fn pathfinder_win() {
 
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
 
-        assert!(
-            ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,).is_err()
-        );
+        assert!(ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,).is_err());
 
         assert_noop!(
             ZdRefreshSeeds::reply_hash(
@@ -344,14 +359,9 @@ fn pathfinder_win() {
             Error::<Test>::IndexExceedsMaximum
         );
 
-        assert!(
-            ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,).is_err()
-        );
+        assert!(ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,).is_err());
 
-        assert!(ZdRefreshSeeds::harvest_challenge(
-            Origin::signed(PATHFINDER),
-            B,
-        ).is_err());
+        assert!(ZdRefreshSeeds::harvest_challenge(Origin::signed(PATHFINDER), B,).is_err());
 
         assert_noop!(
             ZdRefreshSeeds::harvest_seed(Origin::signed(CHALLENGER), B,),
@@ -364,6 +374,8 @@ fn pathfinder_win() {
             Origin::signed(PATHFINDER),
             B,
         ));
+        let event = Event::zd_refresh_seeds(crate::Event::ChallengeHarvested(PATHFINDER, B));
+        assert!(System::events().iter().any(|record| record.event == event));
         pathfinder_balance += ChallengeStakingAmount::get() + SeedChallengeAmount::get();
         assert_eq!(ZdToken::free_balance(&PATHFINDER), pathfinder_balance);
 
@@ -379,6 +391,8 @@ fn pathfinder_win() {
         pathfinder_balance += bonus_1 + SeedReservStaking::get();
         assert_eq!(ZdToken::free_balance(&PATHFINDER), pathfinder_balance);
         assert_ok!(ZdRefreshSeeds::harvest_seed(Origin::signed(PATHFINDER), C,));
+        let event = Event::zd_refresh_seeds(crate::Event::SeedHarvested(PATHFINDER, C));
+        assert!(System::events().iter().any(|record| record.event == event));
         let rel_total_amount = total_bonus - bonus_1 + SeedStakingAmount::get();
         pathfinder_balance += rel_total_amount;
 
@@ -441,38 +455,20 @@ fn missed_path_at_rhashs() {
             2,
         ));
 
-        assert!(ZdRefreshSeeds::harvest_challenge(
-            Origin::signed(PATHFINDER),
-            B,
-        ).is_err());
+        assert!(ZdRefreshSeeds::harvest_challenge(Origin::signed(PATHFINDER), B,).is_err());
 
         assert_noop!(
-            ZdRefreshSeeds::evidence_of_missed(
-                Origin::signed(CHALLENGER),
-                B,
-                vec![A, B, F],
-                1
-            ),
+            ZdRefreshSeeds::evidence_of_missed(Origin::signed(CHALLENGER), B, vec![A, B, F], 1),
             Error::<Test>::PathIndexError
         );
 
         assert_noop!(
-            ZdRefreshSeeds::evidence_of_missed(
-                Origin::signed(CHALLENGER),
-                B,
-                vec![A, B, F],
-                3
-            ),
+            ZdRefreshSeeds::evidence_of_missed(Origin::signed(CHALLENGER), B, vec![A, B, F], 3),
             Error::<Test>::IndexExceedsMaximum
         );
 
         assert_noop!(
-            ZdRefreshSeeds::invalid_evidence(
-                Origin::signed(CHALLENGER),
-                B,
-                vec![],
-                60
-            ),
+            ZdRefreshSeeds::invalid_evidence(Origin::signed(CHALLENGER), B, vec![], 60),
             Error::<Test>::MissedPathsNotExist
         );
 
@@ -483,17 +479,10 @@ fn missed_path_at_rhashs() {
             0
         ));
 
-        assert!(
-            ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,).is_err()
-        );
+        assert!(ZdRefreshSeeds::challenge(Origin::signed(CHALLENGER), B, 50,).is_err());
 
         assert_noop!(
-            ZdRefreshSeeds::invalid_evidence(
-                Origin::signed(CHALLENGER),
-                B,
-                vec![B],
-                60
-            ),
+            ZdRefreshSeeds::invalid_evidence(Origin::signed(CHALLENGER), B, vec![B], 60),
             Error::<Test>::WrongPathLength
         );
 
@@ -503,6 +492,8 @@ fn missed_path_at_rhashs() {
             vec![],
             60
         ));
+        let event = Event::zd_refresh_seeds(crate::Event::EvidenceOfInvalidPresented(CHALLENGER, B, 60));
+        assert!(System::events().iter().any(|record| record.event == event));
 
         System::set_block_number(ConfirmationPeriod::get() + 1);
 
@@ -562,6 +553,9 @@ fn evidence_of_shorter_test() {
             0,
             vec![]
         ));
+
+        let event = Event::zd_refresh_seeds(crate::Event::ShorterPresented(CHALLENGER, B, 0));
+        assert!(System::events().iter().any(|record| record.event == event));
     });
 }
 
@@ -637,6 +631,10 @@ fn number_too_low_test() {
             0,
             vec![vec![B], vec![C], vec![F],],
         ));
+        let event = Event::zd_refresh_seeds(crate::Event::EvidenceOfNumTooLowPresented(
+            CHALLENGER, B, 0,
+        ));
+        assert!(System::events().iter().any(|record| record.event == event));
 
         assert!(ZdRefreshSeeds::harvest_challenge(
             Origin::signed(PATHFINDER),
@@ -796,11 +794,7 @@ fn reply_path_next_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash(
-                "d0".to_string(),
-                66,
-                "f20e66b6".to_string()
-            )],
+            vec![PostResultHash("d0".to_string(), 66, "f20e66b6".to_string())],
             1,
         ));
         assert_noop!(
@@ -823,11 +817,7 @@ fn reply_path_next_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash(
-                "60".to_string(),
-                66,
-                "0898dcbe".to_string()
-            )],
+            vec![PostResultHash("60".to_string(), 66, "0898dcbe".to_string())],
             1,
         ));
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
@@ -869,6 +859,8 @@ fn reply_path_next_test() {
                 total: 3
             }],
         ));
+        let event = Event::zd_refresh_seeds(crate::Event::ContinueRepliedPath(PATHFINDER, B, true));
+        assert!(System::events().iter().any(|record| record.event == event));
     });
 }
 
@@ -911,7 +903,7 @@ fn missed_at_paths_test() {
         // |  "0001,0002,0005,1;"      | b339911bcb3a3080a2b6fcbd033facd968aecc4c |
         // +-------------------------------------------------+--------------------+
         // |  "0001,0002,0004,0006,3;" | e0c4ada0da592ca29f92d1e6056a8ae6849b301e |
-        // +-----------↑-------------------------------------+--------------------+           
+        // +-----------↑-------------------------------------+--------------------+
         //             |_____________ Missing a path
         //
         // Deep 4:
@@ -983,11 +975,7 @@ fn missed_at_paths_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash(
-                "d0".to_string(),
-                33,
-                "b00dbe72".to_string()
-            )],
+            vec![PostResultHash("d0".to_string(), 33, "b00dbe72".to_string())],
             1,
         ));
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
@@ -998,11 +986,7 @@ fn missed_at_paths_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash(
-                "60".to_string(),
-                33,
-                "5dbb6cab".to_string()
-            )],
+            vec![PostResultHash("60".to_string(), 33, "5dbb6cab".to_string())],
             1,
         ));
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
@@ -1035,42 +1019,22 @@ fn missed_at_paths_test() {
         ));
 
         assert_noop!(
-            ZdRefreshSeeds::evidence_of_missed(
-                Origin::signed(CHALLENGER),
-                B,
-                vec![A, C, D, E],
-                1
-            ),
+            ZdRefreshSeeds::evidence_of_missed(Origin::signed(CHALLENGER), B, vec![A, C, D, E], 1),
             Error::<Test>::NoTargetNode
         );
 
         assert_noop!(
-            ZdRefreshSeeds::evidence_of_missed(
-                Origin::signed(CHALLENGER),
-                B,
-                vec![A, B, D, F],
-                1
-            ),
+            ZdRefreshSeeds::evidence_of_missed(Origin::signed(CHALLENGER), B, vec![A, B, D, F], 1),
             Error::<Test>::AlreadyExist
         );
 
         assert_noop!(
-            ZdRefreshSeeds::evidence_of_missed(
-                Origin::signed(CHALLENGER),
-                B,
-                vec![A, B, E],
-                1
-            ),
+            ZdRefreshSeeds::evidence_of_missed(Origin::signed(CHALLENGER), B, vec![A, B, E], 1),
             Error::<Test>::NotMatch
         );
 
         assert_noop!(
-            ZdRefreshSeeds::evidence_of_missed(
-                Origin::signed(CHALLENGER),
-                B,
-                vec![A, B, F],
-                1
-            ),
+            ZdRefreshSeeds::evidence_of_missed(Origin::signed(CHALLENGER), B, vec![A, B, F], 1),
             Error::<Test>::LengthNotEqual
         );
 
@@ -1082,4 +1046,3 @@ fn missed_at_paths_test() {
         ));
     });
 }
-

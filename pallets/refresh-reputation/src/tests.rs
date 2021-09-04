@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use super::*;
-use crate::mock::*;
+use crate::mock::{Event, *};
 use frame_support::{assert_err_ignore_postinfo, assert_noop, assert_ok};
 use zd_primitives::per_social_currency;
 
@@ -17,6 +17,8 @@ fn start_should_work() {
         ZdReputation::set_step(&TIRStep::REPUTATION);
         System::set_block_number(2000);
         assert_ok!(ZdRefreshReputation::start(Origin::signed(ALICE)));
+        let new_event = Event::zd_refresh_reputation(crate::Event::Started(ALICE));
+        assert!(System::events().iter().any(|record| record.event == new_event));
     });
 }
 
@@ -200,6 +202,9 @@ fn refresh_should_work() {
             user_scores.len() as u32
         );
         assert_eq!(<Payrolls<Test>>::get(&PATHFINDER).total_fee, total_fee);
+
+        let new_event = Event::zd_refresh_reputation(crate::Event::ReputationRefreshed(PATHFINDER,user_scores.len() as u32,total_fee));
+        assert!(System::events().iter().any(|record| record.event == new_event));
     });
 }
 
@@ -272,6 +277,8 @@ macro_rules! harvest_ref_all_should_work {
                     for a in INIT_ACCOUNT.iter() {
                         assert!(<Records<Test>>::try_get(&PATHFINDER,&a.account).is_err());
                     }
+                    let new_event = Event::zd_refresh_reputation(crate::Event::RefreshedHarvested(PATHFINDER, total_amount));
+                    assert!(System::events().iter().any(|record| record.event == new_event));
                 });
             }
         )*
@@ -340,6 +347,8 @@ fn challenge_should_work() {
         assert_eq!(payroll.total_fee, 0);
         assert_eq!(payroll.count, 0);
         assert_eq!(payroll.update_at, 1);
+        let new_event = Event::zd_refresh_reputation(crate::Event::Challenge(CHALLENGER, TARGET));
+        assert!(System::events().iter().any(|record| record.event == new_event));
     });
 }
 
@@ -409,6 +418,8 @@ fn challenge_update_should_work() {
             seeds.clone(),
             paths.clone()
         ));
+        let new_event = Event::zd_refresh_reputation(crate::Event::PathUpdated(CHALLENGER, TARGET));
+        assert!(System::events().iter().any(|record| record.event == new_event));
         for seed in seeds.iter() {
             assert!(Paths::<Test>::contains_key(seed, TARGET));
         }

@@ -123,6 +123,10 @@ pub mod pallet {
         ChallengeHarvested(T::AccountId, T::AccountId),
         /// \[who, candidate\]
         SeedHarvested(T::AccountId, T::AccountId),
+        /// \[candidate, score\]
+        ChallengeRestarted(T::AccountId, u64),
+        /// All seeds have been selected \[number \]
+        SeedsSelected(u32),
     }
 
     #[pallet::error]
@@ -312,13 +316,13 @@ pub mod pallet {
             hashs: Vec<PostResultHash>,
             quantity: u32,
         ) -> DispatchResultWithPostInfo {
-            let challenger = ensure_signed(origin)?;
+            let pathfinder = ensure_signed(origin)?;
             Self::check_step()?;
             let count = hashs.len();
             ensure!(quantity <= MAX_HASH_COUNT, Error::<T>::QuantityExceedsLimit);
             let _ = T::ChallengeBase::reply(
                 &APP_ID,
-                &challenger,
+                &pathfinder,
                 &target,
                 quantity,
                 count as u32,
@@ -326,7 +330,7 @@ pub mod pallet {
                     let new_order = Self::get_next_order(&target, &order, &(index as usize))?;
                     Self::update_result_hashs(&target, &hashs, is_all_done, index, false)?;
                     Self::deposit_event(Event::RepliedHash(
-                        challenger.clone(),
+                        pathfinder.clone(),
                         target.clone(),
                         quantity,
                         is_all_done.clone(),

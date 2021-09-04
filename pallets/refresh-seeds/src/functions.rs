@@ -35,6 +35,7 @@ impl<T: Config> Pallet<T> {
             *score_list = score_list[(len - max_seed_count)..].to_vec();
         }
         T::SeedsBase::remove_all();
+        Self::deposit_event(Event::SeedsSelected(score_list.len() as u32));
     }
 
     pub(crate) fn to_full_order(start: &T::AccountId, stop: &T::AccountId, deep: usize) -> Vec<u8> {
@@ -142,7 +143,8 @@ impl<T: Config> Pallet<T> {
             c.score = *score;
             c.pathfinder = pathfinder.clone();
         });
-        Self::remove_challenge(&target)
+        Self::remove_challenge(&target);
+        Self::deposit_event(Event::ChallengeRestarted(target.clone(),*score));
     }
 
     pub(crate) fn remove_challenge(target: &T::AccountId) {
