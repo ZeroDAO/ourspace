@@ -52,7 +52,7 @@ pub mod pallet {
         #[pallet::constant]
         type ConfirmationPeriod: Get<Self::BlockNumber>;
     }
-    
+
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
@@ -95,6 +95,34 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         RefershSeedStared(T::AccountId),
+        /// \[pthfinder, candidate,score\]
+        NewCandidate(T::AccountId, T::AccountId, u64),
+        /// \[challenger, candidate\]
+        NewChallenge(T::AccountId, T::AccountId),
+        /// \[challenger, candidate\]
+        NewExamine(T::AccountId, T::AccountId),
+        /// \[pthfinder, candidate, quantity, completed\]
+        RepliedHash(T::AccountId, T::AccountId, u32, bool),
+        /// \[pthfinder, candidate, completed\]
+        ContinueRepliedHash(T::AccountId, T::AccountId, bool),
+        /// \[pthfinder, candidate, quantity, completed\]
+        RepliedPath(T::AccountId, T::AccountId, u32, bool),
+        /// \[pthfinder, candidate, completed\]
+        ContinueRepliedPath(T::AccountId, T::AccountId, bool),
+        /// \[pthfinder, candidate\]
+        RepliedNum(T::AccountId, T::AccountId),
+        /// \[challenger, candidate,index\]
+        MissedPathPresented(T::AccountId, T::AccountId, u32),
+        /// \[challenger, candidate,index\]
+        ShorterPresented(T::AccountId, T::AccountId, u32),
+        /// \[challenger, candidate,index\]
+        EvidenceOfNumTooLowPresented(T::AccountId, T::AccountId, u32),
+        /// \[challenger, candidate,score\]
+        EvidenceOfInvalidPresented(T::AccountId, T::AccountId, u64),
+        /// \[who, candidate\]
+        ChallengeHarvested(T::AccountId, T::AccountId),
+        /// \[who, candidate\]
+        SeedHarvested(T::AccountId, T::AccountId),
     }
 
     #[pallet::error]
@@ -182,7 +210,6 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn start(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
@@ -206,6 +233,7 @@ pub mod pallet {
             T::MultiBaseToken::staking(&pathfinder, &T::SeedStakingAmount::get())?;
             Self::candidate_insert(&target, &pathfinder, &score);
             T::Reputation::set_last_refresh_at();
+            Self::deposit_event(Event::NewCandidate(pathfinder, target, score));
             Ok(().into())
         }
 
@@ -219,7 +247,11 @@ pub mod pallet {
             Self::check_step()?;
             let candidate = <Candidates<T>>::try_get(target.clone())
                 .map_err(|_err| Error::<T>::NoCandidateExists)?;
-            let staking = if candidate.has_challenge { Zero::zero() } else {T::SeedChallengeAmount::get()};
+            let staking = if candidate.has_challenge {
+                Zero::zero()
+            } else {
+                T::SeedChallengeAmount::get()
+            };
             if !candidate.has_challenge {
                 ensure!(
                     candidate.add_at + T::ConfirmationPeriod::get() > Self::now(),
@@ -239,6 +271,7 @@ pub mod pallet {
             )?;
             <Candidates<T>>::mutate(&target, |c| c.has_challenge = true);
             T::Reputation::set_last_refresh_at();
+            Self::deposit_event(Event::NewChallenge(challenger, target));
             Ok(().into())
         }
 
@@ -266,8 +299,9 @@ pub mod pallet {
                     );
                 }
             }
-            T::ChallengeBase::examine(&APP_ID, challenger, &target, index)?;
+            T::ChallengeBase::examine(&APP_ID, &challenger, &target, index)?;
             T::Reputation::set_last_refresh_at();
+            Self::deposit_event(Event::NewExamine(challenger, target));
             Ok(().into())
         }
 
@@ -291,6 +325,12 @@ pub mod pallet {
                 |is_all_done, index, order| -> Result<u64, DispatchError> {
                     let new_order = Self::get_next_order(&target, &order, &(index as usize))?;
                     Self::update_result_hashs(&target, &hashs, is_all_done, index, false)?;
+                    Self::deposit_event(Event::RepliedHash(
+                        challenger.clone(),
+                        target.clone(),
+                        quantity,
+                        is_all_done.clone(),
+                    ));
                     Ok(new_order)
                 },
             )?;
@@ -314,6 +354,11 @@ pub mod pallet {
                 &(count as u32),
                 |_, index, is_all_done| -> Result<(u64, u32), DispatchError> {
                     Self::update_result_hashs(&target, &hashs, is_all_done, index, true)?;
+                    Self::deposit_event(Event::ContinueRepliedHash(
+                        challenger.clone(),
+                        target.clone(),
+                        is_all_done.clone(),
+                    ));
                     Ok((Zero::zero(), index))
                 },
             )?;
@@ -361,6 +406,12 @@ pub mod pallet {
                         )?;
                     }
                     <Paths<T>>::insert(&target, &paths);
+                    Self::deposit_event(Event::RepliedPath(
+                        pathfinder.clone(),
+                        target.clone(),
+                        quantity,
+                        is_all_done.clone(),
+                    ));
                     Ok(new_order)
                 },
             )?;
@@ -386,9 +437,7 @@ pub mod pallet {
                 |order, index, is_all_done| -> Result<(u64, u32), DispatchError> {
                     let r_hashs_sets = Self::try_get_rhash(&target)?;
                     let deep = r_hashs_sets.len();
-                    let r_hashs = r_hashs_sets.last().unwrap().0
-                        [index as usize]
-                        .clone();
+                    let r_hashs = r_hashs_sets.last().unwrap().0[index as usize].clone();
                     let mut full_paths = <Paths<T>>::get(&target);
 
                     full_paths.extend_from_slice(&paths);
@@ -398,19 +447,19 @@ pub mod pallet {
 
                     ensure!(old_len == full_paths.len(), Error::<T>::NotMatch);
 
-                    let full_order = FullOrder::from_u64(&order,deep + 1);
+                    let full_order = FullOrder::from_u64(&order, deep + 1);
 
-                    Self::checked_paths_vec(
-                        &paths,
-                        &target,
-                        &full_order.0,
-                        deep,
-                    )?;
+                    Self::checked_paths_vec(&paths, &target, &full_order.0, deep)?;
 
                     if is_all_done {
                         Self::verify_paths(&full_paths, &target, &r_hashs)?;
                     }
                     <Paths<T>>::mutate(&target, |p| *p = full_paths);
+                    Self::deposit_event(Event::ContinueRepliedPath(
+                        pathfinder.clone(),
+                        target.clone(),
+                        is_all_done.clone(),
+                    ));
                     Ok((order, index))
                 },
             )?;
@@ -436,6 +485,7 @@ pub mod pallet {
 
             Self::do_reply_num(&challenger, &target, &mid_paths)?;
             T::Reputation::set_last_refresh_at();
+            Self::deposit_event(Event::RepliedNum(challenger, target));
             Ok(().into())
         }
 
@@ -454,7 +504,7 @@ pub mod pallet {
 
             let deep =
                 <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::ResultHashNotExit)?;
-            
+
             let user_full_order = Self::to_full_order(&start, &stop, deep);
             let maybe_score = T::ChallengeBase::evidence(
                 &APP_ID,
@@ -487,7 +537,8 @@ pub mod pallet {
                             ensure!(index <= last_r_hash.len(), Error::<T>::IndexExceedsMaximum);
                             if deep > 1 {
                                 ensure!(
-                                    FullOrder::from_u64(&order, deep).0 == user_full_order[..RANGE * (deep - 1)],
+                                    FullOrder::from_u64(&order, deep).0
+                                        == user_full_order[..RANGE * (deep - 1)],
                                     Error::<T>::NotMatch
                                 );
                             }
@@ -515,6 +566,8 @@ pub mod pallet {
                 None => <MissedPaths<T>>::insert(&target, nodes),
             }
 
+            Self::deposit_event(Event::MissedPathPresented(challenger, target, index));
+
             Ok(().into())
         }
 
@@ -540,6 +593,7 @@ pub mod pallet {
                 |_, _| -> Result<bool, DispatchError> { Ok(false) },
             )?;
             Self::restart(&target, &challenger, &maybe_score.unwrap_or_default());
+            Self::deposit_event(Event::ShorterPresented(challenger, target, index));
             Ok(().into())
         }
 
@@ -571,7 +625,10 @@ pub mod pallet {
                 &target,
                 |_, _| -> Result<bool, DispatchError> {
                     for mid_path in mid_paths.clone() {
-                        ensure!(mid_path.len() + 2 == p_path.nodes.len(), Error::<T>::LengthNotEqual);
+                        ensure!(
+                            mid_path.len() + 2 == p_path.nodes.len(),
+                            Error::<T>::LengthNotEqual
+                        );
                         let _ = Self::check_mid_path(&mid_path, &start, &stop)?;
                     }
                     ensure!(mid_paths.len() > p_path_total, Error::<T>::TooFewInNumber);
@@ -579,6 +636,9 @@ pub mod pallet {
                 },
             )?;
             Self::restart(&target, &challenger, &maybe_score.unwrap_or_default());
+            Self::deposit_event(Event::EvidenceOfNumTooLowPresented(
+                challenger, target, index,
+            ));
             Ok(().into())
         }
 
@@ -611,6 +671,7 @@ pub mod pallet {
             if through_target {
                 Self::restart(&target, &challenger, &score);
             }
+            Self::deposit_event(Event::EvidenceOfInvalidPresented(challenger, target, score));
             Ok(().into())
         }
 
@@ -623,7 +684,7 @@ pub mod pallet {
             Self::check_step()?;
 
             Self::do_harvest_challenge(&who, &target)?;
-
+            Self::deposit_event(Event::ChallengeHarvested(who, target));
             Ok(().into())
         }
 
@@ -692,8 +753,9 @@ pub mod pallet {
             } else {
                 if !is_all_confirmed {
                     <SeedsConfirmed<T>>::put(true);
-                } 
+                }
             }
+            Self::deposit_event(Event::SeedHarvested(who, target));
             <ScoreList<T>>::put(score_list);
             Ok(().into())
         }

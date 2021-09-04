@@ -487,7 +487,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
 
     fn examine(
         app_id: &AppId,
-        who: T::AccountId,
+        who: &T::AccountId,
         target: &T::AccountId,
         index: u32,
     ) -> DispatchResult {
@@ -500,7 +500,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     Error::<T>::NoChallengeAllowed
                 );
                 ensure!(
-                    challenge.is_challenger(&who),
+                    challenge.is_challenger(who),
                     Error::<T>::NoPermission
                 );
 

@@ -231,7 +231,7 @@ macro_rules! new_challenge_no_allowed {
 }
 
 new_challenge_no_allowed! {
-    new_challenge_no_allowed_5: (0,ChallengeStatus::EVIDENCE,5),
+    new_challenge_no_allowed_5: (0,ChallengeStatus::EVIDENCE,5u64),
     new_challenge_no_allowed_6: (0,ChallengeStatus::EXAMINE,21345),
     new_challenge_no_allowed_7: (0,ChallengeStatus::REPLY,51),
     new_challenge_no_allowed_8: (0,ChallengeStatus::ARBITRATION,533314),
@@ -320,7 +320,7 @@ fn next_should_fail() {
 fn examine_should_work() {
     new_test_ext().execute_with(|| {
         init_challenge(100, 100, ChallengeStatus::REPLY);
-        assert_ok!(ZdChallenges::examine(&APP_ID, CHALLENGER, &TARGET, 22));
+        assert_ok!(ZdChallenges::examine(&APP_ID, &CHALLENGER, &TARGET, 22));
         let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
         assert_eq!(metadata.remark, 22);
         assert_eq!(metadata.status, ChallengeStatus::EXAMINE);
@@ -333,7 +333,7 @@ fn examine_should_fail() {
     new_test_ext().execute_with(|| {
         init_challenge(100, 100, ChallengeStatus::REPLY);
         assert_noop!(
-            ZdChallenges::examine(&APP_ID, EVE, &TARGET, 22),
+            ZdChallenges::examine(&APP_ID, &EVE, &TARGET, 22),
             Error::<Test>::NoPermission
         );
         let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
@@ -342,7 +342,7 @@ fn examine_should_fail() {
         assert_eq!(metadata.progress.done, 100);
         init_challenge(100, 10, ChallengeStatus::REPLY);
         assert_noop!(
-            ZdChallenges::examine(&APP_ID, CHALLENGER, &TARGET, 22),
+            ZdChallenges::examine(&APP_ID, &CHALLENGER, &TARGET, 22),
             Error::<Test>::NoChallengeAllowed
         );
         let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);
@@ -351,7 +351,7 @@ fn examine_should_fail() {
         assert_eq!(metadata.progress.done, 10);
         init_challenge(100, 100, ChallengeStatus::FREE);
         assert_noop!(
-            ZdChallenges::examine(&APP_ID, CHALLENGER, &TARGET, 22),
+            ZdChallenges::examine(&APP_ID, &CHALLENGER, &TARGET, 22),
             Error::<Test>::NoChallengeAllowed
         );
         let metadata = ZdChallenges::get_metadata(&APP_ID, &TARGET);

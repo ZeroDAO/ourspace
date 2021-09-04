@@ -52,7 +52,7 @@ pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
 
     fn examine(
         app_id: &AppId,
-        who: AccountId,
+        who: &AccountId,
         target: &AccountId,
         index: u32,
     ) -> DispatchResult;
