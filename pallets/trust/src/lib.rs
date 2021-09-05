@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
 use frame_support::{
     codec::{Decode, Encode},
@@ -167,7 +168,7 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
         <TrustedList<T>>::get(&who).contains(&target)
     }
 
-    fn valid_nodes(nodes: &Vec<T::AccountId>) -> DispatchResult {
+    fn valid_nodes(nodes: &[T::AccountId]) -> DispatchResult {
         for w in nodes.windows(2) {
             ensure!(
                 Self::is_trust_old(&w[0], &w[1]),
@@ -191,11 +192,10 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
         trusted_user.0
     }
 
-    fn computed_path(users: &Vec<T::AccountId>) -> Result<(u32, u32), DispatchError> {
+    fn computed_path(users: &[T::AccountId]) -> Result<(u32, u32), DispatchError> {
         ensure!(T::SeedsBase::is_seed(&users[0]), Error::<T>::NotSeed);
         let mut start_ir = INIT_SEED_RANK;
-        let users_v = &users;
-        let (dist, score) = users_v
+        let (dist, score) = users
             .windows(2)
             .map(|u| -> Result<(u32, u32), Error<T>> {
                 if Self::is_trust(&u[0], &u[1]) {
@@ -217,6 +217,6 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
                     Ok((acc.0.saturating_add(dist as u32), item_score))
                 },
             )?;
-        Ok((dist, score.into()))
+        Ok((dist, score))
     }
 }

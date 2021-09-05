@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
 use frame_support::{
     codec::{Decode, Encode},
@@ -191,8 +192,6 @@ pub mod pallet {
         HashMismatch,
         /// Score mismatch
         ScoreMismatch,
-        /// The data submitted is invalid
-        PostConverFail,
         /// ResultHash does not exist
         ResultHashNotExit,
         /// Unconfirmed data still available
@@ -262,7 +261,7 @@ pub mod pallet {
                     Error::<T>::SeedAlreadyConfirmed
                 );
             }
-            T::ChallengeBase::new(
+            T::ChallengeBase::launch(
                 &APP_ID,
                 &challenger,
                 &candidate.pathfinder,
@@ -328,12 +327,12 @@ pub mod pallet {
                 count as u32,
                 |is_all_done, index, order| -> Result<u64, DispatchError> {
                     let new_order = Self::get_next_order(&target, &order, &(index as usize))?;
-                    Self::update_result_hashs(&target, &hashs, is_all_done, index, false)?;
+                    Self::update_result_hashs(&target, &hashs[..], is_all_done, index, false)?;
                     Self::deposit_event(Event::RepliedHash(
                         pathfinder.clone(),
                         target.clone(),
                         quantity,
-                        is_all_done.clone(),
+                        is_all_done,
                     ));
                     Ok(new_order)
                 },
@@ -357,11 +356,11 @@ pub mod pallet {
                 &target,
                 &(count as u32),
                 |_, index, is_all_done| -> Result<(u64, u32), DispatchError> {
-                    Self::update_result_hashs(&target, &hashs, is_all_done, index, true)?;
+                    Self::update_result_hashs(&target, &hashs[..], is_all_done, index, true)?;
                     Self::deposit_event(Event::ContinueRepliedHash(
                         challenger.clone(),
                         target.clone(),
-                        is_all_done.clone(),
+                        is_all_done,
                     ));
                     Ok((Zero::zero(), index))
                 },
@@ -399,12 +398,12 @@ pub mod pallet {
                 count as u32,
                 |is_all_done, index, order| -> Result<u64, DispatchError> {
                     let index = index as usize;
-                    let mut full_order = Self::get_full_order(&r_hashs_sets, &order, &index)?;
-                    let new_order = full_order.to_u64().ok_or(Error::<T>::ConverError)?;
-                    Self::checked_paths_vec(&paths, &target, &full_order.0, deep)?;
+                    let mut full_order = Self::get_full_order(&r_hashs_sets[..], &order, &index)?;
+                    let new_order = full_order.try_to_u64().ok_or(Error::<T>::ConverError)?;
+                    Self::checked_paths_vec(&paths[..], &target, &full_order.0[..], deep)?;
                     if is_all_done {
                         Self::verify_paths(
-                            &paths,
+                            &paths[..],
                             &target,
                             &r_hashs_sets.last().unwrap().0[index].clone(),
                         )?;
@@ -414,7 +413,7 @@ pub mod pallet {
                         pathfinder.clone(),
                         target.clone(),
                         quantity,
-                        is_all_done.clone(),
+                        is_all_done,
                     ));
                     Ok(new_order)
                 },
@@ -453,16 +452,16 @@ pub mod pallet {
 
                     let full_order = FullOrder::from_u64(&order, deep + 1);
 
-                    Self::checked_paths_vec(&paths, &target, &full_order.0, deep)?;
+                    Self::checked_paths_vec(&paths[..], &target, &full_order.0[..], deep)?;
 
                     if is_all_done {
-                        Self::verify_paths(&full_paths, &target, &r_hashs)?;
+                        Self::verify_paths(&full_paths[..], &target, &r_hashs)?;
                     }
                     <Paths<T>>::mutate(&target, |p| *p = full_paths);
                     Self::deposit_event(Event::ContinueRepliedPath(
                         pathfinder.clone(),
                         target.clone(),
-                        is_all_done.clone(),
+                        is_all_done,
                     ));
                     Ok((order, index))
                 },
@@ -487,7 +486,7 @@ pub mod pallet {
 
             ensure!(old_len == mid_paths.len(), Error::<T>::NotMatch);
 
-            Self::do_reply_num(&challenger, &target, &mid_paths)?;
+            Self::do_reply_num(&challenger, &target, &mid_paths[..])?;
             T::Reputation::set_last_refresh_at();
             Self::deposit_event(Event::RepliedNum(challenger, target));
             Ok(().into())
@@ -502,14 +501,14 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
             Self::check_step()?;
-            Self::checked_nodes(&nodes, &target)?;
+            Self::checked_nodes(&nodes[..], &target)?;
 
-            let (start, stop) = Self::get_nodes_ends(&nodes);
+            let (start, stop) = Self::get_nodes_ends(&nodes[..]);
 
             let deep =
                 <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::ResultHashNotExit)?;
 
-            let user_full_order = Self::to_full_order(&start, &stop, deep);
+            let user_full_order = Self::make_full_order(&start, &stop, deep);
             let maybe_score = T::ChallengeBase::evidence(
                 &APP_ID,
                 &challenger,
@@ -588,7 +587,7 @@ pub mod pallet {
             let p_path = Self::get_pathfinder_paths(&target, &index)?;
             let (start, stop) = Self::get_ends(&p_path);
 
-            Self::check_mid_path(&mid_path, &start, &stop)?;
+            Self::check_mid_path(&mid_path[..], &start, &stop)?;
 
             let maybe_score = T::ChallengeBase::evidence(
                 &APP_ID,
@@ -633,7 +632,7 @@ pub mod pallet {
                             mid_path.len() + 2 == p_path.nodes.len(),
                             Error::<T>::LengthNotEqual
                         );
-                        let _ = Self::check_mid_path(&mid_path, &start, &stop)?;
+                        let _ = Self::check_mid_path(&mid_path[..], &start, &stop)?;
                     }
                     ensure!(mid_paths.len() > p_path_total, Error::<T>::TooFewInNumber);
                     Ok(false)
@@ -661,8 +660,8 @@ pub mod pallet {
                 mid_path.len() + 2 < missed_path.len(),
                 Error::<T>::WrongPathLength
             );
-            let (start, stop) = Self::get_nodes_ends(&missed_path);
-            Self::check_mid_path(&mid_path, start, stop)?;
+            let (start, stop) = Self::get_nodes_ends(&missed_path[..]);
+            Self::check_mid_path(&mid_path[..], start, stop)?;
             let through_target = mid_path.contains(&target);
             T::ChallengeBase::arbitral(
                 &APP_ID,
@@ -754,10 +753,8 @@ pub mod pallet {
             if Self::is_all_harvest() {
                 <SeedsConfirmed<T>>::put(false);
                 T::Reputation::set_step(&TIRStep::REPUTATION);
-            } else {
-                if !is_all_confirmed {
-                    <SeedsConfirmed<T>>::put(true);
-                }
+            } else if !is_all_confirmed {
+                <SeedsConfirmed<T>>::put(true);
             }
             Self::deposit_event(Event::SeedHarvested(who, target));
             <ScoreList<T>>::put(score_list);

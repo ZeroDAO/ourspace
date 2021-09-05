@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
-// use frame_support::{ensure, dispatch::DispatchResultWithPostInfo, pallet, pallet_prelude::*};
 use frame_support::{
     codec::{Decode, Encode},
     ensure, pallet,
@@ -382,7 +382,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         Ok(maybe_score)
     }
 
-    fn new(
+    fn launch(
         app_id: &AppId,
         who: &T::AccountId,
         path_finder: &T::AccountId,

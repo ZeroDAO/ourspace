@@ -30,7 +30,7 @@ pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
 
     fn set_status(app_id: &AppId, target: &AccountId,status: &ChallengeStatus);
 
-    fn new(
+    fn launch(
         app_id: &AppId,
         who: &AccountId,
         path_finder: &AccountId,

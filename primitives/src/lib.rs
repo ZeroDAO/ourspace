@@ -12,6 +12,13 @@ use sp_std::convert::TryInto;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
+#[derive(Encode, Debug, Decode, Eq, PartialEq, Copy, Clone, PartialOrd, Ord)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum CurrencyId {
+    ZDAO,
+    SOCI,
+}
+
 pub type AppId = [u8; 8];
 
 /// Balance of an account.

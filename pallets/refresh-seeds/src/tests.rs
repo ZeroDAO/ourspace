@@ -178,7 +178,7 @@ fn init_challenge(total_bonus: &Balance) {
     assert_ok!(ZdRefreshSeeds::reply_hash(
         Origin::signed(PATHFINDER),
         B,
-        vec![PostResultHash("f9".to_string(), 50, "b3b4e091".to_string())],
+        vec![PostResultHash(*b"f9", 50, *b"b3b4e091")],
         2,
     ));
     let event = Event::zd_refresh_seeds(crate::Event::RepliedHash(PATHFINDER, B, 2, false));
@@ -188,9 +188,9 @@ fn init_challenge(total_bonus: &Balance) {
         Origin::signed(PATHFINDER),
         B,
         vec![PostResultHash(
-            "7c".to_string(),
+            *b"7c",
             100,
-            "781bbaf6".to_string()
+            *b"781bbaf6"
         )],
     ));
     let event = Event::zd_refresh_seeds(crate::Event::ContinueRepliedHash(PATHFINDER, B, true));
@@ -209,7 +209,7 @@ fn init_challenge(total_bonus: &Balance) {
     assert_ok!(ZdRefreshSeeds::reply_hash(
         Origin::signed(PATHFINDER),
         B,
-        vec![PostResultHash("90".to_string(), 50, "c248b273".to_string())],
+        vec![PostResultHash(*b"90", 50, *b"c248b273")],
         1,
     ));
 
@@ -226,7 +226,7 @@ fn init_challenge(total_bonus: &Balance) {
     assert_ok!(ZdRefreshSeeds::reply_hash(
         Origin::signed(PATHFINDER),
         B,
-        vec![PostResultHash("6c".to_string(), 50, "43eb70aa".to_string())],
+        vec![PostResultHash(*b"6c", 50, *b"43eb70aa")],
         1,
     ));
     assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
@@ -239,7 +239,7 @@ fn init_challenge(total_bonus: &Balance) {
     assert_ok!(ZdRefreshSeeds::reply_hash(
         Origin::signed(PATHFINDER),
         B,
-        vec![PostResultHash("f1".to_string(), 50, "a0e8df2a".to_string())],
+        vec![PostResultHash(*b"f1", 50, *b"a0e8df2a")],
         1,
     ));
 }
@@ -312,8 +312,8 @@ fn pathfinder_win() {
                 Origin::signed(PATHFINDER),
                 B,
                 vec![
-                    PostResultHash("f9".to_string(), 50, "b3b4e091".to_string()),
-                    PostResultHash("7c".to_string(), 100, "781bbaf6".to_string())
+                    PostResultHash(*b"f9", 50, *b"b3b4e091"),
+                    PostResultHash(*b"7c", 100, *b"781bbaf6")
                 ],
                 2,
             ),
@@ -437,8 +437,8 @@ fn missed_path_at_rhashs() {
                 Origin::signed(PATHFINDER),
                 B,
                 vec![
-                    PostResultHash("f9".to_string(), 50, "b3b4e091".to_string()),
-                    PostResultHash("7c".to_string(), 100, "781bbaf6".to_string())
+                    PostResultHash(*b"f9", 50, *b"b3b4e091"),
+                    PostResultHash(*b"7c", 100, *b"781bbaf6")
                 ],
                 MAX_HASH_COUNT + 1,
             ),
@@ -449,8 +449,8 @@ fn missed_path_at_rhashs() {
             Origin::signed(PATHFINDER),
             B,
             vec![
-                PostResultHash("f9".to_string(), 50, "b3b4e091".to_string()),
-                PostResultHash("7c".to_string(), 100, "781bbaf6".to_string())
+                PostResultHash(*b"f9", 50, *b"b3b4e091"),
+                PostResultHash(*b"7c", 100, *b"781bbaf6")
             ],
             2,
         ));
@@ -737,37 +737,9 @@ fn reply_path_next_test() {
                 Origin::signed(PATHFINDER),
                 B,
                 vec![
-                    PostResultHash("f91".to_string(), 50, "b3b4e091".to_string()),
-                    PostResultHash("7c".to_string(), 100, "781bbaf6".to_string()),
-                    PostResultHash("4e".to_string(), 66, "7bdb0996".to_string()),
-                ],
-                3,
-            ),
-            Error::<Test>::PostConverFail
-        );
-
-        assert_noop!(
-            ZdRefreshSeeds::reply_hash(
-                Origin::signed(PATHFINDER),
-                B,
-                vec![
-                    PostResultHash("f9".to_string(), 50, "b3b4e09大".to_string()),
-                    PostResultHash("7c".to_string(), 100, "781bbaf6".to_string()),
-                    PostResultHash("4e".to_string(), 66, "7bdb0996".to_string()),
-                ],
-                3,
-            ),
-            Error::<Test>::PostConverFail
-        );
-
-        assert_noop!(
-            ZdRefreshSeeds::reply_hash(
-                Origin::signed(PATHFINDER),
-                B,
-                vec![
-                    PostResultHash("f9".to_string(), 50, "b3b4e091".to_string()),
-                    PostResultHash("4e".to_string(), 66, "7bdb0996".to_string()),
-                    PostResultHash("4e".to_string(), 66, "11111111".to_string()),
+                    PostResultHash(*b"f9", 50, *b"b3b4e091"),
+                    PostResultHash(*b"4e", 66, *b"7bdb0996"),
+                    PostResultHash(*b"4e", 66, *b"11111111"),
                 ],
                 3,
             ),
@@ -779,9 +751,9 @@ fn reply_path_next_test() {
             Origin::signed(PATHFINDER),
             B,
             vec![
-                PostResultHash("f9".to_string(), 50, "b3b4e091".to_string()),
-                PostResultHash("7c".to_string(), 100, "781bbaf6".to_string()),
-                PostResultHash("4e".to_string(), 66, "7bdb0996".to_string()),
+                PostResultHash(*b"f9", 50, *b"b3b4e091"),
+                PostResultHash(*b"7c", 100, *b"781bbaf6"),
+                PostResultHash(*b"4e", 66, *b"7bdb0996"),
             ],
             3,
         ));
@@ -794,7 +766,7 @@ fn reply_path_next_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash("d0".to_string(), 66, "f20e66b6".to_string())],
+            vec![PostResultHash(*b"d0", 66, *b"f20e66b6")],
             1,
         ));
         assert_noop!(
@@ -817,7 +789,7 @@ fn reply_path_next_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash("60".to_string(), 66, "0898dcbe".to_string())],
+            vec![PostResultHash(*b"60", 66, *b"0898dcbe")],
             1,
         ));
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
@@ -828,7 +800,7 @@ fn reply_path_next_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash("1f".to_string(), 66, "252ca045".to_string())],
+            vec![PostResultHash(*b"1f", 66, *b"252ca045")],
             1,
         ));
 
@@ -961,9 +933,9 @@ fn missed_at_paths_test() {
             Origin::signed(PATHFINDER),
             B,
             vec![
-                PostResultHash("f9".to_string(), 50, "b3b4e091".to_string()),
-                PostResultHash("7c".to_string(), 100, "781bbaf6".to_string()),
-                PostResultHash("4e".to_string(), 33, "993a00e0".to_string()),
+                PostResultHash(*b"f9", 50, *b"b3b4e091"),
+                PostResultHash(*b"7c", 100, *b"781bbaf6"),
+                PostResultHash(*b"4e", 33, *b"993a00e0"),
             ],
             3,
         ));
@@ -975,7 +947,7 @@ fn missed_at_paths_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash("d0".to_string(), 33, "b00dbe72".to_string())],
+            vec![PostResultHash(*b"d0", 33, *b"b00dbe72")],
             1,
         ));
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
@@ -986,7 +958,7 @@ fn missed_at_paths_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash("60".to_string(), 33, "5dbb6cab".to_string())],
+            vec![PostResultHash(*b"60", 33, *b"5dbb6cab")],
             1,
         ));
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
@@ -997,7 +969,7 @@ fn missed_at_paths_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash("1f".to_string(), 33, "e0c4ada0".to_string())],
+            vec![PostResultHash(*b"1f", 33, *b"e0c4ada0")],
             1,
         ));
 

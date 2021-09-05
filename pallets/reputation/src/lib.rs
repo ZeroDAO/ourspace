@@ -248,7 +248,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
         }
 
         SystemInfo::<T>::mutate(|operation_status| {
-            operation_status.last = now.clone();
+            operation_status.last = now;
             operation_status.step = TIRStep::FREE;
         });
     }

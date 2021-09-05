@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
 
 use frame_support::{
     codec::{Decode, Encode},
@@ -10,6 +11,7 @@ use frame_system::{self as system, ensure_signed};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
 use zd_traits::{ChallengeBase, ChallengeStatus, MultiBaseToken, Reputation, SeedsBase, TrustBase};
+use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod mock;
@@ -218,7 +220,7 @@ pub mod pallet {
                         T::MultiBaseToken::release(&pathfinder, &without_fee)?;
 
                         acc.checked_add(proxy_fee)
-                            .ok_or(Error::<T>::Overflow.into())
+                            .ok_or_else(|| Error::<T>::Overflow.into())
                     },
                 )?;
             T::MultiBaseToken::release(&who, &total_fee)?;
@@ -353,7 +355,7 @@ pub mod pallet {
                 f.count = f.count.saturating_sub(1);
             });
 
-            T::ChallengeBase::new(
+            T::ChallengeBase::launch(
                 &APP_ID,
                 &challenger,
                 &pathfinder,
@@ -387,7 +389,7 @@ pub mod pallet {
                 &target,
                 |score, remark| -> Result<(bool, bool, u64), _> {
                     let score = score as u32;
-                    let new_score = Self::do_update_path_verify(&target, &seeds, &paths, score)?;
+                    let new_score = Self::do_update_path_verify(&target, &seeds[..], &paths[..], score)?;
                     T::Reputation::mutate_reputation(&target, &new_score);
                     Ok((new_score == remark, false, new_score.into()))
                 },
@@ -414,7 +416,7 @@ pub mod pallet {
                 &target,
                 &(count as u32),
                 |score, remark, is_all_done| -> Result<(u64, u32), DispatchError> {
-                    let new_score = Self::do_update_path(&target, &seeds, &paths, score as u32)?;
+                    let new_score = Self::do_update_path(&target, &seeds[..], &paths[..], score as u32)?;
                     if is_all_done {
                         T::Reputation::mutate_reputation(&target, &new_score);
                     }
@@ -526,7 +528,7 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn share(user: &T::AccountId) -> Result<Balance, DispatchError> {
         let targets = T::TrustBase::get_trust_old(user);
-        T::MultiBaseToken::share(user, &targets)
+        T::MultiBaseToken::share(user, &targets[..])
     }
 
     pub(crate) fn get_dist(
@@ -538,7 +540,7 @@ impl<T: Config> Pallet<T> {
             let mut nodes = paths.nodes.clone();
             nodes.insert(0, seed.clone());
             nodes.push(target.clone());
-            if let Ok((dist, score)) = T::TrustBase::computed_path(&nodes) {
+            if let Ok((dist, score)) = T::TrustBase::computed_path(&nodes[..]) {
                 if score == paths.score {
                     return Some(dist);
                 }
@@ -549,8 +551,8 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn do_update_path(
         target: &T::AccountId,
-        seeds: &Vec<T::AccountId>,
-        paths: &Vec<Path<T::AccountId>>,
+        seeds: &[T::AccountId],
+        paths: &[Path<T::AccountId>],
         score: u32,
     ) -> Result<u32, DispatchError> {
         let new_score = seeds
@@ -567,13 +569,13 @@ impl<T: Config> Pallet<T> {
         for (seed, path) in seeds.iter().zip(paths.iter()) {
             Paths::<T>::insert(seed, target, path);
         }
-        Ok(new_score.clone())
+        Ok(new_score)
     }
 
     pub(crate) fn do_update_path_verify(
         target: &T::AccountId,
-        seeds: &Vec<T::AccountId>,
-        paths: &Vec<Path<T::AccountId>>,
+        seeds: &[T::AccountId],
+        paths: &[Path<T::AccountId>],
         score: u32,
     ) -> Result<u32, DispatchError> {
         let new_score = seeds.iter().zip(paths.iter()).try_fold(

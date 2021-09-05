@@ -11,7 +11,6 @@ use sp_runtime::{
     traits::{MaybeSerializeDeserialize, Member, StaticLookup},
     DispatchResult,
 };
-use sp_std::vec::Vec;
 use zd_primitives::{per_social_currency, Balance};
 use zd_traits::MultiBaseToken;
 
@@ -148,7 +147,7 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
         T::Currency::social_balance(T::BaceToken::get(), who)
     }
 
-    fn share(who: &T::AccountId, targets: &Vec<T::AccountId>) -> Result<Balance, DispatchError> {
+    fn share(who: &T::AccountId, targets: &[T::AccountId]) -> Result<Balance, DispatchError> {
         let total_share = T::Currency::social_balance(T::BaceToken::get(), &who);
 
         let total_share_amount = per_social_currency::PRE_SHARE.mul_floor(total_share);
@@ -166,7 +165,7 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
             .checked_div((targets.len() as u32).max(per_social_currency::MIN_TRUST_COUNT).into())
             .ok_or(Error::<T>::Overflow)?;
             
-        T::Currency::bat_share(T::BaceToken::get(), &who, targets, share_amount)?;
+        T::Currency::bat_share(T::BaceToken::get(), &who, &targets.to_vec(), share_amount)?;
         T::Currency::thaw(T::BaceToken::get(), &who, reserved_amount)?;
         T::Currency::social_burn(T::BaceToken::get(), &who, burn_amount)?;
         Self::try_add_bonus(&pre_reward)?;

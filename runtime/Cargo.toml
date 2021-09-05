@@ -21,18 +21,18 @@ package = 'parity-scale-codec'
 version = '2.0.0'
 
 [dependencies]
-hex-literal = {optional = true, version = '0.3.1'}
-serde = {features = ['derive'], optional = true, version = '1.0.119'}
+hex-literal = { optional = true, version = '0.3.1' }
+serde = { features = ['derive'], optional = true, version = '1.0.119' }
 
 # local dependencies
-zd-challenges = {path = "../pallets/challenges", default-features = false, version = '0.0.1'}
-zd-primitives = {default-features = false, path = "../primitives", version = '0.0.1'}
-zd-refresh-reputation = {path = "../pallets/refresh-reputation", default-features = false, version = '0.0.1'}
-zd-refresh-seeds = {path = "../pallets/refresh-seeds", default-features = false, version = '0.0.1'}
 zd-reputation = {path = "../pallets/reputation", default-features = false, version = '0.0.1'}
 zd-seeds = {path = "../pallets/seeds", default-features = false, version = '0.0.1'}
-zd-tokens = {default-features = false, path = '../pallets/tokens', version = '0.0.1'}
+zd-primitives = {default-features = false, path = "../primitives", version = '0.0.1'}
 zd-trust = {path = "../pallets/trust", default-features = false, version = '0.0.1'}
+zd-tokens = {default-features = false, path = '../pallets/tokens', version = '0.0.1'}
+zd-challenges = {path = "../pallets/challenges", default-features = false, version = '0.0.1'}
+zd-refresh-reputation = {path = "../pallets/refresh-reputation", default-features = false, version = '0.0.1'}
+zd-refresh-seeds = {path = "../pallets/refresh-seeds", default-features = false, version = '0.0.1'}
 
 # orml extensions
 orml-currencies = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
@@ -40,79 +40,71 @@ orml-tokens = {default-features = false, version = '0.4.0', git = 'https://githu
 orml-traits = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
 
 # Substrate dependencies
-frame-benchmarking = {default-features = false, optional = true, version = '3.0.0'}
-frame-executive = {default-features = false, version = '3.0.0'}
-frame-support = {default-features = false, version = '3.0.0'}
-frame-system = {default-features = false, version = '3.0.0'}
-frame-system-benchmarking = {default-features = false, optional = true, version = '3.0.0'}
-frame-system-rpc-runtime-api = {default-features = false, version = '3.0.0'}
-pallet-aura = {default-features = false, version = '3.0.0'}
-pallet-balances = {default-features = false, version = '3.0.0'}
-pallet-grandpa = {default-features = false, version = '3.0.0'}
-pallet-randomness-collective-flip = {default-features = false, version = '3.0.0'}
-pallet-sudo = {default-features = false, version = '3.0.0'}
-pallet-timestamp = {default-features = false, version = '3.0.0'}
-pallet-transaction-payment = {default-features = false, version = '3.0.0'}
-pallet-transaction-payment-rpc-runtime-api = {default-features = false, version = '3.0.0'}
-sp-api = {default-features = false, version = '3.0.0'}
-sp-block-builder = {default-features = false, version = '3.0.0'}
-sp-consensus-aura = {default-features = false, version = '0.9.0'}
-sp-core = {default-features = false, version = '3.0.0'}
-sp-inherents = {default-features = false, version = '3.0.0'}
-sp-offchain = {default-features = false, version = '3.0.0'}
-sp-runtime = {default-features = false, version = '3.0.0'}
-sp-session = {default-features = false, version = '3.0.0'}
-sp-std = {default-features = false, version = '3.0.0'}
-sp-transaction-pool = {default-features = false, version = '3.0.0'}
-sp-version = {default-features = false, version = '3.0.0'}
+frame-benchmarking = { default-features = false, optional = true, version = '3.0.0' }
+frame-executive = { default-features = false, version = '3.0.0' }
+frame-support = { default-features = false, version = '3.0.0' }
+frame-system = { default-features = false, version = '3.0.0' }
+frame-system-benchmarking = { default-features = false, optional = true, version = '3.0.0' }
+frame-system-rpc-runtime-api = { default-features = false, version = '3.0.0' }
+pallet-aura = { default-features = false, version = '3.0.0' }
+pallet-balances = { default-features = false, version = '3.0.0' }
+pallet-grandpa = { default-features = false, version = '3.0.0' }
+pallet-randomness-collective-flip = { default-features = false, version = '3.0.0' }
+pallet-sudo = { default-features = false, version = '3.0.0' }
+pallet-timestamp = { default-features = false, version = '3.0.0' }
+pallet-transaction-payment = { default-features = false, version = '3.0.0' }
+pallet-transaction-payment-rpc-runtime-api = { default-features = false, version = '3.0.0' }
+sp-api = { default-features = false, version = '3.0.0' }
+sp-block-builder = { default-features = false, version = '3.0.0' }
+sp-consensus-aura = { default-features = false, version = '0.9.0' }
+sp-core = { default-features = false, version = '3.0.0' }
+sp-inherents = { default-features = false, version = '3.0.0' }
+sp-offchain = { default-features = false, version = '3.0.0' }
+sp-runtime = { default-features = false, version = '3.0.0' }
+sp-session = { default-features = false, version = '3.0.0' }
+sp-std = { default-features = false, version = '3.0.0' }
+sp-transaction-pool = { default-features = false, version = '3.0.0' }
+sp-version = { default-features = false, version = '3.0.0' }
 
 [features]
 default = ['std']
 runtime-benchmarks = [
-  'hex-literal',
-  'frame-benchmarking',
-  'frame-support/runtime-benchmarks',
-  'frame-system-benchmarking',
-  'frame-system/runtime-benchmarks',
-  'pallet-balances/runtime-benchmarks',
-  'pallet-timestamp/runtime-benchmarks',
-  'sp-runtime/runtime-benchmarks',
+    'hex-literal',
+    'frame-benchmarking',
+    'frame-support/runtime-benchmarks',
+    'frame-system-benchmarking',
+    'frame-system/runtime-benchmarks',
+    'pallet-balances/runtime-benchmarks',
+    'pallet-timestamp/runtime-benchmarks',
+    'sp-runtime/runtime-benchmarks',
 ]
 std = [
-  'codec/std',
-  'serde',
-  'frame-executive/std',
-  'frame-support/std',
-  'frame-system/std',
-  'frame-system-rpc-runtime-api/std',
-  'pallet-aura/std',
-  'pallet-balances/std',
-  'pallet-grandpa/std',
-  'pallet-randomness-collective-flip/std',
-  'pallet-sudo/std',
-  'pallet-timestamp/std',
-  'pallet-transaction-payment/std',
-  'pallet-transaction-payment-rpc-runtime-api/std',
-  'sp-api/std',
-  'sp-block-builder/std',
-  'sp-consensus-aura/std',
-  'sp-core/std',
-  'sp-inherents/std',
-  'sp-offchain/std',
-  'sp-runtime/std',
-  'sp-session/std',
-  'sp-std/std',
-  'sp-transaction-pool/std',
-  'sp-version/std',
-  'orml-currencies/std',
-  'orml-tokens/std',
-  'orml-traits/std',
-  'zd-primitives/std',
-  'zd-tokens/std',
-  'zd-challenges/std',
-  'zd-reputation/std',
-  'zd-seeds/std',
-  'zd-trust/std',
-  'zd-refresh-reputation/std',
-  'zd-refresh-seeds/std',
+    'codec/std',
+    'serde',
+    'frame-executive/std',
+    'frame-support/std',
+    'frame-system/std',
+    'frame-system-rpc-runtime-api/std',
+    'pallet-aura/std',
+    'pallet-balances/std',
+    'pallet-grandpa/std',
+    'pallet-randomness-collective-flip/std',
+    'pallet-sudo/std',
+    'pallet-timestamp/std',
+    'pallet-transaction-payment/std',
+    'pallet-transaction-payment-rpc-runtime-api/std',
+    'sp-api/std',
+    'sp-block-builder/std',
+    'sp-consensus-aura/std',
+    'sp-core/std',
+    'sp-inherents/std',
+    'sp-offchain/std',
+    'sp-runtime/std',
+    'sp-session/std',
+    'sp-std/std',
+    'sp-transaction-pool/std',
+    'sp-version/std',
+    'orml-tokens/std',
+    'zd-reputation/std',
+    'zd-primitives/std',
 ]

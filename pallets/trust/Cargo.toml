@@ -41,5 +41,5 @@ std = [
   'sp-std/std',
   "zd-traits/std",
   "zd-primitives/std",
-  'zd-reputation/std'
+  'zd-reputation/std',
 ]

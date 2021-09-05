@@ -1,6 +1,4 @@
-#![cfg_attr(not(feature = "std"), no_std)]
-
-use super::*;
+use crate::*;
 
 pub const APP_ID: AppId = *b"seed    ";
 pub const DEEP: u8 = 4;
@@ -21,7 +19,7 @@ pub struct Candidate<AccountId,BlockNumber> {
 #[derive(Encode, Decode, Clone, Default, Ord, PartialOrd, PartialEq, Eq, RuntimeDebug)]
 pub struct FullOrder(pub Vec<u8>);
 impl FullOrder {
-    pub fn to_u64(&mut self) -> Option<u64> {
+    pub fn try_to_u64(&mut self) -> Option<u64> {
         let len = self.0.len();
         if len > 8 {
             return None;
@@ -46,37 +44,26 @@ impl FullOrder {
         full_order
     }
 
-    pub fn connect(&mut self, order: &Vec<u8>) {
+    pub fn connect(&mut self, order: &[u8]) {
         self.0.extend_from_slice(&order[..RANGE]);
     }
 
-    pub fn connect_to_u64(&mut self, order: &Vec<u8>) -> Option<u64> {
+    pub fn connect_to_u64(&mut self, order: &[u8]) -> Option<u64> {
         self.connect(order);
-        self.to_u64()
+        self.try_to_u64()
     }
 }
 
-#[derive(Encode, Decode, Clone, Ord, PartialOrd, PartialEq, Eq, Default, RuntimeDebug)]
-pub struct PostResultHash(pub String, pub u64, pub String);
+#[derive(Encode, Decode, Clone, Ord, PartialOrd, PartialEq, Eq, RuntimeDebug)]
+pub struct PostResultHash(pub [u8; RANGE], pub u64, pub [u8; 8]);
 
 impl PostResultHash {
-    // TODO Adopt more efficient encoding
-    pub fn to_result_hash(&self) -> Option<ResultHash> {
-        // TODO too wordy 
-        let order_slice = self.0.as_bytes();
-        let hash_slice = self.2.as_bytes();
-        if order_slice.len() != RANGE || hash_slice.len() != 8 {
-            return None;
-        }
-        let mut order: [u8;RANGE] = Default::default();
-        let mut hash: [u8;8] = Default::default();
-        order.clone_from_slice(order_slice);
-        hash.clone_from_slice(hash_slice);
-        Some(ResultHash {
-            order,
+    pub fn to_result_hash(&self) -> ResultHash {
+        ResultHash {
+            order: self.0,
             score: self.1,
-            hash,
-        })
+            hash: self.2,
+        }
     }
 }
 
@@ -124,7 +111,7 @@ mod tests {
 	fn from_u64() {
 		let mut full_order = FullOrder::from_u64(&0u64,1);
         assert_eq!(full_order.0, Vec::<u8>::new());
-        let order_u64 = full_order.to_u64();
+        let order_u64 = full_order.try_to_u64();
         assert_eq!(order_u64, Some(0));
 
         let mut full_order = FullOrder::from_u64(&0u64,1);

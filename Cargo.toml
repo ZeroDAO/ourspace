@@ -1,9 +1,17 @@
 [profile.release]
 panic = 'unwind'
 
+[profile.dev]
+split-debuginfo = "unpacked"
+
 [workspace]
 members = [
     'node',
     'pallets/*',
     'runtime',
+    'primitives',
+    'traits'
 ]
+exclude = ['rpc']
+
+# resolver = "2"

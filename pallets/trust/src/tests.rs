@@ -53,9 +53,9 @@ fn is_trust_should_work() {
 fn valid_nodes_should_work() {
     new_test_ext().execute_with(|| {
         initialize_trust();
-        assert_ok!(ZdTrust::valid_nodes(&vec![ALICE, BOB]));
-        assert_ok!(ZdTrust::valid_nodes(&vec![ALICE, BOB, CHARLIE]));
-        assert_ok!(ZdTrust::valid_nodes(&vec![ALICE, BOB, CHARLIE, DAVE, EVE]));
+        assert_ok!(ZdTrust::valid_nodes(&[ALICE, BOB]));
+        assert_ok!(ZdTrust::valid_nodes(&[ALICE, BOB, CHARLIE]));
+        assert_ok!(ZdTrust::valid_nodes(&[ALICE, BOB, CHARLIE, DAVE, EVE]));
     });
 }
 
@@ -64,27 +64,27 @@ fn valid_nodes_should_fail() {
     new_test_ext().execute_with(|| {
         initialize_trust();
         assert_noop!(
-            ZdTrust::valid_nodes(&vec![ALICE, BOB, DAVE]),
+            ZdTrust::valid_nodes(&[ALICE, BOB, DAVE]),
             Error::<Test>::WrongPath
         );
         assert_noop!(
-            ZdTrust::valid_nodes(&vec![ALICE, BOB, CHARLIE, 21]),
+            ZdTrust::valid_nodes(&[ALICE, BOB, CHARLIE, 21]),
             Error::<Test>::WrongPath
         );
         assert_noop!(
-            ZdTrust::valid_nodes(&vec![21, BOB, CHARLIE]),
+            ZdTrust::valid_nodes(&[21, BOB, CHARLIE]),
             Error::<Test>::WrongPath
         );
         assert_noop!(
-            ZdTrust::valid_nodes(&vec![21, 22, 23]),
+            ZdTrust::valid_nodes(&[21, 22, 23]),
             Error::<Test>::WrongPath
         );
         assert_noop!(
-            ZdTrust::valid_nodes(&vec![21, 21, 21]),
+            ZdTrust::valid_nodes(&[21, 21, 21]),
             Error::<Test>::WrongPath
         );
         assert_noop!(
-            ZdTrust::valid_nodes(&vec![ALICE, ALICE]),
+            ZdTrust::valid_nodes(&[ALICE, ALICE]),
             Error::<Test>::WrongPath
         );
     });
@@ -97,18 +97,18 @@ fn computed_path_should_work() {
         assert_ok!(ZdSeeds::new_seed(Origin::root(), ALICE));
         // vec![(FERDIE, BOB), (ALICE, CHARLIE), (ALICE, BOB), (BOB, CHARLIE), (CHARLIE, DAVE), (DAVE, EVE)];
         // 1000 / 2.max(5) / (1000 - 0).ln() = 28.5714
-        assert_ok!(ZdTrust::computed_path(&vec![ALICE, BOB]), (7, 28));
+        assert_ok!(ZdTrust::computed_path(&[ALICE, BOB]), (7, 28));
         // 28 / 0.max(5) / 1 = 5.6
         assert_ok!(
-            ZdTrust::computed_path(&vec![ALICE, BOB, CHARLIE]),
+            ZdTrust::computed_path(&[ALICE, BOB, CHARLIE]),
             (1 + 7, 5)
         );
         assert_ok!(
-            ZdTrust::computed_path(&vec![ALICE, BOB, CHARLIE, DAVE]),
+            ZdTrust::computed_path(&[ALICE, BOB, CHARLIE, DAVE]),
             (1 + 7 + 1, 1)
         );
         assert_ok!(
-            ZdTrust::computed_path(&vec![ALICE, BOB, CHARLIE, DAVE, EVE]),
+            ZdTrust::computed_path(&[ALICE, BOB, CHARLIE, DAVE, EVE]),
             (1 + 7 + 1 + 1, 0)
         );
     });
@@ -120,11 +120,11 @@ fn computed_path_should_fail() {
         initialize_trust();
         assert_ok!(ZdSeeds::new_seed(Origin::root(), ALICE));
         assert_noop!(
-            ZdTrust::computed_path(&vec![BOB, CHARLIE]),
+            ZdTrust::computed_path(&[BOB, CHARLIE]),
             Error::<Test>::NotSeed
         );
         assert_noop!(
-            ZdTrust::computed_path(&vec![ALICE, BOB, 22]),
+            ZdTrust::computed_path(&[ALICE, BOB, 22]),
             Error::<Test>::WrongPath
         );
     });

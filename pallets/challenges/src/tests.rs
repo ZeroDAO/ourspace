@@ -87,7 +87,7 @@ macro_rules! new_challenge_should_work {
                         // ChallengeTimeout
                         System::set_block_number($value.set_now);
                     }
-                    assert_ok!(ZdChallenges::new(
+                    assert_ok!(ZdChallenges::launch(
                         &APP_ID,
                         &CHALLENGER,
                         &PATHINFER,
@@ -185,7 +185,7 @@ new_challenge_should_work! {
 #[test]
 fn new_challenge_staking_fail() {
     new_test_ext().execute_with(|| {
-        assert!(ZdChallenges::new(&APP_ID, &DAVE, &PATHINFER, 0, 1000, &TARGET, 100, 0, 0).is_err());
+        assert!(ZdChallenges::launch(&APP_ID, &DAVE, &PATHINFER, 0, 1000, &TARGET, 100, 0, 0).is_err());
         assert_eq!(
             ZdChallenges::get_metadata(&APP_ID, &TARGET),
             Metadata::default()
@@ -213,7 +213,7 @@ macro_rules! new_challenge_no_allowed {
                     // ChallengeTimeout
                     System::set_block_number(now);
 
-                    assert_noop!(ZdChallenges::new(
+                    assert_noop!(ZdChallenges::launch(
                         &APP_ID,
                         &CHALLENGER,
                         &PATHINFER,

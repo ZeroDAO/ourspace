@@ -38,7 +38,7 @@ impl<T: Config> Pallet<T> {
         Self::deposit_event(Event::SeedsSelected(score_list.len() as u32));
     }
 
-    pub(crate) fn to_full_order(start: &T::AccountId, stop: &T::AccountId, deep: usize) -> Vec<u8> {
+    pub(crate) fn make_full_order(start: &T::AccountId, stop: &T::AccountId, deep: usize) -> Vec<u8> {
         let mut points = T::AccountId::encode(start);
         points.extend(T::AccountId::encode(stop).iter().cloned());
         let hash = hex::encode(Self::sha1_hasher(&points));
@@ -61,27 +61,24 @@ impl<T: Config> Pallet<T> {
         Ok(paths[index].clone())
     }
 
-    pub(crate) fn do_harvest_challenge<'a>(
+    pub(crate) fn do_harvest_challenge(
         who: &T::AccountId,
-        target: &'a T::AccountId,
+        target: & T::AccountId,
     ) -> DispatchResult {
         <Candidates<T>>::try_mutate(target, |c| {
-            match T::ChallengeBase::harvest(&who, &APP_ID, &target)? {
-                Some(score) => {
-                    c.score = score;
-                }
-                None => (),
+            if let Some(score) = T::ChallengeBase::harvest(&who, &APP_ID, target)? {
+                c.score = score;
             }
-            Self::remove_challenge(&target);
+            Self::remove_challenge(target);
             Ok(())
         })
     }
 
     pub(crate) fn get_ends(path: &Path<T::AccountId>) -> (&T::AccountId, &T::AccountId) {
-        Self::get_nodes_ends(&path.nodes)
+        Self::get_nodes_ends(&path.nodes[..])
     }
 
-    pub(crate) fn get_nodes_ends(nodes: &Vec<T::AccountId>) -> (&T::AccountId, &T::AccountId) {
+    pub(crate) fn get_nodes_ends(nodes: &[T::AccountId]) -> (&T::AccountId, &T::AccountId) {
         let stop = nodes.last().unwrap();
         (&nodes[0], stop)
     }
@@ -117,14 +114,14 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn check_mid_path(
-        mid_path: &Vec<T::AccountId>,
+        mid_path: &[T::AccountId],
         start: &T::AccountId,
         stop: &T::AccountId,
     ) -> Result<Vec<T::AccountId>, DispatchError> {
-        let mut nodes = mid_path.clone();
+        let mut nodes = mid_path.to_vec();
         nodes.insert(0, start.clone());
         nodes.push(stop.clone());
-        T::TrustBase::valid_nodes(&nodes)?;
+        T::TrustBase::valid_nodes(&nodes[..])?;
         Ok(nodes.to_vec())
     }
 
@@ -154,19 +151,19 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn checked_nodes(
-        nodes: &Vec<T::AccountId>,
+        nodes: &[T::AccountId],
         target: &T::AccountId,
     ) -> DispatchResult {
         ensure!(nodes.len() >= 2, Error::<T>::PathTooShort);
         ensure!(nodes.contains(&target), Error::<T>::NoTargetNode);
-        T::TrustBase::valid_nodes(&nodes)?;
+        T::TrustBase::valid_nodes(nodes)?;
         Ok(())
     }
 
     pub(crate) fn checked_paths_vec(
-        paths: &Vec<Path<T::AccountId>>,
+        paths: &[Path<T::AccountId>],
         target: &T::AccountId,
-        order: &Vec<u8>,
+        order: &[u8],
         deep: usize,
     ) -> DispatchResult {
         for p in paths {
@@ -176,10 +173,10 @@ impl<T: Config> Pallet<T> {
             );
             let (start, stop) = Self::get_ends(&p);
             ensure!(
-                Self::to_full_order(start, stop, deep) == *order,
+                Self::make_full_order(start, stop, deep) == *order,
                 Error::<T>::OrderNotMatch
             );
-            Self::checked_nodes(&p.nodes, target)?;
+            Self::checked_nodes(&p.nodes[..], target)?;
         }
         Ok(())
     }
@@ -191,8 +188,8 @@ impl<T: Config> Pallet<T> {
     ) -> Result<u64, Error<T>> {
         match Self::try_get_rhash(target) {
             Ok(r_hashs_sets) => {
-                let mut full_order = Self::get_full_order(&r_hashs_sets, old_order, index)?;
-                full_order.to_u64().ok_or(Error::<T>::ConverError)
+                let mut full_order = Self::get_full_order(&r_hashs_sets[..], old_order, index)?;
+                full_order.try_to_u64().ok_or(Error::<T>::ConverError)
             }
             Err(_) => Ok(0u64),
         }
@@ -200,13 +197,13 @@ impl<T: Config> Pallet<T> {
 
     // index
     pub(crate) fn get_full_order(
-        result_hashs_sets: &Vec<OrderedSet<ResultHash>>,
+        result_hashs_sets: &[OrderedSet<ResultHash>],
         old_order: &u64,
         index: &usize,
     ) -> Result<FullOrder, Error<T>> {
         match result_hashs_sets.is_empty() {
             false => {
-                let next_level_order = result_hashs_sets.last().unwrap().0[*index].order.to_vec();
+                let next_level_order = result_hashs_sets.last().unwrap().0[*index].order;
                 let mut full_order = FullOrder::from_u64(old_order, result_hashs_sets.len());
                 full_order.connect(&next_level_order);
                 Ok(full_order)
@@ -217,15 +214,15 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn update_result_hashs(
         target: &T::AccountId,
-        hashs: &Vec<PostResultHash>,
+        hashs: &[PostResultHash],
         do_verify: bool,
         index: u32,
         next: bool,
     ) -> DispatchResult {
         let new_r_hashs = hashs
             .iter()
-            .map(|h| h.to_result_hash().ok_or(Error::<T>::PostConverFail))
-            .collect::<Result<Vec<ResultHash>, Error<T>>>()?;
+            .map(|h| h.to_result_hash())
+            .collect::<Vec<ResultHash>>();
         let mut r_hashs_sets = <ResultHashsSets<T>>::get(target);
         let current_deep = r_hashs_sets.len();
         ensure!((current_deep as u8) < DEEP, Error::<T>::MaximumDepth);
@@ -253,7 +250,7 @@ impl<T: Config> Pallet<T> {
         }
 
         if do_verify {
-            Self::verify_result_hashs(&r_hashs_sets, index, &target)?;
+            Self::verify_result_hashs(&r_hashs_sets[..], index, &target)?;
         }
 
         <ResultHashsSets<T>>::mutate(target, |rs| *rs = r_hashs_sets);
@@ -261,7 +258,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn verify_paths(
-        paths: &Vec<Path<T::AccountId>>,
+        paths: &[Path<T::AccountId>],
         target: &T::AccountId,
         result_hash: &ResultHash,
     ) -> DispatchResult {
@@ -269,7 +266,7 @@ impl<T: Config> Pallet<T> {
             paths
                 .iter()
                 .try_fold::<_, _, Result<u32, DispatchError>>(0u32, |acc, p| {
-                    Self::checked_nodes(&p.nodes, &target)?;
+                    Self::checked_nodes(&p.nodes[..], &target)?;
                     ensure!(p.total < 100, Error::<T>::LengthTooLong);
                     // Two-digit accuracy
                     let score = 100 / p.total;
@@ -315,7 +312,7 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn verify_result_hashs(
-        result_hashs: &Vec<OrderedSet<ResultHash>>,
+        result_hashs: &[OrderedSet<ResultHash>],
         index: u32,
         target: &T::AccountId,
     ) -> DispatchResult {
@@ -335,7 +332,7 @@ impl<T: Config> Pallet<T> {
                 }
                 ensure!(r.order.len() == RANGE, Error::<T>::OrderNotMatch);
                 acc.checked_add(r.score)
-                    .ok_or_else(|| Error::<T>::Overflow.into())
+                    .ok_or(Error::<T>::Overflow)
             })?;
         let total_score = match deep {
             1 => Self::get_candidate(&target).score,
@@ -357,7 +354,7 @@ impl<T: Config> Pallet<T> {
     pub(crate) fn do_reply_num(
         challenger: &T::AccountId,
         target: &T::AccountId,
-        mid_paths: &Vec<Vec<T::AccountId>>,
+        mid_paths: &[Vec<T::AccountId>],
     ) -> DispatchResult {
         let count = mid_paths.len();
         let _ = T::ChallengeBase::reply(
@@ -371,7 +368,7 @@ impl<T: Config> Pallet<T> {
                 ensure!((count as u32) == p_path.total, Error::<T>::LengthNotEqual);
                 let (start, stop) = Self::get_ends(&p_path);
                 for mid_path in mid_paths {
-                    let _ = Self::check_mid_path(&mid_path, &start, &stop)?;
+                    let _ = Self::check_mid_path(&mid_path[..], &start, &stop)?;
                 }
                 Ok(Zero::zero())
             },

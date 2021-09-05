@@ -1,35 +1,35 @@
 [package]
 authors = ["ZeroDAO <https://github.com/ZeroDAO>"]
 description = 'The challenge logic of the TIR algorithm.'
+edition = "2018"
+homepage = 'https://0p0.org'
+license = "Apache-2.0"
 name = 'zd-refresh-seeds'
 repository = "https://github.com/ZeroDAO/ZeroDAO-node"
-license = "Apache-2.0"
 version = "0.0.1"
-homepage = 'https://0p0.org'
-edition = "2018"
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
-#hex = {version = "0.4", default-features = false, optional = true}
-hex = "0.4"
-serde = { features = ['derive'], optional = true, version = '1.0.119' }
-sha-1 = { default-features = false, version = '0.9.7' }
-codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
-frame-system = { default-features = false, version = '3.0.0' }
-frame-support = { default-features = false, version = '3.0.0' }
-sp-runtime = { default-features = false, version = '3.0.0' }
-sp-std = { version = "3.0.0", default-features = false }
+codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0'}
+hex = {version = "0.4", default-features = false}
+sha-1 = {default-features = false, version = '0.9.7'}
+serde = {features = ['derive'], optional = true, version = '1.0.119'}
 
-zd-traits = { path = "../../traits", default-features = false, version = '0.0.1' }
-zd-primitives = { path = "../../primitives", default-features = false, version = '0.0.1' }
+frame-support = {default-features = false, version = '3.0.0'}
+frame-system = {default-features = false, version = '3.0.0'}
+sp-runtime = {default-features = false, version = '3.0.0'}
+sp-std = {version = "3.0.0", default-features = false}
 
-orml-utilities = { default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
+zd-primitives = {path = "../../primitives", default-features = false, version = '0.0.1'}
+zd-traits = {path = "../../traits", default-features = false, version = '0.0.1'}
+
+orml-utilities = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
 
 [dev-dependencies]
-sp-core = { default-features = false, version = '3.0.0' }
-sp-io = { default-features = false, version = '3.0.0' }
+sp-core = {default-features = false, version = '3.0.0'}
+sp-io = {default-features = false, version = '3.0.0'}
 
 pallet-balances = {default-features = false, version = '3.0.0'}
 
@@ -39,23 +39,23 @@ zd-seeds = {path = "../seeds", default-features = false, version = '0.0.1'}
 zd-tokens = {path = "../tokens", default-features = false, version = '0.0.1'}
 zd-trust = {path = "../trust", default-features = false, version = '0.0.1'}
 
-orml-traits = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
 orml-currencies = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
 orml-tokens = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
+orml-traits = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
 
 [features]
 default = ['std']
 std = [
-    'serde',
-    'codec/std',
-    'frame-support/std',
-    'frame-system/std',
-    'sp-std/std',
-    'sp-runtime/std',
-    'zd-traits/std',
-    'orml-utilities/std',
-    'zd-primitives/std',
-    'sha-1/std',
-    'zd-reputation/std',
-    'orml-tokens/std',
+  'serde',
+  'hex/std',
+  'codec/std',
+  'frame-support/std',
+  'frame-system/std',
+  'sp-std/std',
+  'sp-runtime/std',
+  'zd-traits/std',
+  'orml-utilities/std',
+  'zd-primitives/std', # 'sha-1/std',
+  'zd-reputation/std',
+  'orml-tokens/std',
 ]
