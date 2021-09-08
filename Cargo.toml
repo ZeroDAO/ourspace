@@ -13,5 +13,3 @@ members = [
     'traits'
 ]
 exclude = ['rpc']
-
-# resolver = "2"

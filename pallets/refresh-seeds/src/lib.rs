@@ -9,12 +9,11 @@ use frame_support::{
 };
 use frame_system::{self as system};
 use orml_utilities::OrderedSet;
-use sha1::{Digest, Sha1};
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
 use zd_traits::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
-use sp_std::{cmp::Ordering, vec::Vec};
+use sp_std::{cmp::Ordering,vec::Vec};
 
 pub use pallet::*;
 

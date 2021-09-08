@@ -1,4 +1,7 @@
+
 use crate::*;
+use sha1::{Digest, Sha1};
+use sp_std::vec;
 
 impl<T: Config> Pallet<T> {
     pub fn now() -> T::BlockNumber {
@@ -38,17 +41,20 @@ impl<T: Config> Pallet<T> {
         Self::deposit_event(Event::SeedsSelected(score_list.len() as u32));
     }
 
-    pub(crate) fn make_full_order(start: &T::AccountId, stop: &T::AccountId, deep: usize) -> Vec<u8> {
+    pub(crate) fn make_full_order(
+        start: &T::AccountId,
+        stop: &T::AccountId,
+        deep: usize,
+    ) -> Vec<u8> {
         let mut points = T::AccountId::encode(start);
         points.extend(T::AccountId::encode(stop).iter().cloned());
-        let hash = hex::encode(Self::sha1_hasher(&points));
-        let points_hash = hash.as_bytes();
+        let points_hash = Self::sha1_hasher(&points);
         let index = points_hash.len() - (deep * RANGE);
         points_hash[index..].to_vec()
     }
 
     pub(crate) fn check_hash(data: &[u8], hash: &[u8; 8]) -> bool {
-        hex::encode(Self::sha1_hasher(data)).as_bytes()[..8] == hash[..]
+        Self::sha1_hasher(data)[..8] == hash[..]
     }
 
     pub(crate) fn get_pathfinder_paths(
@@ -63,7 +69,7 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn do_harvest_challenge(
         who: &T::AccountId,
-        target: & T::AccountId,
+        target: &T::AccountId,
     ) -> DispatchResult {
         <Candidates<T>>::try_mutate(target, |c| {
             if let Some(score) = T::ChallengeBase::harvest(&who, &APP_ID, target)? {
@@ -125,13 +131,21 @@ impl<T: Config> Pallet<T> {
         Ok(nodes.to_vec())
     }
 
-    pub(crate) fn sha1_hasher(data: &[u8]) -> [u8; 20] {
+    pub(crate) fn sha1_hasher(data: &[u8]) -> Vec<u8> {
         let mut hasher = Sha1::new();
         hasher.update(data);
-        let result = hasher.finalize();
-        let mut r = [0u8; 20];
-        r.clone_from_slice(&result[..]);
-        r
+        hasher.finalize()
+            .iter()
+            .flat_map(|n|{
+                vec![n / 16 as u8, n % 16 as u8].iter().map(|u| {
+                    if u < &10u8 {
+                        u + 48u8
+                    } else {
+                        u - 10u8 + 97u8
+                    }
+                }).collect::<Vec<u8>>()
+            })
+            .collect::<Vec<u8>>()
     }
 
     pub(crate) fn restart(target: &T::AccountId, pathfinder: &T::AccountId, score: &u64) {
@@ -141,7 +155,7 @@ impl<T: Config> Pallet<T> {
             c.pathfinder = pathfinder.clone();
         });
         Self::remove_challenge(&target);
-        Self::deposit_event(Event::ChallengeRestarted(target.clone(),*score));
+        Self::deposit_event(Event::ChallengeRestarted(target.clone(), *score));
     }
 
     pub(crate) fn remove_challenge(target: &T::AccountId) {
@@ -150,10 +164,7 @@ impl<T: Config> Pallet<T> {
         <MissedPaths<T>>::remove(&target);
     }
 
-    pub(crate) fn checked_nodes(
-        nodes: &[T::AccountId],
-        target: &T::AccountId,
-    ) -> DispatchResult {
+    pub(crate) fn checked_nodes(nodes: &[T::AccountId], target: &T::AccountId) -> DispatchResult {
         ensure!(nodes.len() >= 2, Error::<T>::PathTooShort);
         ensure!(nodes.contains(&target), Error::<T>::NoTargetNode);
         T::TrustBase::valid_nodes(nodes)?;
@@ -331,8 +342,7 @@ impl<T: Config> Pallet<T> {
                     data.extend_from_slice(&r.hash);
                 }
                 ensure!(r.order.len() == RANGE, Error::<T>::OrderNotMatch);
-                acc.checked_add(r.score)
-                    .ok_or(Error::<T>::Overflow)
+                acc.checked_add(r.score).ok_or(Error::<T>::Overflow)
             })?;
         let total_score = match deep {
             1 => Self::get_candidate(&target).score,

@@ -13,7 +13,6 @@ targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
 codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0'}
-hex = {version = "0.4", default-features = false}
 sha-1 = {default-features = false, version = '0.9.7'}
 serde = {features = ['derive'], optional = true, version = '1.0.119'}
 
@@ -28,9 +27,8 @@ zd-traits = {path = "../../traits", default-features = false, version = '0.0.1'}
 orml-utilities = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
 
 [dev-dependencies]
-sp-core = {default-features = false, version = '3.0.0'}
 sp-io = {default-features = false, version = '3.0.0'}
-
+sp-core = {default-features = false, version = '3.0.0'}
 pallet-balances = {default-features = false, version = '3.0.0'}
 
 zd-challenges = {path = "../challenges", default-features = false, version = '0.0.1'}
@@ -47,11 +45,11 @@ orml-traits = {default-features = false, version = "0.4.0", git = 'https://githu
 default = ['std']
 std = [
   'serde',
-  'hex/std',
   'codec/std',
   'frame-support/std',
   'frame-system/std',
   'sp-std/std',
+  'sp-core/std',
   'sp-runtime/std',
   'zd-traits/std',
   'orml-utilities/std',

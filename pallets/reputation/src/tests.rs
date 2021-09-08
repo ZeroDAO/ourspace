@@ -40,7 +40,7 @@ fn new_round_should_work() {
                 last: 1,
                 next: INIT_PERIOD + 1,
                 period: INIT_PERIOD,
-                step: TIRStep::FREE,
+                step: TIRStep::SEED,
             }
         );
     });
