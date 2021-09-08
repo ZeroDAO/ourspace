@@ -751,7 +751,7 @@ pub mod pallet {
             }
             if Self::is_all_harvest() {
                 <SeedsConfirmed<T>>::put(false);
-                T::Reputation::set_step(&TIRStep::REPUTATION);
+                T::Reputation::set_step(&TIRStep::Reputation);
             } else if !is_all_confirmed {
                 <SeedsConfirmed<T>>::put(true);
             }

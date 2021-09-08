@@ -141,7 +141,7 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn do_set_period(period: T::BlockNumber) -> DispatchResult {
         SystemInfo::<T>::try_mutate(|operation_status| {
-            ensure!(operation_status.step == TIRStep::FREE, Error::<T>::UnableToSetPeriod);
+            ensure!(operation_status.step == TIRStep::Free, Error::<T>::UnableToSetPeriod);
             operation_status.period = period;
             Ok(())
         })
@@ -165,7 +165,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
     fn new_round() -> DispatchResult {
         let now_block_number = Self::now();
         <SystemInfo<T>>::try_mutate(|operation_status| {
-            ensure!(operation_status.step == TIRStep::FREE, Error::<T>::AlreadyInUpdating);
+            ensure!(operation_status.step == TIRStep::Free, Error::<T>::AlreadyInUpdating);
             ensure!(
                 now_block_number >= operation_status.next,
                 Error::<T>::IntervalIsTooShort
@@ -174,7 +174,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
             operation_status.nonce += 1;
             operation_status.next = next;
             operation_status.last = now_block_number;
-            operation_status.step = TIRStep::SEED;
+            operation_status.step = TIRStep::Seed;
             Ok(())
         })
     }
@@ -195,7 +195,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
         let system_info = Self::system_info();
         let nonce = system_info.nonce;
         let irs = Self::get_ir(target);
-        match system_info.step == TIRStep::FREE {
+        match system_info.step == TIRStep::Free {
             true => {
                 if irs[0].nonce == nonce {
                     return Some(irs[0].score);
@@ -243,13 +243,13 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
     fn set_free() {
         let now = Self::now();
         let operation_status = Self::system_info();
-        if operation_status.step == TIRStep::FREE {
+        if operation_status.step == TIRStep::Free {
             return;
         }
 
         SystemInfo::<T>::mutate(|operation_status| {
             operation_status.last = now;
-            operation_status.step = TIRStep::FREE;
+            operation_status.step = TIRStep::Free;
         });
     }
 }

@@ -25,7 +25,7 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn check_step() -> DispatchResult {
         ensure!(
-            T::Reputation::is_step(&TIRStep::SEED),
+            T::Reputation::is_step(&TIRStep::Seed),
             Error::<T>::StepNotMatch
         );
         Ok(())
@@ -137,7 +137,7 @@ impl<T: Config> Pallet<T> {
         hasher.finalize()
             .iter()
             .flat_map(|n|{
-                vec![n / 16 as u8, n % 16 as u8].iter().map(|u| {
+                vec![n / 16u8, n % 16u8].iter().map(|u| {
                     if u < &10u8 {
                         u + 48u8
                     } else {

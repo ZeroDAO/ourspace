@@ -40,7 +40,7 @@ fn new_round_should_work() {
                 last: 1,
                 next: INIT_PERIOD + 1,
                 period: INIT_PERIOD,
-                step: TIRStep::SEED,
+                step: TIRStep::Seed,
             }
         );
     });
@@ -49,11 +49,11 @@ fn new_round_should_work() {
 #[test]
 fn new_round_should_fail() {
     new_test_ext().execute_with(|| {
-        ZdReputation::set_step(&TIRStep::REPUTATION);
+        ZdReputation::set_step(&TIRStep::Reputation);
         assert_noop!(ZdReputation::new_round(), Error::<Test>::AlreadyInUpdating);
-        ZdReputation::set_step(&TIRStep::FREE);
+        ZdReputation::set_step(&TIRStep::Free);
         assert_ok!(ZdReputation::new_round());
-        ZdReputation::set_step(&TIRStep::FREE);
+        ZdReputation::set_step(&TIRStep::Free);
         System::set_block_number(INIT_PERIOD - 1);
         assert_noop!(ZdReputation::new_round(), Error::<Test>::IntervalIsTooShort);
     });
@@ -151,11 +151,11 @@ fn set_free_should_work() {
         assert_ok!(ZdReputation::new_round());
         System::set_block_number(150);
 
-        ZdReputation::set_step(&TIRStep::REPUTATION);
+        ZdReputation::set_step(&TIRStep::Reputation);
         ZdReputation::set_free();
 
         assert_eq!(<SystemInfo<Test>>::get().last, 150);
-        assert_eq!(<SystemInfo<Test>>::get().step, TIRStep::FREE);
+        assert_eq!(<SystemInfo<Test>>::get().step, TIRStep::Free);
     });
 }
 

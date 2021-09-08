@@ -94,7 +94,7 @@ where
     }
 
     fn restart(&mut self, full_probative: bool) {
-        self.status = ChallengeStatus::FREE;
+        self.status = ChallengeStatus::Free;
         self.joint_benefits = false;
         if full_probative {
             self.pathfinder = self.challenger.clone();
@@ -332,10 +332,10 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         let mut maybe_score: Option<u64> = None;
         let is_all_done = challenge.is_all_done();
         match challenge.status {
-            ChallengeStatus::FREE => {
+            ChallengeStatus::Free => {
                 pathfinder_amount = awards;
             }
-            ChallengeStatus::REPLY => match is_all_done {
+            ChallengeStatus::Reply => match is_all_done {
                 true => {
                     pathfinder_amount = awards;
                 }
@@ -343,11 +343,11 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     challenger_amount = awards;
                 }
             },
-            ChallengeStatus::EXAMINE => {
+            ChallengeStatus::Examine => {
                 challenger_amount = awards;
                 maybe_score = Some(challenge.score);
             }
-            ChallengeStatus::EVIDENCE => {
+            ChallengeStatus::Evidence => {
                 maybe_score = Some(challenge.score);
                 match is_all_done {
                     true => {
@@ -358,7 +358,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     }
                 }
             }
-            ChallengeStatus::ARBITRATION => match challenge.joint_benefits {
+            ChallengeStatus::Arbitral => match challenge.joint_benefits {
                 true => {
                     pathfinder_amount = awards / 2;
                     challenger_amount = awards.saturating_sub(pathfinder_amount);
@@ -398,7 +398,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         let mut challenge = match <Metadatas<T>>::try_get(app_id, target) {
             Ok(challenge_storage) => {
                 ensure!(
-                    challenge_storage.status == ChallengeStatus::FREE,
+                    challenge_storage.status == ChallengeStatus::Free,
                     Error::<T>::NoChallengeAllowed
                 );
                 challenge_storage
@@ -422,7 +422,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             total: quantity,
         };
         challenge.last_update = now_block_number;
-        challenge.status = ChallengeStatus::EXAMINE;
+        challenge.status = ChallengeStatus::Examine;
         challenge.score = score;
         challenge.remark = remark;
         challenge.pathfinder = path_finder.clone();
@@ -460,7 +460,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                 ensure!(*count <= MAX_UPDATE_COUNT, Error::<T>::TooMany);
 
                 match challenge.status {
-                    ChallengeStatus::REPLY => {
+                    ChallengeStatus::Reply => {
                         ensure!(
                             challenge.is_pathfinder(&who),
                             Error::<T>::NoPermission
@@ -496,7 +496,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
                 ensure!(
-                    challenge.status == ChallengeStatus::REPLY && challenge.is_all_done(),
+                    challenge.status == ChallengeStatus::Reply && challenge.is_all_done(),
                     Error::<T>::NoChallengeAllowed
                 );
                 ensure!(
@@ -504,7 +504,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                     Error::<T>::NoPermission
                 );
 
-                challenge.status = ChallengeStatus::EXAMINE;
+                challenge.status = ChallengeStatus::Examine;
                 challenge.remark = index;
 
                 Self::after_upload(&app_id);
@@ -527,14 +527,14 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
                 ensure!(challenge.is_pathfinder(&who), Error::<T>::NoPermission);
                 ensure!(
-                    challenge.status == ChallengeStatus::EXAMINE,
+                    challenge.status == ChallengeStatus::Examine,
                     Error::<T>::StatusErr
                 );
                 ensure!(
                     challenge.new_progress(total).next(count).check_progress(),
                     Error::<T>::ProgressErr
                 );
-                challenge.status = ChallengeStatus::REPLY;
+                challenge.status = ChallengeStatus::Reply;
                 challenge.score = up(challenge.is_all_done(), challenge.remark, challenge.score)?;
                 Ok(())
             },
@@ -551,11 +551,11 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             <Metadatas<T>>::try_get(app_id, target).map_err(|_| Error::<T>::NonExistent)?;
         ensure!(challenge.is_challenger(&who), Error::<T>::NoPermission);
         ensure!(challenge.is_all_done(), Error::<T>::ProgressErr);
-        ensure!(challenge.status != ChallengeStatus::EXAMINE, Error::<T>::StatusErr);
+        ensure!(challenge.status != ChallengeStatus::Examine, Error::<T>::StatusErr);
         let needs_arbitration = up(challenge.remark, challenge.score)?;
         let score = challenge.score;
         match needs_arbitration {
-            true => challenge.set_status(&ChallengeStatus::ARBITRATION),
+            true => challenge.set_status(&ChallengeStatus::Arbitral),
             false => {
                 challenge.restart(true);
             }
@@ -578,7 +578,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             app_id,
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
-                ensure!(challenge.status != ChallengeStatus::EXAMINE, Error::<T>::StatusErr);
+                ensure!(challenge.status != ChallengeStatus::Examine, Error::<T>::StatusErr);
                 ensure!(challenge.is_all_done(), Error::<T>::ProgressErr);
                 if !challenge.is_challenger(&who) {
                     ensure!(

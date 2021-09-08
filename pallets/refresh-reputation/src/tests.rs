@@ -14,7 +14,7 @@ fn new_test_ext() -> sp_io::TestExternalities {
 #[test]
 fn start_should_work() {
     new_test_ext().execute_with(|| {
-        ZdReputation::set_step(&TIRStep::REPUTATION);
+        ZdReputation::set_step(&TIRStep::Reputation);
         System::set_block_number(2000);
         assert_ok!(ZdRefreshReputation::start(Origin::signed(ALICE)));
         let new_event = Event::zd_refresh_reputation(crate::Event::Started(ALICE));
@@ -102,7 +102,7 @@ fn start_with_payrolls() {
             Error::<Test>::StatusErr
         );
 
-        ZdReputation::set_step(&TIRStep::REPUTATION);
+        ZdReputation::set_step(&TIRStep::Reputation);
 
         assert_noop!(
             ZdRefreshReputation::start(Origin::signed(SWEEPRT)),
@@ -166,7 +166,7 @@ fn refresh_should_work() {
         );
 
         assert_ok!(ZdReputation::new_round());
-        ZdReputation::set_step(&TIRStep::REPUTATION);
+        ZdReputation::set_step(&TIRStep::Reputation);
         System::set_block_number(2000);
         assert_noop!(
             ZdRefreshReputation::refresh(Origin::signed(PATHFINDER), user_scores.clone()),
@@ -214,7 +214,7 @@ macro_rules! next_step_should_work {
             #[test]
             fn $name() {
                 new_test_ext().execute_with(|| {
-                    ZdReputation::set_step(&TIRStep::REPUTATION);
+                    ZdReputation::set_step(&TIRStep::Reputation);
                     assert_ok!(ZdTrust::trust(Origin::signed(ALICE),BOB));
                     <StartedAt<Test>>::put(1);
                     ZdReputation::set_last_refresh_at();
@@ -228,7 +228,7 @@ macro_rules! next_step_should_work {
                         $value.1
                     );
                     assert_eq!(
-                        !ZdReputation::is_step(&TIRStep::FREE),
+                        !ZdReputation::is_step(&TIRStep::Free),
                         $value.1
                     );
 
@@ -323,7 +323,7 @@ fn init_sys(score: u32) {
     ));
     assert_ok!(ZdReputation::new_round());
 
-    ZdReputation::set_step(&TIRStep::REPUTATION);
+    ZdReputation::set_step(&TIRStep::Reputation);
     <StartedAt<Test>>::put(1);
 
     assert_ok!(ZdRefreshReputation::refresh(

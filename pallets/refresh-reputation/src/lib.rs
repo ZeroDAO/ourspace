@@ -367,7 +367,7 @@ pub mod pallet {
                 reputation,
             )?;
 
-            T::ChallengeBase::set_status(&APP_ID, &target, &ChallengeStatus::ARBITRATION);
+            T::ChallengeBase::set_status(&APP_ID, &target, &ChallengeStatus::Arbitral);
             Self::deposit_event(Event::Challenge(challenger, target));
             Ok(().into())
         }
@@ -435,7 +435,7 @@ impl<T: Config> Pallet<T> {
     }
     pub(crate) fn check_step() -> DispatchResult {
         ensure!(
-            T::Reputation::is_step(&TIRStep::REPUTATION),
+            T::Reputation::is_step(&TIRStep::Reputation),
             Error::<T>::StatusErr
         );
         Ok(())

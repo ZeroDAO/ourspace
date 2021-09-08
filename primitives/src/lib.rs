@@ -52,14 +52,14 @@ pub mod per_social_currency {
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum TIRStep {
-    FREE,
-    SEED,
-    REPUTATION,
+    Free,
+    Seed,
+    Reputation,
 }
 
 impl Default for TIRStep {
     fn default() -> TIRStep {
-        TIRStep::FREE
+        TIRStep::Free
     }
 }
 

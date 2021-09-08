@@ -9,16 +9,16 @@ use serde::{Deserialize, Serialize};
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum ChallengeStatus {
-    FREE,
-    EXAMINE,
-    REPLY,
-    EVIDENCE,
-    ARBITRATION,
+    Free,
+    Examine,
+    Reply,
+    Evidence,
+    Arbitral,
 }
 
 impl Default for ChallengeStatus {
     fn default() -> Self {
-        ChallengeStatus::EXAMINE
+        ChallengeStatus::Examine
     }
 }
 

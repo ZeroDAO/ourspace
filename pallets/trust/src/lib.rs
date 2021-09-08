@@ -116,7 +116,7 @@ impl<T: Config> Pallet<T> {
             Ok(())
         })?;
 
-        if !T::Reputation::is_step(&TIRStep::FREE) {
+        if !T::Reputation::is_step(&TIRStep::Free) {
             let mut trust_temp_list = Self::trust_temp_list(&who);
 
             if !trust_temp_list.trust.remove(&target) {
@@ -136,7 +136,7 @@ impl<T: Config> Pallet<T> {
             Ok(())
         })?;
 
-        if !T::Reputation::is_step(&TIRStep::FREE) {
+        if !T::Reputation::is_step(&TIRStep::Free) {
             let mut trust_temp_list = Self::trust_temp_list(&who);
 
             if !trust_temp_list.untrust.remove(&target) {

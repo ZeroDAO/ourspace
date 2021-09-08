@@ -134,7 +134,7 @@ fn computed_path_should_fail() {
 fn get_trust_count_old_should_work() {
     new_test_ext().execute_with(|| {
         initialize_trust();
-        ZdReputation::set_step(&TIRStep::SEED);
+        ZdReputation::set_step(&TIRStep::Seed);
 
         // (ALICE, CHARLIE), (ALICE, BOB)
         assert_ok!(ZdTrust::do_trust(&ALICE, &DAVE));
@@ -154,7 +154,7 @@ fn get_trust_count_old_should_work() {
 #[test]
 fn is_trust_old_should_work() {
     new_test_ext().execute_with(|| {
-        ZdReputation::set_step(&TIRStep::SEED);
+        ZdReputation::set_step(&TIRStep::Seed);
 
         assert_eq!(ZdTrust::is_trust_old(&ALICE, &DAVE), false);
         assert_ok!(ZdTrust::do_trust(&ALICE, &DAVE));
@@ -170,7 +170,7 @@ fn get_trust_old_should_work() {
         // (ALICE, CHARLIE), (ALICE, BOB)
         assert_eq!(ZdTrust::get_trust_old(&ALICE), vec![BOB, CHARLIE]);
 
-        ZdReputation::set_step(&TIRStep::SEED);
+        ZdReputation::set_step(&TIRStep::Seed);
 
         assert_ok!(ZdTrust::do_trust(&ALICE, &DAVE));
 
@@ -190,7 +190,7 @@ fn trust_should_work() {
         assert_ok!(ZdTrust::trust(Origin::signed(ALICE), BOB));
         assert_eq!(ZdTrust::is_trust(&ALICE, &BOB), true);
 
-        ZdReputation::set_step(&TIRStep::SEED);
+        ZdReputation::set_step(&TIRStep::Seed);
         assert_ok!(ZdTrust::trust(Origin::signed(ALICE), CHARLIE));
         assert_eq!(ZdTrust::is_trust(&ALICE, &CHARLIE), true);
         assert_eq!(ZdTrust::is_trust_old(&ALICE, &CHARLIE), false);
@@ -213,7 +213,7 @@ fn untrust_should_work() {
         assert_ok!(ZdTrust::untrust(Origin::signed(ALICE), BOB));
         assert_eq!(ZdTrust::is_trust(&ALICE, &BOB), false);
 
-        ZdReputation::set_step(&TIRStep::SEED);
+        ZdReputation::set_step(&TIRStep::Seed);
         assert_ok!(ZdTrust::untrust(Origin::signed(ALICE), CHARLIE));
         assert_eq!(ZdTrust::is_trust(&ALICE, &CHARLIE), false);
         assert_eq!(ZdTrust::is_trust_old(&ALICE, &CHARLIE), true);

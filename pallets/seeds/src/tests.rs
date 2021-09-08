@@ -74,7 +74,7 @@ fn new_seed_test() {
             ZdSeeds::new_seed(Origin::root(), ALICE),
             Error::<Test>::AlreadySeedUser
         );
-        ZdReputation::set_step(&TIRStep::REPUTATION);
+        ZdReputation::set_step(&TIRStep::Reputation);
         assert_noop!(
             ZdSeeds::new_seed(Origin::root(), BOB),
             Error::<Test>::StatusErr
@@ -103,7 +103,7 @@ fn remove_seed_test() {
         assert_eq!(ZdSeeds::is_seed(&ALICE), false);
         assert_eq!(ZdSeeds::get_seed_count(), 1);
         
-        ZdReputation::set_step(&TIRStep::REPUTATION);
+        ZdReputation::set_step(&TIRStep::Reputation);
         assert_noop!(
             ZdSeeds::remove_seed(Origin::root(), BOB),
             Error::<Test>::StatusErr
