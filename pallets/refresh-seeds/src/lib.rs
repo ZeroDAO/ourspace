@@ -10,7 +10,7 @@ use frame_support::{
 use frame_system::{self as system};
 use orml_utilities::OrderedSet;
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
-use zd_traits::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
+use zd_support::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
 use sp_std::{cmp::Ordering,vec::Vec};

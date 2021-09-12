@@ -33,11 +33,15 @@ zd-tokens = {default-features = false, path = '../pallets/tokens', version = '0.
 zd-challenges = {path = "../pallets/challenges", default-features = false, version = '0.0.1'}
 zd-refresh-reputation = {path = "../pallets/refresh-reputation", default-features = false, version = '0.0.1'}
 zd-refresh-seeds = {path = "../pallets/refresh-seeds", default-features = false, version = '0.0.1'}
+zd-support = {path = "../pallets/support", default-features = false, version = '0.0.1'}
 
 # orml extensions
 orml-currencies = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
 orml-tokens = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
 orml-traits = {default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
+
+# orml
+orml-benchmarking = { version = "0.4.0", default-features = false, optional = true }
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '3.0.0' }
@@ -70,6 +74,7 @@ sp-version = { default-features = false, version = '3.0.0' }
 default = ['std']
 runtime-benchmarks = [
     'hex-literal',
+    
     'frame-benchmarking',
     'frame-support/runtime-benchmarks',
     'frame-system-benchmarking',
@@ -77,6 +82,14 @@ runtime-benchmarks = [
     'pallet-balances/runtime-benchmarks',
     'pallet-timestamp/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
+
+    "orml-benchmarking",
+    # 'zd-reputation/runtime-benchmarks',
+    # 'zd-seeds/runtime-benchmarks',
+    # 'zd-trust/runtime-benchmarks',
+    # 'zd-tokens/runtime-benchmarks',
+    # 'zd-refresh-reputation/runtime-benchmarks',
+    # 'zd-refresh-seeds/runtime-benchmarks',
 ]
 std = [
     'codec/std',
@@ -85,6 +98,7 @@ std = [
     'frame-support/std',
     'frame-system/std',
     'frame-system-rpc-runtime-api/std',
+    'frame-benchmarking/std',
     'pallet-aura/std',
     'pallet-balances/std',
     'pallet-grandpa/std',
@@ -107,4 +121,5 @@ std = [
     'orml-tokens/std',
     'zd-reputation/std',
     'zd-primitives/std',
+    "orml-benchmarking/std",
 ]

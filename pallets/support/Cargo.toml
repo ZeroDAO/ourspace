@@ -1,5 +1,5 @@
 [package]
-name = "zd-traits"
+name = "zd-support"
 description = "Shared traits including `Renew`, `Reputation`, `Seed` and `Trust`."
 repository = "https://github.com/ZeroDAO/ZeroDAO-node/tree/master/traits"
 license = "Apache-2.0"

@@ -12,8 +12,9 @@ use sp_runtime::{
     DispatchResult,
 };
 use zd_primitives::{per_social_currency, Balance};
-use zd_traits::MultiBaseToken;
+use zd_support::MultiBaseToken;
 
+// mod benchmarking;
 mod default_weight;
 #[cfg(test)]
 mod mock;
@@ -96,7 +97,7 @@ pub mod module {
             origin: OriginFor<T>,
             dest: <T::Lookup as StaticLookup>::Source,
             currency_id: T::CurrencyId,
-            #[pallet::compact] amount: Balance,
+            amount: Balance,
         ) -> DispatchResultWithPostInfo {
             let from = ensure_signed(origin)?;
             let to = T::Lookup::lookup(dest)?;

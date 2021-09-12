@@ -40,8 +40,10 @@ pub use frame_support::{
 use pallet_transaction_payment::CurrencyAdapter;
 
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::parameter_type_with_key;
-use zd_primitives::CurrencyId as CurrencyIdOf;
+use orml_traits::{parameter_type_with_key,MultiCurrency,MultiCurrencyExtended, SocialCurrency};
+use frame_support::assert_ok;
+
+pub use zd_tokens;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -71,7 +73,7 @@ pub type DigestItem = generic::DigestItem<Hash>;
 
 pub type Amount = i128;
 
-pub type CurrencyId = CurrencyIdOf;
+pub type CurrencyId = zd_primitives::CurrencyId;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -586,7 +588,8 @@ impl_runtime_apis! {
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
+			use frame_benchmarking::{Benchmarking, BenchmarkBatch, TrackedStorageKey};
+			use orml_benchmarking::add_benchmark;
 
 			use frame_system_benchmarking::Module as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {}
@@ -612,9 +615,15 @@ impl_runtime_apis! {
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
 
-			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-			add_benchmark!(params, batches, pallet_balances, Balances);
-			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+			// add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
+			// add_benchmark!(params, batches, pallet_balances, Balances);
+			// add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+			// add_benchmark!(params, batches, zd_reputation, ZdReputation);
+			// add_benchmark!(params, batches, zd_seeds, ZdSeeds);
+			// add_benchmark!(params, batches, zd_trust, ZdTrust);
+			// add_benchmark!(params, batches, zd_tokens, ZdToken);
+			// add_benchmark!(params, batches, zd_refresh_reputation, ZdRefreshReputation);
+			// add_benchmark!(params, batches, zd_refresh_seeds, ZdRefreshSeeds);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

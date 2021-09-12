@@ -12,7 +12,7 @@ use sp_std::convert::{TryFrom, TryInto};
 
 use orml_traits::{MultiCurrency, StakingCurrency, arithmetic::{self, Signed}};
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
-use zd_traits::{ChallengeBase, Reputation, ChallengeStatus};
+use zd_support::{ChallengeBase, Reputation, ChallengeStatus};
 
 use sp_runtime::{
     traits::{AtLeast32Bit, Zero},

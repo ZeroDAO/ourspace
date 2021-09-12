@@ -21,7 +21,7 @@ frame-support = {default-features = false, version = '3.0.0'}
 frame-system = {default-features = false, version = '3.0.0'}
 
 zd-primitives = {path = "../../primitives", default-features = false, version = '0.0.1'}
-zd-traits = {path = "../../traits", default-features = false, version = '0.0.1'}
+zd-support = {path = "../support", default-features = false, version = '0.0.1'}
 
 orml-utilities = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5'}
 
@@ -39,7 +39,7 @@ std = [
   'frame-support/std',
   'frame-system/std',
   'sp-std/std',
-  "zd-traits/std",
+  "zd-support/std",
   "zd-primitives/std",
   'zd-reputation/std',
 ]

@@ -15,9 +15,10 @@ sp-runtime = { version = "3.0.0", default-features = false }
 sp-std = { version = "3.0.0", default-features = false }
 frame-support = { version = "3.0.0", default-features = false }
 frame-system = { version = "3.0.0", default-features = false }
+# frame-benchmarking = { version = "3.1.0", default-features = false, optional = true }
 
 zd-primitives = {path = "../../primitives", default-features = false, version = '0.0.1'}
-zd-traits = {path = "../../traits", default-features = false, version = '0.0.1'}
+zd-support = {path = "../support", default-features = false, version = '0.0.1'}
 
 orml-traits = { default-features = false, version = "0.4.0", git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', rev = '02dbda5' }
 
@@ -44,4 +45,10 @@ std = [
 	"orml-traits/std",
 	"orml-currencies/std",
 	"orml-tokens/std",
+	# "frame-benchmarking/std",
 ]
+# runtime-benchmarks = [
+	# "frame-benchmarking",
+	# "frame-support/runtime-benchmarks",
+	# "frame-system/runtime-benchmarks",
+# ]

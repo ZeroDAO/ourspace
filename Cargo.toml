@@ -10,6 +10,5 @@ members = [
     'pallets/*',
     'runtime',
     'primitives',
-    'traits'
 ]
 exclude = ['rpc']

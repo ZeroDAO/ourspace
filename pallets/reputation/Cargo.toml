@@ -18,7 +18,7 @@ frame-system = {default-features = false, version = '3.0.0'}
 serde = {version = "1.0.111", optional = true}
 sp-runtime = {default-features = false, version = '3.0.0'}
 
-zd-traits = {path = "../../traits", default-features = false, version = '0.0.1'}
+zd-support = {path = "../support", default-features = false, version = '0.0.1'}
 zd-primitives = { path = "../../primitives", default-features = false, version = '0.0.1' }
 
 [dev-dependencies]
@@ -33,6 +33,6 @@ std = [
   'frame-support/std',
   'frame-system/std',
   "sp-runtime/std",
-  "zd-traits/std",
+  "zd-support/std",
   "zd-primitives/std",
 ]

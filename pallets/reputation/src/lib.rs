@@ -9,7 +9,7 @@ use frame_support::{
 };
 use frame_system::{self as system};
 use sp_runtime::{traits::Zero, DispatchResult};
-use zd_traits::Reputation;
+use zd_support::Reputation;
 use zd_primitives::TIRStep;
 
 pub use pallet::*;

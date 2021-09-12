@@ -20,7 +20,7 @@ sp-runtime = {default-features = false, version = '3.0.0'}
 sp-std = {version = "3.0.0", default-features = false}
 
 zd-primitives = {path = "../../primitives", default-features = false, version = '0.0.1'}
-zd-traits = {path = "../../traits", default-features = false, version = '0.0.1'}
+zd-support = {path = "../support", default-features = false, version = '0.0.1'}
 
 [dev-dependencies]
 pallet-balances = {default-features = false, version = '3.0.0'}
@@ -46,7 +46,7 @@ std = [
     'frame-system/std',
     'sp-std/std',
     'sp-runtime/std',
-    'zd-traits/std',
+    'zd-support/std',
     'orml-traits/std',
     'orml-tokens/std',
     'zd-reputation/std',

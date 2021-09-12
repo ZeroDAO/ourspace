@@ -2,7 +2,7 @@
 #![allow(clippy::unused_unit)]
 
 pub use pallet::*;
-use zd_traits::{Reputation, SeedsBase};
+use zd_support::{Reputation, SeedsBase};
 use zd_primitives::TIRStep;
 
 #[cfg(test)]

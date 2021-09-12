@@ -10,7 +10,7 @@ use frame_support::{
 use frame_system::{self as system, ensure_signed};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
-use zd_traits::{ChallengeBase, ChallengeStatus, MultiBaseToken, Reputation, SeedsBase, TrustBase};
+use zd_support::{ChallengeBase, ChallengeStatus, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 use sp_std::vec::Vec;
 
 #[cfg(test)]

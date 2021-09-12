@@ -12,7 +12,7 @@ use sp_core::H256;
 use orml_traits::parameter_type_with_key;
 use orml_currencies::BasicCurrencyAdapter;
 
-pub use orml_tokens;
+// pub use orml_tokens;
 
 pub type Amount = i128;
 pub type AccountId = u64;
@@ -25,8 +25,9 @@ pub const ZDAO: CurrencyId = 1;
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 pub const CHARLIE: AccountId = 3;
+pub const DAVE: AccountId = 4;
 
-pub const DOT: CurrencyId = 1;
+pub const DOT: CurrencyId = 2;
 pub const BTC: CurrencyId = 3;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -139,6 +140,8 @@ impl Default for ExtBuilder {
     fn default() -> Self {
         Self {
             endowed_accounts: vec![
+                (ALICE, ZDAO, 1000_000_000_000_000u128),
+                (BOB, ZDAO, 1000_000_000_000_000u128),
                 (ALICE, DOT, 1000_000_000_000_000u128),
                 (BOB, DOT, 1000_000_000_000_000u128),
                 (ALICE, BTC, 1000_000_000_000_000u128),
