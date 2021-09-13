@@ -494,7 +494,7 @@ impl<T: Config> Pallet<T> {
     ) -> Result<Balance, DispatchError> {
         T::Reputation::refresh_reputation(&user_score)?;
         let who = &user_score.0;
-        let fee = Self::share(&who)?;
+        let fee = Self::share(&who);
         <Records<T>>::mutate(&pathfinder, &who, |r| {
             *r = Record {
                 update_at: *update_at,
@@ -526,7 +526,7 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    pub(crate) fn share(user: &T::AccountId) -> Result<Balance, DispatchError> {
+    pub(crate) fn share(user: &T::AccountId) -> Balance {
         let targets = T::TrustBase::get_trust_old(user);
         T::MultiBaseToken::share(user, &targets[..])
     }

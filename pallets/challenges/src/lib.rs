@@ -8,11 +8,8 @@ use frame_support::{
     RuntimeDebug,
 };
 use frame_system::{self as system};
-use sp_std::convert::{TryFrom, TryInto};
-
-use orml_traits::{MultiCurrency, StakingCurrency, arithmetic::{self, Signed}};
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
-use zd_support::{ChallengeBase, Reputation, ChallengeStatus};
+use zd_support::{ChallengeBase, Reputation, ChallengeStatus,MultiBaseToken};
 
 use sp_runtime::{
     traits::{AtLeast32Bit, Zero},
@@ -112,25 +109,10 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
-        type Currency: MultiCurrency<
-                Self::AccountId,
-                CurrencyId = Self::CurrencyId,
-                Balance = Balance,
-            > + StakingCurrency<Self::AccountId>;
-        type Amount: Signed
-            + TryInto<Balance>
-            + TryFrom<Balance>
-            + Parameter
-            + Member
-            + arithmetic::SimpleArithmetic
-            + Default
-            + Copy
-            + MaybeSerializeDeserialize;
+        type ZdToken: MultiBaseToken<Self::AccountId, Balance>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
         #[pallet::constant]
         type ChallengeTimeout: Get<Self::BlockNumber>;
-        #[pallet::constant]
-        type BaceToken: Get<Self::CurrencyId>;
         #[pallet::constant]
         type ChallengeStakingAmount: Get<Balance>;
     }
@@ -220,11 +202,11 @@ impl<T: Config> Pallet<T> {
     }
 
     pub(crate) fn staking(who: &T::AccountId, amount: Balance) -> DispatchResult {
-        T::Currency::staking(T::BaceToken::get(), who, amount)
+        T::ZdToken::staking(who, &amount)
     }
 
     pub(crate) fn release(who: &T::AccountId, amount: Balance) -> DispatchResult {
-        T::Currency::release(T::BaceToken::get(), who, amount)
+        T::ZdToken::release(who, &amount)
     }
 
     pub(crate) fn checked_sweeper_fee(

@@ -16,32 +16,22 @@ macro_rules! transfer_social {
             #[test]
             fn $name() {
                 new_test_ext().execute_with(|| {
-                    let from_old_free_balance = Currencies::free_balance(ZDAO, &ALICE);
-                    let to_old_free_balance = Currencies::free_balance(ZDAO, &$value.1);
+                    let from_old_free_balance = ZdToken::free_balance(&ALICE);
+                    let to_old_free_balance = ZdToken::free_balance(&$value.1);
                     assert_ok!(ZdToken::transfer_social(
                         Origin::signed(ALICE),
                         $value.1, 
-                        ZDAO,
                         $value.0
                     ));
             
-                    assert_eq!(Currencies::free_balance(ZDAO, &ALICE), from_old_free_balance - $value.0);
-                    assert_eq!(Currencies::actual_balance(ZDAO, &ALICE), from_old_free_balance - $value.0);
-                    assert_eq!(Currencies::free_balance(ZDAO, &$value.1), to_old_free_balance);
-                    assert_eq!(Currencies::total_balance(ZDAO, &$value.1), to_old_free_balance + $value.0);
-                    assert_eq!(Currencies::social_balance(ZDAO, &$value.1), $value.0);
+                    assert_eq!(ZdToken::free_balance(&ALICE), from_old_free_balance - $value.0);
+                    assert_eq!(ZdToken::actual_balance(&ALICE), from_old_free_balance - $value.0);
+                    assert_eq!(ZdToken::free_balance(&$value.1), to_old_free_balance);
+                    assert_eq!(ZdToken::actual_balance(&$value.1), to_old_free_balance + $value.0);
+                    assert_eq!(ZdToken::social_balance(&$value.1), $value.0);
             
-                    let social_transferred_event = Event::zd_tokens(crate::Event::TransferSocial(ZDAO, ALICE, $value.1, $value.0));
+                    let social_transferred_event = Event::zd_tokens(crate::Event::TransferSocial(ALICE, $value.1, $value.0));
                     assert!(System::events().iter().any(|record| record.event == social_transferred_event));
-
-                    assert_ok!(Currencies::deposit(ZDAO, &DAVE, 1000_000_000_000_000u128));
-
-                    assert_ok!(ZdToken::transfer_social(
-                        Origin::signed(DAVE),
-                        100, 
-                        ZDAO,
-                        $value.0
-                    ));
                 });
             }
         )*

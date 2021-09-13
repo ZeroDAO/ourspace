@@ -9,8 +9,8 @@ use frame_support::{
 };
 use frame_system::{self as system};
 use sp_runtime::{traits::Zero, DispatchResult};
-use zd_support::Reputation;
 use zd_primitives::TIRStep;
+use zd_support::Reputation;
 
 pub use pallet::*;
 
@@ -141,7 +141,10 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn do_set_period(period: T::BlockNumber) -> DispatchResult {
         SystemInfo::<T>::try_mutate(|operation_status| {
-            ensure!(operation_status.step == TIRStep::Free, Error::<T>::UnableToSetPeriod);
+            ensure!(
+                operation_status.step == TIRStep::Free,
+                Error::<T>::UnableToSetPeriod
+            );
             operation_status.period = period;
             Ok(())
         })
@@ -155,7 +158,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
     }
 
     fn set_step(step: &TIRStep) {
-        <SystemInfo<T>>::mutate(|operation_status|operation_status.step = *step);
+        <SystemInfo<T>>::mutate(|operation_status| operation_status.step = *step);
     }
 
     fn is_step(step: &TIRStep) -> bool {
@@ -165,7 +168,10 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
     fn new_round() -> DispatchResult {
         let now_block_number = Self::now();
         <SystemInfo<T>>::try_mutate(|operation_status| {
-            ensure!(operation_status.step == TIRStep::Free, Error::<T>::AlreadyInUpdating);
+            ensure!(
+                operation_status.step == TIRStep::Free,
+                Error::<T>::AlreadyInUpdating
+            );
             ensure!(
                 now_block_number >= operation_status.next,
                 Error::<T>::IntervalIsTooShort
@@ -200,14 +206,14 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
                 if irs[0].nonce == nonce {
                     return Some(irs[0].score);
                 }
-            },
+            }
             false => {
                 if irs[0].nonce == nonce - 1 {
                     return Some(irs[0].score);
                 } else if irs[1].nonce == nonce - 1 {
                     return Some(irs[1].score);
                 }
-            },
+            }
         }
         None
     }

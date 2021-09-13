@@ -115,8 +115,8 @@ macro_rules! new_challenge_should_work {
                             ..DEFAULT_METADATA
                         }
                     );
-                    assert_eq!(Currencies::total_staking(ZDAO), staking_amount);
-                    assert_eq!(Currencies::free_balance(ZDAO, &CHALLENGER), 1000_000_000_000_000u128 - staking_amount);
+                    assert_eq!(ZdToken::total_staking(), staking_amount);
+                    assert_eq!(ZdToken::free_balance(&CHALLENGER), 1000_000_000_000_000u128 - staking_amount);
                 });
             }
         )*
@@ -560,9 +560,9 @@ fn arbitral_should_work() {
         assert_eq!(metadata.score, 60);
         assert_eq!(metadata.last_update, 100);
         let staking_amount = ZdChallenges::challenge_staking_amount();
-        assert_eq!(Currencies::total_staking(ZDAO), staking_amount);
+        assert_eq!(ZdToken::total_staking(), staking_amount);
         assert_eq!(
-            Currencies::free_balance(ZDAO, &FERDIE),
+            ZdToken::free_balance(&FERDIE),
             1000_000_000_000_000u128 - staking_amount
         );
     });
@@ -648,7 +648,7 @@ macro_rules! settle_should_work {
                     // init staking pool
                     assert_ok!(ZdChallenges::staking(&FERDIE, 10000000));
 
-                    let free_balance = Currencies::free_balance(ZDAO, &CHALLENGER);
+                    let free_balance = ZdToken::free_balance(&CHALLENGER);
 
                     assert_ok!(ZdChallenges::settle(
                         &APP_ID,
@@ -663,7 +663,7 @@ macro_rules! settle_should_work {
                     match restart {
                         true => {
                             if joint_benefits {
-                                assert_eq!(Currencies::free_balance(ZDAO, &CHALLENGER), free_balance + (staking / 2));
+                                assert_eq!(ZdToken::free_balance(&CHALLENGER), free_balance + (staking / 2));
                                 assert_eq!(metadata.pool.staking, staking - (staking / 2));
                                 assert_eq!(metadata.pathfinder, PATHINFER);
                             } else {
@@ -727,53 +727,53 @@ macro_rules! harvest_should_work {
                     } else {
                         total_amount.with_fee()
                     };
-                    let pathfinder_balance = Currencies::free_balance(ZDAO, &PATHINFER);
-                    let challenger_balance = Currencies::free_balance(ZDAO, &CHALLENGER);
-                    let sweeper_balance = Currencies::free_balance(ZDAO, &who);
+                    let pathfinder_balance = ZdToken::free_balance(&PATHINFER);
+                    let challenger_balance = ZdToken::free_balance(&CHALLENGER);
+                    let sweeper_balance = ZdToken::free_balance(&who);
                     
                     assert_ok!(ZdChallenges::harvest(&who, &APP_ID, &TARGET));
 
                     match status {
                         ChallengeStatus::Free => {
-                            assert_eq!(Currencies::free_balance(ZDAO, &PATHINFER), pathfinder_balance + awards);
+                            assert_eq!(ZdToken::free_balance(&PATHINFER), pathfinder_balance + awards);
                         },
                         ChallengeStatus::Examine => {
-                            assert_eq!(Currencies::free_balance(ZDAO, &CHALLENGER), challenger_balance + awards);
+                            assert_eq!(ZdToken::free_balance(&CHALLENGER), challenger_balance + awards);
                         },
                         ChallengeStatus::Reply => {
                             match done == 100 {
                                 true => {
-                                    assert_eq!(Currencies::free_balance(ZDAO, &PATHINFER), pathfinder_balance + awards);
+                                    assert_eq!(ZdToken::free_balance(&PATHINFER), pathfinder_balance + awards);
                                 },
                                 false => {
-                                    assert_eq!(Currencies::free_balance(ZDAO, &CHALLENGER), challenger_balance + awards);
+                                    assert_eq!(ZdToken::free_balance(&CHALLENGER), challenger_balance + awards);
                                 },
                             }
                         },
                         ChallengeStatus::Evidence => {
                             match done == 100 {
                                 false => {
-                                    assert_eq!(Currencies::free_balance(ZDAO, &PATHINFER), pathfinder_balance + awards);
+                                    assert_eq!(ZdToken::free_balance(&PATHINFER), pathfinder_balance + awards);
                                 },
                                 true => {
-                                    assert_eq!(Currencies::free_balance(ZDAO, &CHALLENGER), challenger_balance + awards);
+                                    assert_eq!(ZdToken::free_balance(&CHALLENGER), challenger_balance + awards);
                                 },
                             }
                         },
                         ChallengeStatus::Arbitral => {
                             match joint_benefits {
                                 true => {
-                                    assert_eq!(Currencies::free_balance(ZDAO, &PATHINFER), pathfinder_balance + (awards / 2));
-                                    assert_eq!(Currencies::free_balance(ZDAO, &CHALLENGER), challenger_balance + (awards - (awards / 2)));
+                                    assert_eq!(ZdToken::free_balance(&PATHINFER), pathfinder_balance + (awards / 2));
+                                    assert_eq!(ZdToken::free_balance(&CHALLENGER), challenger_balance + (awards - (awards / 2)));
                                 },
                                 false => {
-                                    assert_eq!(Currencies::free_balance(ZDAO, &PATHINFER), pathfinder_balance + awards);
+                                    assert_eq!(ZdToken::free_balance(&PATHINFER), pathfinder_balance + awards);
                                 },
                             }
                         },
                     }
                     if sweeper_fee > 0 {
-                        assert_eq!(Currencies::free_balance(ZDAO, &who), sweeper_balance + sweeper_fee);
+                        assert_eq!(ZdToken::free_balance(&who), sweeper_balance + sweeper_fee);
                     }
                 });
             }

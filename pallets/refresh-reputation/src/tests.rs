@@ -155,7 +155,6 @@ fn refresh_should_work() {
             assert_ok!(ZdToken::transfer_social(
                 Origin::signed(SWEEPRT),
                 a.account,
-                ZDAO,
                 a.soc_amount
             ));
         }
@@ -318,7 +317,6 @@ fn init_sys(score: u32) {
     assert_ok!(ZdToken::transfer_social(
         Origin::signed(ALICE),
         TARGET,
-        ZDAO,
         1000
     ));
     assert_ok!(ZdReputation::new_round());

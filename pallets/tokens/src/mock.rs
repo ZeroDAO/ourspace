@@ -25,7 +25,6 @@ pub const ZDAO: CurrencyId = 1;
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
 pub const CHARLIE: AccountId = 3;
-pub const DAVE: AccountId = 4;
 
 pub const DOT: CurrencyId = 2;
 pub const BTC: CurrencyId = 3;
@@ -123,12 +122,17 @@ impl pallet_balances::Config for Test {
     type WeightInfo = ();
 }
 
+parameter_types! {
+    pub const SocialPoolAccountId: AccountId = 10000;
+}
+
 impl zd_tokens::Config for Test {
-	type Event = Event;
-	type CurrencyId = CurrencyId;
-	type WeightInfo = ();
-	type Currency = Currencies;
-	type Amount = Amount;
+    type Event = Event;
+    type CurrencyId = CurrencyId;
+    type WeightInfo = ();
+    type Currency = Currencies;
+    type SocialPool = SocialPoolAccountId;
+    type Amount = Amount;
     type BaceToken = BaceToken;
 }
 

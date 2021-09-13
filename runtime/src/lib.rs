@@ -40,8 +40,7 @@ pub use frame_support::{
 use pallet_transaction_payment::CurrencyAdapter;
 
 use orml_currencies::BasicCurrencyAdapter;
-use orml_traits::{parameter_type_with_key,MultiCurrency,MultiCurrencyExtended, SocialCurrency};
-use frame_support::assert_ok;
+use orml_traits::{parameter_type_with_key};
 
 pub use zd_tokens;
 
@@ -317,11 +316,16 @@ impl zd_trust::Config for Runtime {
     type Reputation = ZdReputation;
 }
 
+parameter_types! {
+    pub SocialPoolAccountId: AccountId = AccountId::from([0u8; 32]);
+}
+
 impl zd_tokens::Config for Runtime {
     type Event = Event;
     type CurrencyId = CurrencyId;
     type WeightInfo = ();
     type Currency = Currencies;
+    type SocialPool = SocialPoolAccountId;
     type Amount = Amount;
     type BaceToken = GetNativeCurrencyId;
 }
@@ -336,12 +340,10 @@ parameter_types! {
 impl zd_challenges::Config for Runtime {
     type Event = Event;
     type CurrencyId = CurrencyId;
-    type BaceToken = GetNativeCurrencyId;
-    type Currency = Currencies;
+    type ZdToken = ZdToken;
     type Reputation = ZdReputation;
     type ChallengeStakingAmount = ChallengeStakingAmount;
     type ChallengeTimeout = ChallengeTimeout;
-    type Amount = Amount;
 }
 
 parameter_types! {
@@ -588,8 +590,8 @@ impl_runtime_apis! {
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, TrackedStorageKey};
-			use orml_benchmarking::add_benchmark;
+			use frame_benchmarking::{Benchmarking, BenchmarkBatch, TrackedStorageKey, add_benchmark};
+			// use orml_benchmarking::add_benchmark;
 
 			use frame_system_benchmarking::Module as SystemBench;
 			impl frame_system_benchmarking::Config for Runtime {}
@@ -621,7 +623,7 @@ impl_runtime_apis! {
 			// add_benchmark!(params, batches, zd_reputation, ZdReputation);
 			// add_benchmark!(params, batches, zd_seeds, ZdSeeds);
 			// add_benchmark!(params, batches, zd_trust, ZdTrust);
-			// add_benchmark!(params, batches, zd_tokens, ZdToken);
+			add_benchmark!(params, batches, zd_tokens, ZdToken);
 			// add_benchmark!(params, batches, zd_refresh_reputation, ZdRefreshReputation);
 			// add_benchmark!(params, batches, zd_refresh_seeds, ZdRefreshSeeds);
 

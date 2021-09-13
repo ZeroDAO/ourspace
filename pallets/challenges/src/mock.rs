@@ -46,11 +46,26 @@ construct_runtime!(
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
         ZdReputation: zd_reputation::{Module, Call, Storage, Event<T>, Config<T>},
         ZdChallenges: zd_challenges::{Module, Call, Storage, Event<T>},
+        ZdToken: zd_tokens::{Module, Call, Event<T>},
 
         Tokens: orml_tokens::{Module, Storage, Event<T>, Config<T>},
         Currencies: orml_currencies::{Module, Storage, Event<T>},
     }
 );
+
+parameter_types! {
+    pub const SocialPoolAccountId: AccountId = 10000;
+}
+
+impl zd_tokens::Config for Test {
+    type Event = Event;
+    type CurrencyId = CurrencyId;
+    type WeightInfo = ();
+    type Currency = Currencies;
+    type SocialPool = SocialPoolAccountId;
+    type Amount = Amount;
+    type BaceToken = BaceToken;
+}
 
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
@@ -74,12 +89,10 @@ parameter_types! {
 impl zd_challenges::Config for Test {
     type Event = Event;
     type CurrencyId = CurrencyId;
-    type BaceToken = BaceToken;
-    type Currency = Currencies;
+    type ZdToken = ZdToken;
     type Reputation = ZdReputation;
     type ChallengeStakingAmount = ChallengeStakingAmount;
     type ChallengeTimeout = ChallengeTimeout;
-    type Amount = Amount;
 }
 
 parameter_types! {

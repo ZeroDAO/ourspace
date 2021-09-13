@@ -135,12 +135,10 @@ parameter_types! {
 impl zd_challenges::Config for Test {
     type Event = Event;
     type CurrencyId = CurrencyId;
-    type BaceToken = BaceToken;
-    type Currency = Tokens;
     type Reputation = ZdReputation;
+    type ZdToken = ZdToken;
     type ChallengeStakingAmount = ChallengeStakingAmount;
     type ChallengeTimeout = ChallengeTimeout;
-    type Amount = Amount;
 }
 
 impl orml_tokens::Config for Test {
@@ -153,12 +151,16 @@ impl orml_tokens::Config for Test {
     type OnDust = ();
 }
 
+parameter_types! {
+    pub const SocialPoolAccountId: AccountId = 10000;
+}
+
 impl zd_tokens::Config for Test {
     type Event = Event;
     type CurrencyId = CurrencyId;
     type WeightInfo = ();
     type Currency = Currencies;
-    
+    type SocialPool = SocialPoolAccountId;
     type Amount = Amount;
     type BaceToken = BaceToken;
 }
