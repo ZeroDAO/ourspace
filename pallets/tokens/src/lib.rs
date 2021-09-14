@@ -157,7 +157,7 @@ impl<T: Config> Pallet<T> {
         reserved_amount: Balance,
     ) {
         let mut remaining_share: Balance = Zero::zero();
-        if !trustees.is_empty() && !total_share_amount == 0 {
+        if !trustees.is_empty() && total_share_amount != 0 {
             if let Some(share_amount) = total_share_amount.checked_div(
                 (trustees.len() as u32)
                     .max(per_social_currency::MIN_TRUST_COUNT)
@@ -172,12 +172,14 @@ impl<T: Config> Pallet<T> {
                 remaining_share = total_share_amount
                 .saturating_sub(share_amount.saturating_mul(trustees.len() as Balance));
             } else {
+                println!("pallet - remaining_share: {:?}",total_share_amount);
                 remaining_share = total_share_amount;
             }
         }
 
         <Accounts<T>>::mutate(from, |account| {
-            account.social = reserved_amount.saturating_add(remaining_share);
+            account.social = remaining_share;
+            account.pending = reserved_amount;
         });
     }
 
@@ -286,14 +288,14 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
     }
 
     fn share(who: &T::AccountId, targets: &[T::AccountId]) -> Balance {
-        let total_share = Self::social_balance(&who);
+        let social_balance = Self::social_balance(&who);
 
-        let total_share_amount = per_social_currency::PRE_SHARE.mul_floor(total_share);
-        let reserved_amount = per_social_currency::PRE_RESERVED.mul_floor(total_share);
-        let burn_amount = per_social_currency::PRE_BURN.mul_floor(total_share);
-        let fee_amount = per_social_currency::PRE_FEE.mul_floor(total_share);
+        let total_share_amount = per_social_currency::PRE_SHARE.mul_floor(social_balance);
+        let reserved_amount = per_social_currency::PRE_RESERVED.mul_floor(social_balance);
+        let burn_amount = per_social_currency::PRE_BURN.mul_floor(social_balance);
+        let fee_amount = per_social_currency::PRE_FEE.mul_floor(social_balance);
 
-        let pre_reward = total_share
+        let pre_reward = social_balance
             .saturating_sub(total_share_amount)
             .saturating_sub(reserved_amount)
             .saturating_sub(burn_amount)

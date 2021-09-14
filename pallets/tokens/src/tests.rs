@@ -112,32 +112,32 @@ macro_rules! share_test {
             #[test]
             fn $name() {
                 new_test_ext().execute_with(|| {
-                    let (total_share, len) = $value;
+                    let (total_social_balance, len) = $value;
 
                     assert_ok!(ZdToken::transfer_social(
                         Origin::signed(ALICE),
                         CHARLIE,
-                        total_share
+                        total_social_balance
                     ));
-            
+
                     let targets = (100u64..(len + 100)).collect::<Vec<AccountId>>();
-            
-                    let total_share_amount = per_social_currency::PRE_SHARE.mul_floor(total_share);
-                    let reserved_amount = per_social_currency::PRE_RESERVED.mul_floor(total_share);
-                    let burn_amount = per_social_currency::PRE_BURN.mul_floor(total_share);
-                    let fee_amount = per_social_currency::PRE_FEE.mul_floor(total_share);
-            
+
+                    let total_share_amount = per_social_currency::PRE_SHARE.mul_floor(total_social_balance);
+                    let reserved_amount = per_social_currency::PRE_RESERVED.mul_floor(total_social_balance);
+                    let burn_amount = per_social_currency::PRE_BURN.mul_floor(total_social_balance);
+                    let fee_amount = per_social_currency::PRE_FEE.mul_floor(total_social_balance);
+
                     let pre_reward =
-                        total_share - total_share_amount - reserved_amount - burn_amount - fee_amount;
-            
+                        total_social_balance - total_share_amount - reserved_amount - burn_amount - fee_amount;
+
                     let old_total_issuance = <Currencies as MultiCurrency<_>>::total_issuance(BaceToken::get());
-            
+
                     assert_eq!(ZdToken::share(&CHARLIE, &targets[..]), fee_amount);
-            
+
                     let count = targets.len() as u128;
-            
-                    let mut remaining_share: u128 = 0;
-                    if !(total_share_amount == 0 || total_share_amount < count) {
+
+                    let mut remaining_share: u128 = total_share_amount;
+                    if !(count == 0 || total_share_amount < count) {
                         let share_amount =
                             total_share_amount / count.max(per_social_currency::MIN_TRUST_COUNT as u128);
                         for target in targets {
@@ -145,6 +145,7 @@ macro_rules! share_test {
                         }
                         remaining_share = total_share_amount - share_amount * count;
                     }
+                    // println!("pre_reward: {:?}",pre_reward);
                     assert_eq!(ZdToken::get_bonus_amount(), pre_reward);
                     assert_eq!(ZdToken::social_balance(&CHARLIE), remaining_share);
                     assert_eq!(
