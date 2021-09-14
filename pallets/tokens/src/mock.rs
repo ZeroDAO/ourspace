@@ -12,8 +12,6 @@ use sp_core::H256;
 use orml_traits::parameter_type_with_key;
 use orml_currencies::BasicCurrencyAdapter;
 
-// pub use orml_tokens;
-
 pub type Amount = i128;
 pub type AccountId = u64;
 pub type Balance = u128;

@@ -3,26 +3,26 @@
 
 use frame_support::pallet_prelude::*;
 use frame_system::{ensure_signed, pallet_prelude::*};
-use orml_traits::{
-    arithmetic::{self, Signed},
-    MultiCurrency,
-};
 use sp_runtime::{
     traits::{Zero, MaybeSerializeDeserialize, Member, Saturating, StaticLookup},
     DispatchResult,
 };
+use sp_std::convert::{TryFrom, TryInto};
+
 use zd_primitives::{per_social_currency, Balance};
 use zd_support::MultiBaseToken;
 
-mod default_weight;
-#[cfg(test)]
+use orml_traits::{
+    arithmetic::{self, Signed},
+    MultiCurrency,
+};
+
+pub mod weights;
 mod mock;
-#[cfg(test)]
 mod tests;
 
-use sp_std::convert::{TryFrom, TryInto};
-
 pub use module::*;
+pub use weights::WeightInfo;
 
 /// balance information for an account.
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
@@ -49,10 +49,6 @@ impl<Balance: Saturating + Copy + Ord> AccountData<Balance> {
 pub mod module {
 
     use super::*;
-
-    pub trait WeightInfo {
-        fn transfer_social() -> Weight;
-    }
 
     #[pallet::config]
     pub trait Config: frame_system::Config {

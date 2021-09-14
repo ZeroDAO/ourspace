@@ -39,8 +39,6 @@ zd-support = {path = "../pallets/support", default-features = false, version = '
 orml-currencies = {default-features = false, version = "0.4.0"}
 orml-tokens = {default-features = false, version = '0.4.0'}
 orml-traits = {default-features = false, version = "0.4.0"}
-
-# orml
 orml-benchmarking = { version = "0.4.0", default-features = false, optional = true }
 
 # Substrate dependencies
