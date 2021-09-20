@@ -19,6 +19,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod weights;
+pub use weights::WeightInfo;
 pub use module::*;
 
 pub const INIT_SEED_RANK: u32 = 1000;
@@ -41,6 +43,9 @@ pub mod module {
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
         type SeedsBase: SeedsBase<Self::AccountId>;
         type DampingFactor: Get<Perbill>;
+        #[pallet::constant]
+        type MaxTrustCount: Get<u32>;
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -81,6 +86,8 @@ pub mod module {
         WrongPath,
         /// This is not a seeded user
         NotSeed,
+        /// Exceeding the maximum number of trust limits
+        TooMuchTrust,
     }
 
     #[pallet::hooks]
@@ -88,7 +95,8 @@ pub mod module {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+
+        #[pallet::weight(T::WeightInfo::trust())]
         pub fn trust(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             Self::do_trust(&who, &target)?;
@@ -96,7 +104,7 @@ pub mod module {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::untrust())]
         pub fn untrust(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             Self::do_untrust(&who, &target)?;
@@ -108,10 +116,10 @@ pub mod module {
 
 impl<T: Config> Pallet<T> {
     pub(crate) fn do_trust(who: &T::AccountId, target: &T::AccountId) -> DispatchResult {
-        // TODO: Limit size
         ensure!(who != target, Error::<T>::UnableTrustYourself);
 
         <TrustedList<T>>::try_mutate(&who, |t| -> DispatchResult {
+            ensure!((t.len() as u32) < T::MaxTrustCount::get(), Error::<T>::TooMuchTrust);
             ensure!(t.insert(target.clone()), Error::<T>::RepeatTrust);
             Ok(())
         })?;

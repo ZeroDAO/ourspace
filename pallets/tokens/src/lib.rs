@@ -172,7 +172,6 @@ impl<T: Config> Pallet<T> {
                 remaining_share = total_share_amount
                 .saturating_sub(share_amount.saturating_mul(trustees.len() as Balance));
             } else {
-                println!("pallet - remaining_share: {:?}",total_share_amount);
                 remaining_share = total_share_amount;
             }
         }

@@ -307,6 +307,7 @@ impl zd_seeds::Config for Runtime {
 
 parameter_types! {
     pub const DampingFactor: Perbill = Perbill::from_percent(100);
+	pub const MaxTrustCount: u32 = 600;
 }
 
 impl zd_trust::Config for Runtime {
@@ -314,6 +315,8 @@ impl zd_trust::Config for Runtime {
     type DampingFactor = DampingFactor;
     type SeedsBase = ZdSeeds;
     type Reputation = ZdReputation;
+	type MaxTrustCount = MaxTrustCount;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -618,6 +621,7 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			orml_add_benchmark!(params, batches, zd_tokens, benchmarking::zd_tokens);
+			orml_add_benchmark!(params, batches, zd_trust, benchmarking::zd_trust);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

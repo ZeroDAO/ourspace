@@ -63,6 +63,7 @@ impl zd_seeds::Config for Test {
 
 parameter_types! {
     pub const DampingFactor: Perbill = Perbill::from_percent(100);
+    pub const MaxTrustCount: u32 = 600;
 }
 
 impl zd_trust::Config for Test {
@@ -70,6 +71,8 @@ impl zd_trust::Config for Test {
     type DampingFactor = DampingFactor;
     type SeedsBase = ZdSeeds;
     type Reputation = ZdReputation;
+    type MaxTrustCount = MaxTrustCount;
+	type WeightInfo = ();
 }
 
 impl system::Config for Test {

@@ -90,6 +90,7 @@ parameter_types! {
     pub const MaxLocks: u32 = 50;
 
     pub const ReceiverProtectionPeriod: BlockNumber = 100;
+    pub const MaxTrustCount: u32 = 600;
 }
 
 impl zd_seeds::Config for Test {
@@ -102,6 +103,8 @@ impl zd_trust::Config for Test {
     type DampingFactor = DampingFactor;
     type SeedsBase = ZdSeeds;
     type Reputation = ZdReputation;
+    type MaxTrustCount = MaxTrustCount;
+	type WeightInfo = ();
 }
 
 impl zd_reputation::Config for Test {
