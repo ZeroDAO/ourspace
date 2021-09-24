@@ -507,7 +507,7 @@ pub mod pallet {
             let deep =
                 <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::ResultHashNotExit)?;
 
-            let user_full_order = Self::make_full_order(&start, &stop, deep);
+            let user_full_order = Self::make_full_order(start, stop, deep);
             let maybe_score = T::ChallengeBase::evidence(
                 &APP_ID,
                 &challenger,
@@ -586,7 +586,7 @@ pub mod pallet {
             let p_path = Self::get_pathfinder_paths(&target, &index)?;
             let (start, stop) = Self::get_ends(&p_path);
 
-            Self::check_mid_path(&mid_path[..], &start, &stop)?;
+            Self::check_mid_path(&mid_path[..], start, stop)?;
 
             let maybe_score = T::ChallengeBase::evidence(
                 &APP_ID,
@@ -631,7 +631,7 @@ pub mod pallet {
                             mid_path.len() + 2 == p_path.nodes.len(),
                             Error::<T>::LengthNotEqual
                         );
-                        let _ = Self::check_mid_path(&mid_path[..], &start, &stop)?;
+                        let _ = Self::check_mid_path(&mid_path[..], start, stop)?;
                     }
                     ensure!(mid_paths.len() > p_path_total, Error::<T>::TooFewInNumber);
                     Ok(false)

@@ -253,7 +253,7 @@ pub mod pallet {
                 .try_fold::<_, _, Result<Balance, DispatchError>>(
                     Zero::zero(),
                     |acc_amount, user_score| {
-                        let fee = Self::do_refresh(&pathfinder, &user_score, &now_block_number)?;
+                        let fee = Self::do_refresh(&pathfinder, user_score, &now_block_number)?;
                         acc_amount
                             .checked_add(fee)
                             .ok_or_else(|| Error::<T>::Overflow.into())
@@ -492,9 +492,9 @@ impl<T: Config> Pallet<T> {
         user_score: &(T::AccountId, u32),
         update_at: &T::BlockNumber,
     ) -> Result<Balance, DispatchError> {
-        T::Reputation::refresh_reputation(&user_score)?;
+        T::Reputation::refresh_reputation(user_score)?;
         let who = &user_score.0;
-        let fee = Self::share(&who);
+        let fee = Self::share(who);
         <Records<T>>::mutate(&pathfinder, &who, |r| {
             *r = Record {
                 update_at: *update_at,
@@ -581,9 +581,9 @@ impl<T: Config> Pallet<T> {
         let new_score = seeds.iter().zip(paths.iter()).try_fold(
             score,
             |acc, (seed, path)| -> Result<u32, DispatchError> {
-                let dist_new = Self::get_dist(&path, seed, &target).ok_or(Error::<T>::DistErr)?;
+                let dist_new = Self::get_dist(path, seed, target).ok_or(Error::<T>::DistErr)?;
                 let old_path = Self::get_path(&seed, &target);
-                if let Some(old_dist) = Self::get_dist(&old_path, &seed, &target) {
+                if let Some(old_dist) = Self::get_dist(&old_path, seed, target) {
                     ensure!(old_dist >= dist_new, Error::<T>::DistTooLong);
                     if old_dist == dist_new {
                         ensure!(old_path.score > path.score, Error::<T>::ScoreTooLow);

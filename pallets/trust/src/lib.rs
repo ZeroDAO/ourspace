@@ -127,7 +127,7 @@ impl<T: Config> Pallet<T> {
         if !T::Reputation::is_step(&TIRStep::Free) {
             let mut trust_temp_list = Self::trust_temp_list(&who);
 
-            if !trust_temp_list.trust.remove(&target) {
+            if !trust_temp_list.trust.remove(target) {
                 let _ = trust_temp_list.untrust.insert(target.clone());
             }
 
@@ -147,7 +147,7 @@ impl<T: Config> Pallet<T> {
         if !T::Reputation::is_step(&TIRStep::Free) {
             let mut trust_temp_list = Self::trust_temp_list(&who);
 
-            if !trust_temp_list.untrust.remove(&target) {
+            if !trust_temp_list.untrust.remove(target) {
                 let _ = trust_temp_list.trust.insert(target.clone());
             }
 
@@ -169,11 +169,11 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
     fn get_trust_count_old(who: &T::AccountId) -> usize {
         let trust_temp = Self::trust_temp_list(&who);
         // must be greater than zero and cannot overflow
-        Self::get_trust_count(&who) + trust_temp.trust.len() - trust_temp.untrust.len()
+        Self::get_trust_count(who) + trust_temp.trust.len() - trust_temp.untrust.len()
     }
 
     fn is_trust(who: &T::AccountId, target: &T::AccountId) -> bool {
-        <TrustedList<T>>::get(&who).contains(&target)
+        <TrustedList<T>>::get(&who).contains(target)
     }
 
     fn valid_nodes(nodes: &[T::AccountId]) -> DispatchResult {
@@ -188,8 +188,8 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
 
     fn is_trust_old(who: &T::AccountId, target: &T::AccountId) -> bool {
         let temp_list = <TrustTempList<T>>::get(who);
-        temp_list.trust.contains(&target)
-            || (Self::is_trust(&who, &target) && !temp_list.untrust.contains(&target))
+        temp_list.trust.contains(target)
+            || (Self::is_trust(who, target) && !temp_list.untrust.contains(target))
     }
 
     fn get_trust_old(who: &T::AccountId) -> Vec<T::AccountId> {

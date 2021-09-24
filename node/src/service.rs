@@ -1,4 +1,6 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
+// Disable the following lints
+#![allow(clippy::type_complexity)]
 
 use std::sync::Arc;
 use std::time::Duration;

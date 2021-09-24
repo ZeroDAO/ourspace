@@ -306,9 +306,9 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         app_id: &AppId,
         target: &T::AccountId,
     ) -> Result<Option<u64>, DispatchError> {
-        let challenge = Self::get_metadata_exist(&app_id, &target)?;
+        let challenge = Self::get_metadata_exist(app_id, target)?;
         let total_amount: Balance = challenge.total_amount().ok_or(Error::<T>::Overflow)?;
-        let (sweeper_fee, awards) = Self::checked_sweeper_fee(&challenge, &who, &total_amount)?;
+        let (sweeper_fee, awards) = Self::checked_sweeper_fee(&challenge, who, &total_amount)?;
         let mut pathfinder_amount: Balance = Zero::zero();
         let mut challenger_amount: Balance = Zero::zero();
         let mut maybe_score: Option<u64> = None;
@@ -352,7 +352,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             },
         }
         if sweeper_fee > 0 {
-            Self::release(&who, sweeper_fee)?;
+            Self::release(who, sweeper_fee)?;
         }
         if pathfinder_amount > 0 {
             Self::release(&challenge.pathfinder, pathfinder_amount)?;
@@ -360,7 +360,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         if challenger_amount > 0 {
             Self::release(&challenge.challenger, challenger_amount)?;
         };
-        Self::remove(&app_id, &target);
+        Self::remove(app_id, target);
         Ok(maybe_score)
     }
 
@@ -412,11 +412,11 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
 
         <Metadatas<T>>::try_mutate(app_id, target, |m| -> DispatchResult {
             *m = challenge;
-            Self::staking(&who, Self::challenge_staking_amount())?;
+            Self::staking(who, Self::challenge_staking_amount())?;
             Ok(())
         })?;
 
-        Self::after_upload(&app_id);
+        Self::after_upload(app_id);
 
         Self::deposit_event(Event::Challenged(
             who.clone(),
@@ -444,13 +444,13 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                 match challenge.status {
                     ChallengeStatus::Reply => {
                         ensure!(
-                            challenge.is_pathfinder(&who),
+                            challenge.is_pathfinder(who),
                             Error::<T>::NoPermission
                         );
                     },
                     _ => {
                         ensure!(
-                            challenge.is_challenger(&who),
+                            challenge.is_challenger(who),
                             Error::<T>::NoPermission
                         );
                     },
@@ -461,7 +461,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                 let (score, remark) = up(challenge.score, challenge.remark, is_all_done)?;
                 challenge.remark = remark;
                 challenge.score = score;
-                Self::after_upload(&app_id);
+                Self::after_upload(app_id);
                 Ok(())
             },
         )
@@ -489,7 +489,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
                 challenge.status = ChallengeStatus::Examine;
                 challenge.remark = index;
 
-                Self::after_upload(&app_id);
+                Self::after_upload(app_id);
                 Ok(())
             },
         )
@@ -507,7 +507,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             app_id,
             target,
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
-                ensure!(challenge.is_pathfinder(&who), Error::<T>::NoPermission);
+                ensure!(challenge.is_pathfinder(who), Error::<T>::NoPermission);
                 ensure!(
                     challenge.status == ChallengeStatus::Examine,
                     Error::<T>::StatusErr
@@ -531,7 +531,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
     ) -> Result<Option<u64>, DispatchError> {
         let mut challenge =
             <Metadatas<T>>::try_get(app_id, target).map_err(|_| Error::<T>::NonExistent)?;
-        ensure!(challenge.is_challenger(&who), Error::<T>::NoPermission);
+        ensure!(challenge.is_challenger(who), Error::<T>::NoPermission);
         ensure!(challenge.is_all_done(), Error::<T>::ProgressErr);
         ensure!(challenge.status != ChallengeStatus::Examine, Error::<T>::StatusErr);
         let needs_arbitration = up(challenge.remark, challenge.score)?;
@@ -543,7 +543,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             }
         };
         <Metadatas<T>>::mutate(app_id, target, |m| *m = challenge);
-        Self::after_upload(&app_id);
+        Self::after_upload(app_id);
         Ok(match needs_arbitration {
             false => Some(score),
             true => None,
@@ -562,17 +562,17 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             |challenge: &mut Metadata<T::AccountId, T::BlockNumber>| -> DispatchResult {
                 ensure!(challenge.status != ChallengeStatus::Examine, Error::<T>::StatusErr);
                 ensure!(challenge.is_all_done(), Error::<T>::ProgressErr);
-                if !challenge.is_challenger(&who) {
+                if !challenge.is_challenger(who) {
                     ensure!(
                        Self::is_challenge_timeout(&challenge.last_update),
                        Error::<T>::NoPermission
                     );
-                    Self::staking(&who, Self::challenge_staking_amount())?;
+                    Self::staking(who, Self::challenge_staking_amount())?;
                     challenge.challenger = who.clone();
                 }
                 let (joint_benefits, restart, score) = up(challenge.score,challenge.remark)?;
                 Self::do_settle(challenge, &restart, &joint_benefits, &score)?;
-                Self::after_upload(&app_id);
+                Self::after_upload(app_id);
                 Ok(())
             },
         )

@@ -250,7 +250,7 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
 
     fn staking(who: &T::AccountId, amount: &Balance) -> DispatchResult {
         Self::pay_with_pending(who, *amount)?;
-        Self::do_staking(&amount);
+        Self::do_staking(amount);
         Ok(())
     }
 
@@ -287,7 +287,7 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
     }
 
     fn share(who: &T::AccountId, targets: &[T::AccountId]) -> Balance {
-        let social_balance = Self::social_balance(&who);
+        let social_balance = Self::social_balance(who);
 
         let total_share_amount = per_social_currency::PRE_SHARE.mul_floor(social_balance);
         let reserved_amount = per_social_currency::PRE_RESERVED.mul_floor(social_balance);

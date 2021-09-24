@@ -156,7 +156,7 @@ fn testnet_genesis(
 			key: root_key,
 		}),
 		zd_reputation: Some(ZdReputationConfig {
-			period: period,
+			period,
 		}),
 		orml_tokens: Some(TokensConfig {
             endowed_accounts: endowed_accounts

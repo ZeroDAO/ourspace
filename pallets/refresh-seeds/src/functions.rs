@@ -72,7 +72,7 @@ impl<T: Config> Pallet<T> {
         target: &T::AccountId,
     ) -> DispatchResult {
         <Candidates<T>>::try_mutate(target, |c| {
-            if let Some(score) = T::ChallengeBase::harvest(&who, &APP_ID, target)? {
+            if let Some(score) = T::ChallengeBase::harvest(who, &APP_ID, target)? {
                 c.score = score;
             }
             Self::remove_challenge(target);
@@ -154,7 +154,7 @@ impl<T: Config> Pallet<T> {
             c.score = *score;
             c.pathfinder = pathfinder.clone();
         });
-        Self::remove_challenge(&target);
+        Self::remove_challenge(target);
         Self::deposit_event(Event::ChallengeRestarted(target.clone(), *score));
     }
 
@@ -166,7 +166,7 @@ impl<T: Config> Pallet<T> {
 
     pub(crate) fn checked_nodes(nodes: &[T::AccountId], target: &T::AccountId) -> DispatchResult {
         ensure!(nodes.len() >= 2, Error::<T>::PathTooShort);
-        ensure!(nodes.contains(&target), Error::<T>::NoTargetNode);
+        ensure!(nodes.contains(target), Error::<T>::NoTargetNode);
         T::TrustBase::valid_nodes(nodes)?;
         Ok(())
     }
@@ -182,7 +182,7 @@ impl<T: Config> Pallet<T> {
                 p.total > 0 && p.total < MAX_SHORTEST_PATH,
                 Error::<T>::PathTooLong
             );
-            let (start, stop) = Self::get_ends(&p);
+            let (start, stop) = Self::get_ends(p);
             ensure!(
                 Self::make_full_order(start, stop, deep) == *order,
                 Error::<T>::OrderNotMatch
@@ -261,7 +261,7 @@ impl<T: Config> Pallet<T> {
         }
 
         if do_verify {
-            Self::verify_result_hashs(&r_hashs_sets[..], index, &target)?;
+            Self::verify_result_hashs(&r_hashs_sets[..], index, target)?;
         }
 
         <ResultHashsSets<T>>::mutate(target, |rs| *rs = r_hashs_sets);
@@ -277,7 +277,7 @@ impl<T: Config> Pallet<T> {
             paths
                 .iter()
                 .try_fold::<_, _, Result<u32, DispatchError>>(0u32, |acc, p| {
-                    Self::checked_nodes(&p.nodes[..], &target)?;
+                    Self::checked_nodes(&p.nodes[..], target)?;
                     ensure!(p.total < 100, Error::<T>::LengthTooLong);
                     // Two-digit accuracy
                     let score = 100 / p.total;
@@ -374,11 +374,11 @@ impl<T: Config> Pallet<T> {
             Zero::zero(),
             Zero::zero(),
             |_, index, _| -> Result<u64, DispatchError> {
-                let p_path = Self::get_pathfinder_paths(&target, &index)?;
+                let p_path = Self::get_pathfinder_paths(target, &index)?;
                 ensure!((count as u32) == p_path.total, Error::<T>::LengthNotEqual);
                 let (start, stop) = Self::get_ends(&p_path);
                 for mid_path in mid_paths {
-                    let _ = Self::check_mid_path(&mid_path[..], &start, &stop)?;
+                    let _ = Self::check_mid_path(&mid_path[..], start, stop)?;
                 }
                 Ok(Zero::zero())
             },
