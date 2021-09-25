@@ -10,7 +10,7 @@ use frame_support::{
 use frame_system::{self as system, ensure_signed};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
 use sp_std::vec::Vec;
-use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep, ChallengeStatus};
+use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep, ChallengeStatus, Metadata, Pool, Progress};
 use zd_support::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
 #[cfg(test)]
@@ -355,17 +355,17 @@ pub mod pallet {
                 f.count = f.count.saturating_sub(1);
             });
 
-            T::ChallengeBase::launch(
-                &APP_ID,
-                &challenger,
-                &pathfinder,
-                record.fee,
-                Zero::zero(),
-                &target,
-                quantity,
-                Zero::zero(),
-                reputation,
-            )?;
+            T::ChallengeBase::launch(&APP_ID,&target,&Metadata {
+                pool: Pool { staking: Zero::zero(), earnings: record.fee },
+                remark: reputation,
+                pathfinder,
+                challenger: challenger.clone(),
+                progress: Progress {
+                    total: quantity,
+                    done: Zero::zero(),
+                },
+                ..Metadata::default()
+            })?;
 
             T::ChallengeBase::set_status(&APP_ID, &target, &ChallengeStatus::Arbitral);
             Self::deposit_event(Event::Challenge(challenger, target));

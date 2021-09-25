@@ -1,20 +1,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-use frame_support::{
-    ensure, pallet,
-    traits::Get,
-};
+use frame_support::{ensure, pallet, traits::Get};
 use frame_system::{self as system};
-use zd_primitives::{
-    fee::ProxyFee, AppId, Balance, ChallengeStatus, Metadata, Progress, TIRStep,
-};
+use zd_primitives::{fee::ProxyFee, AppId, Balance, ChallengeStatus, Metadata, TIRStep, Pool};
 use zd_support::{ChallengeBase, MultiBaseToken, Reputation};
 
-use sp_runtime::{
-    traits::Zero,
-    DispatchError, DispatchResult, SaturatedConversion,
-};
+use sp_runtime::{traits::Zero, DispatchError, DispatchResult, SaturatedConversion};
 
 #[cfg(test)]
 mod mock;
@@ -212,9 +204,11 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for Pallet<T> {
-    type Metadata = Metadata<T::AccountId, T::BlockNumber>;
-
-    fn set_metadata(app_id: &AppId, target: &T::AccountId, metadata: &Metadata<T::AccountId, T::BlockNumber>) {
+    fn set_metadata(
+        app_id: &AppId,
+        target: &T::AccountId,
+        metadata: &Metadata<T::AccountId, T::BlockNumber>,
+    ) {
         <Metadatas<T>>::mutate(*app_id, target, |m| *m = metadata.clone());
     }
 
@@ -296,18 +290,12 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
 
     fn launch(
         app_id: &AppId,
-        who: &T::AccountId,
-        path_finder: &T::AccountId,
-        fee: Balance,
-        staking: Balance,
         target: &T::AccountId,
-        quantity: u32,
-        score: u64,
-        remark: u32,
+        metadata: &Metadata<T::AccountId, T::BlockNumber>,
     ) -> DispatchResult {
         let now_block_number = system::Module::<T>::block_number();
 
-        let mut challenge = match <Metadatas<T>>::try_get(app_id, target) {
+        let challenge = match <Metadatas<T>>::try_get(app_id, target) {
             Ok(challenge_storage) => {
                 ensure!(
                     challenge_storage.status == ChallengeStatus::Free,
@@ -318,41 +306,41 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             Err(_) => Metadata::default(),
         };
 
-        challenge.pool.staking = challenge
+        let staking = challenge
             .pool
             .staking
-            .checked_add(staking)
+            .checked_add(metadata.pool.staking)
             .and_then(|v| v.checked_add(Self::challenge_staking_amount()))
             .ok_or(Error::<T>::Overflow)?;
-        challenge.pool.earnings = challenge
+
+        let earnings = challenge
             .pool
             .earnings
-            .checked_add(fee)
+            .checked_add(metadata.pool.earnings)
             .ok_or(Error::<T>::Overflow)?;
-        challenge.progress = Progress {
-            done: Zero::zero(),
-            total: quantity,
-        };
-        challenge.last_update = now_block_number;
-        challenge.status = ChallengeStatus::Examine;
-        challenge.score = score;
-        challenge.remark = remark;
-        challenge.pathfinder = path_finder.clone();
-        challenge.challenger = who.clone();
 
         <Metadatas<T>>::try_mutate(app_id, target, |m| -> DispatchResult {
-            *m = challenge;
-            Self::staking(who, Self::challenge_staking_amount())?;
+            Self::staking(&metadata.challenger, Self::challenge_staking_amount())?;
+            *m = Metadata {
+                pool: Pool {
+                    staking,
+                    earnings,
+                },
+                joint_benefits: challenge.joint_benefits,
+                last_update: now_block_number,
+                status: ChallengeStatus::Examine,
+                ..metadata.clone()
+            };
             Ok(())
         })?;
- 
+
         Self::after_upload(app_id);
 
         Self::deposit_event(Event::Challenged(
-            who.clone(),
+            metadata.challenger.clone(),
             target.clone(),
-            path_finder.clone(),
-            quantity,
+            metadata.pathfinder.clone(),
+            metadata.progress.total,
         ));
 
         Ok(())

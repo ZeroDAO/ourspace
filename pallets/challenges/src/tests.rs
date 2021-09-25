@@ -3,7 +3,7 @@
 use super::*;
 use crate::mock::*;
 use frame_support::{assert_noop, assert_ok};
-use zd_primitives::{PROXY_PERIOD, Pool};
+use zd_primitives::{PROXY_PERIOD, Progress, Pool};
 
 const APP_ID: AppId = *b"test    ";
 const CHALLENGER: AccountId = ALICE;
@@ -89,14 +89,22 @@ macro_rules! new_challenge_should_work {
                     }
                     assert_ok!(ZdChallenges::launch(
                         &APP_ID,
-                        &CHALLENGER,
-                        &PATHINFER,
-                        $value.earnings,
-                        $value.staking,
                         &TARGET,
-                        $value.total,
-                        $value.score,
-                        $value.remark
+                        &Metadata {
+                            pool: Pool {
+                                staking: $value.staking,
+                                earnings: $value.earnings,
+                            },
+                            progress: Progress {
+                                total: $value.total,
+                                done: 0,
+                            },
+                            challenger: CHALLENGER,
+                            pathfinder: PATHINFER,
+                            score: $value.score,
+                            remark: $value.remark,
+                            ..Metadata::default()
+                        }
                     ));
                     assert_eq!(
                         ZdChallenges::get_metadata(&APP_ID, &TARGET),
@@ -185,7 +193,21 @@ new_challenge_should_work! {
 #[test]
 fn new_challenge_staking_fail() {
     new_test_ext().execute_with(|| {
-        assert!(ZdChallenges::launch(&APP_ID, &DAVE, &PATHINFER, 0, 1000, &TARGET, 100, 0, 0).is_err());
+        assert!(ZdChallenges::launch(&APP_ID,&TARGET, &Metadata {
+            pool: Pool {
+                staking: 1000,
+                earnings: 0,
+            },
+            progress: Progress {
+                total: 100,
+                done: 0,
+            },
+            challenger: DAVE,
+            pathfinder: PATHINFER,
+            score: 10,
+            remark: 0,
+            ..Metadata::default()
+        }).is_err());
         assert_eq!(
             ZdChallenges::get_metadata(&APP_ID, &TARGET),
             Metadata::default()
@@ -215,14 +237,22 @@ macro_rules! new_challenge_no_allowed {
 
                     assert_noop!(ZdChallenges::launch(
                         &APP_ID,
-                        &CHALLENGER,
-                        &PATHINFER,
-                        10,
-                        10,
                         &TARGET,
-                        20,
-                        10,
-                        0,
+                        &Metadata {
+                            pool: Pool {
+                                staking: 10,
+                                earnings: 10,
+                            },
+                            progress: Progress {
+                                total: 20,
+                                done: 0,
+                            },
+                            challenger: CHALLENGER,
+                            pathfinder: PATHINFER,
+                            score: 10,
+                            remark: 0,
+                            ..Metadata::default()
+                        },
                     ),Error::<Test>::NoChallengeAllowed);
                 });
             }

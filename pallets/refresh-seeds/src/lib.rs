@@ -9,7 +9,7 @@ use frame_support::{
 };
 use frame_system::{self as system};
 use orml_utilities::OrderedSet;
-use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep};
+use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep, Metadata, Pool};
 use zd_support::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
@@ -262,14 +262,18 @@ pub mod pallet {
             }
             T::ChallengeBase::launch(
                 &APP_ID,
-                &challenger,
-                &candidate.pathfinder,
-                Zero::zero(),
-                staking,
                 &target,
-                Zero::zero(),
-                score,
-                Zero::zero(),
+                &Metadata {
+                    challenger: challenger.clone(),
+                    pathfinder: candidate.pathfinder,
+                    pool: Pool {
+                        staking,
+                        earnings: Zero::zero(),
+                    },
+                    score,
+                    ..Metadata::default()
+                }
+
             )?;
             <Candidates<T>>::mutate(&target, |c| c.has_challenge = true);
             T::Reputation::set_last_refresh_at();
