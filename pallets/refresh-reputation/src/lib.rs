@@ -9,9 +9,9 @@ use frame_support::{
 };
 use frame_system::{self as system, ensure_signed};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
+use sp_std::vec::Vec;
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep, ChallengeStatus};
 use zd_support::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
-use sp_std::vec::Vec;
 
 #[cfg(test)]
 mod mock;
@@ -140,11 +140,11 @@ pub mod pallet {
         /// Refreshed earnings are harvested \[pathfinder, target\]
         ChallengeHarvested(T::AccountId, T::AccountId),
         /// A new challenge has been launched \[challenger, target\]
-        Challenge(T::AccountId,T::AccountId),
+        Challenge(T::AccountId, T::AccountId),
         /// A new arbitral has been launched \[challenger, target\]
-        Arbitral(T::AccountId,T::AccountId),
+        Arbitral(T::AccountId, T::AccountId),
         /// The new path is uploaded \[challenger, target\]
-        PathUpdated(T::AccountId,T::AccountId)
+        PathUpdated(T::AccountId, T::AccountId),
     }
 
     #[pallet::error]
@@ -389,7 +389,8 @@ pub mod pallet {
                 &target,
                 |score, remark| -> Result<(bool, bool, u64), _> {
                     let score = score as u32;
-                    let new_score = Self::do_update_path_verify(&target, &seeds[..], &paths[..], score)?;
+                    let new_score =
+                        Self::do_update_path_verify(&target, &seeds[..], &paths[..], score)?;
                     T::Reputation::mutate_reputation(&target, &new_score);
                     Ok((new_score == remark, false, new_score.into()))
                 },
@@ -416,7 +417,8 @@ pub mod pallet {
                 &target,
                 &(count as u32),
                 |score, remark, is_all_done| -> Result<(u64, u32), DispatchError> {
-                    let new_score = Self::do_update_path(&target, &seeds[..], &paths[..], score as u32)?;
+                    let new_score =
+                        Self::do_update_path(&target, &seeds[..], &paths[..], score as u32)?;
                     if is_all_done {
                         T::Reputation::mutate_reputation(&target, &new_score);
                     }

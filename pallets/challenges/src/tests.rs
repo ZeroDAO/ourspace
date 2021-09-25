@@ -3,7 +3,7 @@
 use super::*;
 use crate::mock::*;
 use frame_support::{assert_noop, assert_ok};
-use zd_primitives::PROXY_PERIOD;
+use zd_primitives::{PROXY_PERIOD, Pool};
 
 const APP_ID: AppId = *b"test    ";
 const CHALLENGER: AccountId = ALICE;

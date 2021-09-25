@@ -2,19 +2,17 @@
 #![allow(clippy::unused_unit)]
 
 use frame_support::{
-    codec::{Decode, Encode},
     ensure, pallet,
     traits::Get,
-    RuntimeDebug,
 };
 use frame_system::{self as system};
 use zd_primitives::{
-    fee::ProxyFee, AppId, Balance, ChallengeStatus, Metadata, Pool, Progress, TIRStep,
+    fee::ProxyFee, AppId, Balance, ChallengeStatus, Metadata, Progress, TIRStep,
 };
 use zd_support::{ChallengeBase, MultiBaseToken, Reputation};
 
 use sp_runtime::{
-    traits::{AtLeast32Bit, Zero},
+    traits::Zero,
     DispatchError, DispatchResult, SaturatedConversion,
 };
 
@@ -214,6 +212,12 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for Pallet<T> {
+    type Metadata = Metadata<T::AccountId, T::BlockNumber>;
+
+    fn set_metadata(app_id: &AppId, target: &T::AccountId, metadata: &Metadata<T::AccountId, T::BlockNumber>) {
+        <Metadatas<T>>::mutate(*app_id, target, |m| *m = metadata.clone());
+    }
+
     fn is_all_harvest(app_id: &AppId) -> bool {
         <Metadatas<T>>::iter_prefix_values(app_id).next().is_none()
     }
@@ -341,7 +345,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
             Self::staking(who, Self::challenge_staking_amount())?;
             Ok(())
         })?;
-
+ 
         Self::after_upload(app_id);
 
         Self::deposit_event(Event::Challenged(

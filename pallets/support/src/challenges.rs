@@ -3,6 +3,10 @@ use zd_primitives::ChallengeStatus;
 
 pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
 
+    type Metadata;
+
+    fn set_metadata(app_id: &AppId, target: &AccountId, metadata: &Self::Metadata);
+
     fn is_all_harvest(app_id: &AppId) -> bool;
 
     fn is_all_timeout(app_id: &AppId,now: &BlockNumber) -> bool;

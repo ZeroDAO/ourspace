@@ -13,6 +13,7 @@ serde = { version = "1.0.119", optional = true }
 codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
 sp-runtime = { version = "3.0.0", default-features = false }
 sp-std = { version = "3.0.0", default-features = false }
+zd-primitives = { path = "../../primitives", default-features = false, version = '0.0.1' }
 
 [dev-dependencies]
 sp-io = { version = "3.0.0", default-features = false }
@@ -24,6 +25,4 @@ std = [
 	"codec/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"num-traits/std",
-	"frame-support/std",
 ]
