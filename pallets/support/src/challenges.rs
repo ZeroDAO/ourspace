@@ -1,26 +1,5 @@
-use sp_runtime::{DispatchResult,DispatchError};
-use frame_support::{
-    codec::{Decode, Encode},
-    RuntimeDebug,
-};
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
-
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum ChallengeStatus {
-    Free,
-    Examine,
-    Reply,
-    Evidence,
-    Arbitral,
-}
-
-impl Default for ChallengeStatus {
-    fn default() -> Self {
-        ChallengeStatus::Examine
-    }
-}
+use sp_runtime::{DispatchError, DispatchResult};
+use zd_primitives::ChallengeStatus;
 
 pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
 

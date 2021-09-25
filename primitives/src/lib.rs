@@ -4,9 +4,7 @@ use frame_support::{
     codec::{Decode, Encode},
     RuntimeDebug,
 };
-use sp_runtime::{
-    traits::AtLeast32BitUnsigned, Perbill,
-};
+use sp_runtime::{Perbill, traits::{AtLeast32Bit, AtLeast32BitUnsigned,Zero}};
 use sp_std::convert::TryInto;
 
 #[cfg(feature = "std")]
@@ -123,3 +121,94 @@ pub fn appro_ln(value: u32) -> u32 {
         8
     }
 }
+
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum ChallengeStatus {
+    Free,
+    Examine,
+    Reply,
+    Evidence,
+    Arbitral,
+}
+
+impl Default for ChallengeStatus {
+    fn default() -> Self {
+        ChallengeStatus::Examine
+    }
+}
+
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
+pub struct Pool {
+    pub staking: Balance,
+    pub earnings: Balance,
+}
+
+#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, Default, RuntimeDebug)]
+pub struct Progress {
+    pub total: u32,
+    pub done: u32,
+}
+
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
+pub struct Metadata<AccountId, BlockNumber> {
+    pub pool: Pool,
+    pub joint_benefits: bool,
+    pub progress: Progress,
+    pub last_update: BlockNumber,
+    pub remark: u32,
+    pub score: u64,
+    pub pathfinder: AccountId,
+    pub status: ChallengeStatus,
+    pub challenger: AccountId,
+}
+
+impl<AccountId, BlockNumber> Metadata<AccountId, BlockNumber>
+where
+    AccountId: Ord + Clone,
+    BlockNumber: Copy + AtLeast32Bit,
+{
+    pub fn total_amount(&self) -> Option<Balance> {
+        self.pool.staking.checked_add(self.pool.earnings)
+    }
+
+    pub fn is_all_done(&self) -> bool {
+        self.progress.total == self.progress.done
+    }
+  
+    pub fn check_progress(&self) -> bool {
+        self.progress.total >= self.progress.done
+    }
+
+    pub fn is_challenger(&self, who: &AccountId) -> bool {
+        self.challenger == *who
+    }
+
+    pub fn is_pathfinder(&self, who: &AccountId) -> bool {
+        self.pathfinder == *who
+    }
+
+    pub fn new_progress(&mut self, total: u32) -> &mut Self {
+        self.progress.total = total;
+        self.progress.done = Zero::zero();
+        self
+    }
+
+    pub fn next(&mut self, count: u32) -> &mut Self {
+        self.progress.done = self.progress.done.saturating_add(count);
+        self
+    }
+
+    pub fn set_status(&mut self, status: &ChallengeStatus) {
+        self.status = *status;
+    }
+
+    pub fn restart(&mut self, full_probative: bool) {
+        self.status = ChallengeStatus::Free;
+        self.joint_benefits = false;
+        if full_probative {
+            self.pathfinder = self.challenger.clone();
+        }
+    }
+}
+
