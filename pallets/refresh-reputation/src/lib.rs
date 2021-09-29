@@ -10,8 +10,12 @@ use frame_support::{
 use frame_system::{self as system, ensure_signed};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
 use sp_std::vec::Vec;
-use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep, ChallengeStatus, Metadata, Pool, Progress};
-use zd_support::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
+use zd_primitives::{
+    fee::ProxyFee, AppId, Balance, ChallengeStatus, Metadata, Pool, Progress, TIRStep,
+};
+use zd_support::{
+    ChallengeBase, MultiBaseToken, RefreshPayrolls, Reputation, SeedsBase, TrustBase,
+};
 
 #[cfg(test)]
 mod mock;
@@ -355,17 +359,24 @@ pub mod pallet {
                 f.count = f.count.saturating_sub(1);
             });
 
-            T::ChallengeBase::launch(&APP_ID,&target,&Metadata {
-                pool: Pool { staking: Zero::zero(), earnings: record.fee },
-                remark: reputation,
-                pathfinder,
-                challenger: challenger.clone(),
-                progress: Progress {
-                    total: quantity,
-                    done: Zero::zero(),
+            T::ChallengeBase::launch(
+                &APP_ID,
+                &target,
+                &Metadata {
+                    pool: Pool {
+                        staking: Zero::zero(),
+                        earnings: record.fee,
+                    },
+                    remark: reputation,
+                    pathfinder,
+                    challenger: challenger.clone(),
+                    progress: Progress {
+                        total: quantity,
+                        done: Zero::zero(),
+                    },
+                    ..Metadata::default()
                 },
-                ..Metadata::default()
-            })?;
+            )?;
 
             T::ChallengeBase::set_status(&APP_ID, &target, &ChallengeStatus::Arbitral);
             Self::deposit_event(Event::Challenge(challenger, target));
@@ -609,5 +620,12 @@ impl<T: Config> Pallet<T> {
             })
         }
         Ok(new_score)
+    }
+}
+
+impl<T: Config> RefreshPayrolls<T::AccountId, Balance> for Pallet<T> {
+    fn add_payroll(pathfinder: &T::AccountId, total_fee: &Balance, count: u32) -> DispatchResult {
+        let now_block_number = Self::now();
+        Self::mutate_payroll(&pathfinder, &total_fee, &count, &now_block_number)
     }
 }
