@@ -28,6 +28,8 @@ const APP_ID: AppId = *b"repu    ";
 
 /// Maximum number of active paths
 const MAX_NODE_COUNT: usize = 5;
+/// Maximum number of refreshes for the same address
+const MAX_REFRESH: u32 = 500;
 
 #[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
 pub struct Record<BlockNumber, Balance> {
@@ -193,6 +195,8 @@ pub mod pallet {
         RefreshTiomeOut,
         /// Same path length, but score too low
         ScoreTooLow,
+        /// Exceed the refresh limit
+        ExceedMaxRefresh,
     }
 
     #[pallet::hooks]
@@ -247,6 +251,12 @@ pub mod pallet {
             Self::check_step_and_stared()?;
             let now_block_number = Self::now();
             Self::check_timeout(&now_block_number)?;
+
+            let old_count = Self::get_payroll(&pathfinder).count;
+            ensure!(
+                old_count.saturating_add(user_count as u32) < MAX_REFRESH,
+                Error::<T>::ExceedMaxRefresh
+            );
 
             let amount = T::UpdateStakingAmount::get()
                 .checked_mul(user_count as Balance)
