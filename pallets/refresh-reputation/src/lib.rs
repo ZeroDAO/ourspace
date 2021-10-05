@@ -628,4 +628,14 @@ impl<T: Config> RefreshPayrolls<T::AccountId, Balance> for Pallet<T> {
         let now_block_number = Self::now();
         Self::mutate_payroll(&pathfinder, &total_fee, &count, &now_block_number)
     }
+
+    fn add_record(pathfinder: &T::AccountId,who: &T::AccountId,fee: &Balance) {
+        let now_block_number = Self::now();
+        <Records<T>>::mutate(&pathfinder, &who, |r| {
+            *r = Record {
+                update_at: now_block_number,
+                fee: *fee,
+            }
+        });
+    }
 }
