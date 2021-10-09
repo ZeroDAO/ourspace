@@ -22,6 +22,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod weights;
+pub use weights::WeightInfo;
+
 pub use pallet::*;
 
 const APP_ID: AppId = *b"repu    ";
@@ -90,6 +93,8 @@ pub mod pallet {
         type TrustBase: TrustBase<Self::AccountId>;
         type SeedsBase: SeedsBase<Self::AccountId>;
         type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance, Self::BlockNumber>;
+        /// The weight information of this pallet.
+		type WeightInfo: WeightInfo;
     }
 
     // type ChallengeStatus = T::ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber>::ChallengeBase;
@@ -204,7 +209,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::start())]
         pub fn start(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             Self::check_step_and_not_stared()?;
@@ -237,7 +242,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::refresh((user_scores.len() as u32).max(1u32)))]
         pub fn refresh(
             origin: OriginFor<T>,
             user_scores: Vec<(T::AccountId, u32)>,
@@ -290,7 +295,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::harvest_ref_all())]
         pub fn harvest_ref_all(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let pathfinder = ensure_signed(origin)?;
             Self::next_step();
@@ -304,7 +309,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::harvest_ref_all_sweeper())]
         pub fn harvest_ref_all_sweeper(
             origin: OriginFor<T>,
             pathfinder: T::AccountId,
@@ -330,7 +335,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::harvest_challenge())]
         pub fn harvest_challenge(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -342,7 +347,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::challenge())]
         pub fn challenge(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -393,7 +398,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::arbitral(seeds.len().max(paths.len()) as u32))]
         pub fn arbitral(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -420,7 +425,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::challenge_update(seeds.len().max(paths.len()) as u32))]
         pub fn challenge_update(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -639,7 +644,7 @@ impl<T: Config> RefreshPayrolls<T::AccountId, Balance> for Pallet<T> {
         Self::mutate_payroll(&pathfinder, &total_fee, &count, &now_block_number)
     }
 
-    fn add_record(pathfinder: &T::AccountId,who: &T::AccountId,fee: &Balance) {
+    fn add_record(pathfinder: &T::AccountId, who: &T::AccountId, fee: &Balance) {
         let now_block_number = Self::now();
         <Records<T>>::mutate(&pathfinder, &who, |r| {
             *r = Record {

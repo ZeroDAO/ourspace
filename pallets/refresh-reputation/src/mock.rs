@@ -122,6 +122,7 @@ impl zd_refresh_reputation::Config for Test {
     type ChallengeBase = Challenges;
     type SeedsBase = ZdSeeds;
     type RefRepuTiomeOut = RefRepuTiomeOut;
+    type WeightInfo = ();
 }
 
 parameter_types! {

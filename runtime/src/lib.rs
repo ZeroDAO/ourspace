@@ -238,7 +238,7 @@ impl pallet_timestamp::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: u128 = 500;
+	pub const ExistentialDeposit: u128 = 0;
 	pub const MaxLocks: u32 = 50;
 }
 
@@ -357,7 +357,7 @@ parameter_types! {
     /// Amount needed for staking when refreshing reputation and seeds.
     pub const UpdateStakingAmount: Balance = 1_000_000_000;
     /// Maximum number of uploads, which is a security setting
-    pub const MaxUpdateCount: u32 = 150;
+    pub const MaxUpdateCount: u32 = 20;
     /// Challenges to reputation will not be allowed beyond this time period.
     pub const ConfirmationPeriod: BlockNumber = 100;
 }
@@ -373,6 +373,7 @@ impl zd_refresh_reputation::Config for Runtime {
     type ChallengeBase = ZdChallenges;
     type SeedsBase = ZdSeeds;
     type RefRepuTiomeOut = RefRepuTiomeOut;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -624,6 +625,7 @@ impl_runtime_apis! {
 
 			orml_add_benchmark!(params, batches, zd_tokens, benchmarking::zd_tokens);
 			orml_add_benchmark!(params, batches, zd_trust, benchmarking::zd_trust);
+			orml_add_benchmark!(params, batches, zd_refresh_reputation, benchmarking::zd_refresh_reputation);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
