@@ -101,8 +101,8 @@ pub mod opaque {
 }
 
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("node-template"),
-	impl_name: create_runtime_str!("node-template"),
+	spec_name: create_runtime_str!("ZeroDAO-node"),
+	impl_name: create_runtime_str!("ZeroDAO-node"),
 	authoring_version: 1,
 	spec_version: 100,
 	impl_version: 1,

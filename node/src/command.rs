@@ -23,7 +23,7 @@ use zerodao::Block;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Substrate Node".into()
+		"ZeroDAO Node".into()
 	}
 
 	fn impl_version() -> String {

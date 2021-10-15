@@ -6,7 +6,7 @@ use zerodao::{
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
-use sc_service::ChainType;
+use sc_service::{ChainType, Properties};
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -39,13 +39,14 @@ pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
 }
 
 pub fn development_config() -> Result<ChainSpec, String> {
+
 	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
 
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"Development",
+		"ZeroDAO Network",
 		// ID
-		"dev",
+		"ZeroDAO",
 		ChainType::Development,
 		move || testnet_genesis(
 			wasm_binary,
@@ -71,7 +72,7 @@ pub fn development_config() -> Result<ChainSpec, String> {
 		// Protocol ID
 		None,
 		// Properties
-		None,
+		Some(zd_properties()),
 		// Extensions
 		None,
 	))
@@ -82,9 +83,9 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 
 	Ok(ChainSpec::from_genesis(
 		// Name
-		"Local Testnet",
+		"ZeroDAO Dev",
 		// ID
-		"local_testnet",
+		"zeroDAO_dev",
 		ChainType::Local,
 		move || testnet_genesis(
 			wasm_binary,
@@ -120,7 +121,7 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 		// Protocol ID
 		None,
 		// Properties
-		None,
+		Some(zd_properties()),
 		// Extensions
 		None,
 	))
@@ -170,4 +171,13 @@ fn testnet_genesis(
                 .collect(),
         }),
 	}
+}
+
+pub fn zd_properties() -> Properties {
+	let mut properties = Properties::new();
+
+	properties.insert("tokenSymbol".into(), "ZOO".into());
+	properties.insert("tokenDecimals".into(), 12.into());
+
+	properties
 }
