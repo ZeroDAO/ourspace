@@ -405,13 +405,13 @@ impl<T: Config> Pallet<T> {
     pub(crate) fn evidence_of_missed(
         challenger: &T::AccountId,
         target: &T::AccountId,
-        nodes: &Vec<T::AccountId>,
+        nodes: &[T::AccountId],
         index: u32,
     ) -> DispatchResult {
         Self::check_step()?;
-        Self::checked_nodes(&nodes[..], target)?;
+        Self::checked_nodes(nodes, target)?;
 
-        let (start, stop) = Self::get_nodes_ends(&nodes[..]);
+        let (start, stop) = Self::get_nodes_ends(nodes);
 
         let deep =
             <ResultHashsSets<T>>::decode_len(target).ok_or(Error::<T>::ResultHashNotExit)?;
@@ -436,7 +436,7 @@ impl<T: Config> Pallet<T> {
                                     p.nodes.len() == nodes.len(),
                                     Error::<T>::LengthNotEqual
                                 );
-                                ensure!(p.nodes != *nodes, Error::<T>::AlreadyExist);
+                                ensure!(p.nodes[..] != *nodes, Error::<T>::AlreadyExist);
                                 same_ends = true;
                             }
                         }
@@ -459,7 +459,7 @@ impl<T: Config> Pallet<T> {
                                 Error::<T>::PathIndexError
                             );
                         }
-                        if index + 1 <= last_r_hash.len() {
+                        if index < last_r_hash.len() {
                             ensure!(
                                 last_r_hash[index].order[..] > user_full_order[..RANGE],
                                 Error::<T>::PathIndexError
@@ -474,7 +474,7 @@ impl<T: Config> Pallet<T> {
 
         match maybe_score {
             Some(score) => Self::restart(target, challenger, &score),
-            None => <MissedPaths<T>>::insert(target, nodes),
+            None => <MissedPaths<T>>::insert(target, nodes.to_vec()),
         }
 
         Self::deposit_event(Event::MissedPathPresented(challenger.clone(), target.clone(), index));

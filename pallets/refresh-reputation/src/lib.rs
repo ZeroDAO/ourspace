@@ -650,7 +650,7 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> RefreshPayrolls<T::AccountId, Balance> for Pallet<T> {
     fn add_payroll(pathfinder: &T::AccountId, total_fee: &Balance, count: u32) -> DispatchResult {
         let now_block_number = Self::now();
-        Self::mutate_payroll(&pathfinder, &total_fee, &count, &now_block_number)
+        Self::mutate_payroll(pathfinder, total_fee, &count, &now_block_number)
     }
 
     fn add_record(pathfinder: &T::AccountId, who: &T::AccountId, fee: &Balance) {
