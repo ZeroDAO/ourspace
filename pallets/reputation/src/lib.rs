@@ -6,6 +6,7 @@ use frame_support::{
     ensure, pallet,
     traits::Get,
     RuntimeDebug,
+    transactional,
 };
 use frame_system::{self as system};
 use sp_runtime::{traits::Zero, DispatchResult};
@@ -116,6 +117,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[transactional]
         pub fn set_period(
             origin: OriginFor<T>,
             period: T::BlockNumber,
@@ -165,6 +167,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
         *step == <SystemInfo<T>>::get().step
     }
 
+    #[transactional]
     fn new_round() -> DispatchResult {
         let now_block_number = Self::now();
         <SystemInfo<T>>::try_mutate(|operation_status| {
@@ -218,6 +221,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
         None
     }
 
+    #[transactional]
     fn refresh_reputation(user_score: &(T::AccountId, u32)) -> DispatchResult {
         let who = &user_score.0;
         let nonce = Self::system_info().nonce;

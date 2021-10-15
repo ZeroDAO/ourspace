@@ -6,6 +6,7 @@ use frame_support::{
     ensure, pallet,
     traits::Get,
     RuntimeDebug,
+    transactional,
 };
 use frame_system::{self as system, ensure_signed};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
@@ -210,6 +211,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight(T::WeightInfo::start())]
+        #[transactional]
         pub fn start(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             Self::check_step_and_not_stared()?;
@@ -243,6 +245,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::refresh((user_scores.len() as u32).max(1u32)))]
+        #[transactional]
         pub fn refresh(
             origin: OriginFor<T>,
             user_scores: Vec<(T::AccountId, u32)>,
@@ -296,6 +299,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::harvest_ref_all())]
+        #[transactional]
         pub fn harvest_ref_all(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let pathfinder = ensure_signed(origin)?;
             Self::next_step();
@@ -310,6 +314,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::harvest_ref_all_sweeper())]
+        #[transactional]
         pub fn harvest_ref_all_sweeper(
             origin: OriginFor<T>,
             pathfinder: T::AccountId,
@@ -336,6 +341,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::harvest_challenge())]
+        #[transactional]
         pub fn harvest_challenge(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -348,6 +354,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::challenge())]
+        #[transactional]
         pub fn challenge(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -399,6 +406,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::arbitral(seeds.len().max(paths.len()) as u32))]
+        #[transactional]
         pub fn arbitral(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -426,6 +434,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::challenge_update(seeds.len().max(paths.len()) as u32))]
+        #[transactional]
         pub fn challenge_update(
             origin: OriginFor<T>,
             target: T::AccountId,

@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-use frame_support::{ensure, pallet, traits::Get};
+use frame_support::{ensure, pallet, transactional, traits::Get};
 use frame_system::{self as system};
 use zd_primitives::{fee::ProxyFee, AppId, Balance, ChallengeStatus, Metadata, TIRStep, Pool};
 use zd_support::{ChallengeBase, MultiBaseToken, Reputation};
@@ -225,6 +225,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         <Metadatas<T>>::mutate(app_id, target, |c| c.set_status(status));
     }
 
+    #[transactional]
     fn harvest(
         who: &T::AccountId,
         app_id: &AppId,
@@ -288,6 +289,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         Ok(maybe_score)
     }
 
+    #[transactional]
     fn launch(
         app_id: &AppId,
         target: &T::AccountId,
@@ -346,6 +348,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         Ok(())
     }
 
+    #[transactional]
     fn next(
         app_id: &AppId,
         who: &T::AccountId,
@@ -382,6 +385,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         )
     }
 
+    #[transactional]
     fn examine(
         app_id: &AppId,
         who: &T::AccountId,
@@ -407,6 +411,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         )
     }
 
+    #[transactional]
     fn reply(
         app_id: &AppId,
         who: &T::AccountId,
@@ -435,6 +440,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         )
     }
 
+    #[transactional]
     fn evidence(
         app_id: &AppId,
         who: &T::AccountId,
@@ -465,6 +471,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         })
     }
 
+    #[transactional]
     fn arbitral(
         app_id: &AppId,
         who: &T::AccountId,
@@ -496,6 +503,7 @@ impl<T: Config> ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber> for 
         )
     }
 
+    #[transactional]
     fn settle(
         app_id: &AppId,
         target: &T::AccountId,

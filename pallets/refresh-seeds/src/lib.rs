@@ -6,6 +6,7 @@ use frame_support::{
     ensure,
     traits::Get,
     RuntimeDebug,
+    transactional,
 };
 use frame_system::{self as system};
 pub use orml_utilities::OrderedSet;
@@ -220,6 +221,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight(T::WeightInfo::start())]
+        #[transactional]
         pub fn start(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             T::Reputation::new_round()?;
@@ -228,6 +230,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::add())]
+        #[transactional]
         pub fn add(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -247,6 +250,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::challenge())]
+        #[transactional]
         pub fn challenge(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -289,6 +293,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::examine())]
+        #[transactional]
         pub fn examine(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -319,6 +324,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::reply_hash(hashs.len().max(1) as u32))]
+        #[transactional]
         pub fn reply_hash(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -352,6 +358,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::reply_hash_next(hashs.len().max(1) as u32))]
+        #[transactional]
         pub fn reply_hash_next(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -379,6 +386,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::reply_path(paths.len().max(1) as u32))]
+        #[transactional]
         pub fn reply_path(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -434,6 +442,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::reply_path_next(paths.len().max(1) as u32))]
+        #[transactional]
         pub fn reply_path_next(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -482,6 +491,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::reply_num(mid_paths.len().max(1) as u32))]
+        #[transactional]
         pub fn reply_num(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -503,6 +513,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::missed_in_hashs())]
+        #[transactional]
         pub fn missed_in_hashs(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -526,6 +537,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::missed_in_paths())]
+        #[transactional]
         pub fn missed_in_paths(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -548,6 +560,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::evidence_of_shorter())]
+        #[transactional]
         pub fn evidence_of_shorter(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -574,6 +587,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::number_too_low(mid_paths.len().max(2) as u32))]
+        #[transactional]
         pub fn number_too_low(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -619,6 +633,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::invalid_evidence())]
+        #[transactional]
         pub fn invalid_evidence(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -652,6 +667,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::harvest_challenge())]
+        #[transactional]
         pub fn harvest_challenge(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -665,6 +681,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(T::WeightInfo::harvest_seed())]
+        #[transactional]
         pub fn harvest_seed(
             origin: OriginFor<T>,
             target: T::AccountId,

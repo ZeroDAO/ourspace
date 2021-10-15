@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-use frame_support::pallet_prelude::*;
+use frame_support::{pallet_prelude::*,transactional};
 use frame_system::{ensure_signed, pallet_prelude::*};
 use sp_runtime::{
     traits::{Zero, MaybeSerializeDeserialize, Member, Saturating, StaticLookup},
@@ -33,8 +33,10 @@ pub struct AccountData<Balance> {
     ///
     /// This is the only balance that matters in terms of most operations on
     /// tokens.
+    #[codec(compact)]
     pub pending: Balance,
     /// Balance of social tokens.
+    #[codec(compact)]
     pub social: Balance,
 }
 
@@ -125,10 +127,11 @@ pub mod module {
         /// The dispatch origin for this call must be `Signed` by the
         /// transactor.
         #[pallet::weight(T::WeightInfo::transfer_social())]
+        #[transactional]
         pub fn transfer_social(
             origin: OriginFor<T>,
             dest: <T::Lookup as StaticLookup>::Source,
-            amount: Balance,
+            #[pallet::compact] amount: Balance,
         ) -> DispatchResultWithPostInfo {
             let from = ensure_signed(origin)?;
             let to = T::Lookup::lookup(dest)?;
@@ -239,6 +242,7 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
         Self::accounts(who).social
     }
 
+    #[transactional]
     fn transfer_social(from: &T::AccountId, to: &T::AccountId, amount: Balance) -> DispatchResult {
         let to_social_balance = Self::social_balance(to)
             .checked_add(amount)
@@ -248,12 +252,14 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
         Ok(())
     }
 
+    #[transactional]
     fn staking(who: &T::AccountId, amount: &Balance) -> DispatchResult {
         Self::pay_with_pending(who, *amount)?;
         Self::do_staking(amount);
         Ok(())
     }
 
+    #[transactional]
     fn pay_with_pending(from: &T::AccountId, amount: Balance) -> DispatchResult {
         let form_pending_balance = Self::pending_balance(from);
         match form_pending_balance >= amount {
@@ -273,6 +279,7 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
         Ok(())
     }
 
+    #[transactional]
     fn release(who: &T::AccountId, amount: &Balance) -> DispatchResult {
         let total_staking = Self::total_staking()
             .checked_sub(*amount)
@@ -308,6 +315,7 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
         fee_amount
     }
 
+    #[transactional]
     fn increase_bonus(who: &T::AccountId, amount: &Balance) -> DispatchResult {
         Self::staking(who, amount)?;
         Self::try_add_bonus(amount)
@@ -317,6 +325,7 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
         Self::try_cut_bonus(amount)
     }
 
+    #[transactional]
     fn skim(who: &T::AccountId) -> DispatchResult {
         <Accounts<T>>::try_mutate(who, |account| -> DispatchResult {
             T::Currency::transfer(

@@ -5,6 +5,7 @@ use frame_support::{
     codec::{Decode, Encode},
     ensure,
     traits::Get,
+    transactional,
 };
 use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 use frame_system::{ensure_signed, pallet_prelude::*};
@@ -97,6 +98,7 @@ pub mod module {
     impl<T: Config> Pallet<T> {
 
         #[pallet::weight(T::WeightInfo::trust())]
+        #[transactional]
         pub fn trust(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             Self::do_trust(&who, &target)?;
@@ -105,6 +107,7 @@ pub mod module {
         }
 
         #[pallet::weight(T::WeightInfo::untrust())]
+        #[transactional]
         pub fn untrust(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             Self::do_untrust(&who, &target)?;
