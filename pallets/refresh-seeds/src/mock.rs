@@ -128,6 +128,7 @@ impl zd_refresh_seeds::Config for Test {
     type ConfirmationPeriod = ConfirmationPeriod;
     type SeedChallengeAmount = SeedChallengeAmount;
     type SeedReservStaking = SeedReservStaking;
+    type WeightInfo = ();
 }
 
 parameter_types! {

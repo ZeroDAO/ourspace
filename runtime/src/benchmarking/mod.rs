@@ -6,3 +6,4 @@ pub mod utils;
 pub mod zd_tokens;
 pub mod zd_trust;
 pub mod zd_refresh_reputation;
+pub mod zd_refresh_seeds;

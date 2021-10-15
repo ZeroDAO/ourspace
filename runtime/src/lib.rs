@@ -395,6 +395,7 @@ impl zd_refresh_seeds::Config for Runtime {
     type ConfirmationPeriod = ConfirmationPeriod;
     type SeedChallengeAmount = SeedChallengeAmount;
     type SeedReservStaking = SeedReservStaking;
+	type WeightInfo = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -626,6 +627,7 @@ impl_runtime_apis! {
 			orml_add_benchmark!(params, batches, zd_tokens, benchmarking::zd_tokens);
 			orml_add_benchmark!(params, batches, zd_trust, benchmarking::zd_trust);
 			orml_add_benchmark!(params, batches, zd_refresh_reputation, benchmarking::zd_refresh_reputation);
+			orml_add_benchmark!(params, batches, zd_refresh_seeds, benchmarking::zd_refresh_seeds);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

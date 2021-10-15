@@ -458,12 +458,12 @@ fn missed_path_at_rhashs() {
         assert!(ZdRefreshSeeds::harvest_challenge(Origin::signed(PATHFINDER), B,).is_err());
 
         assert_noop!(
-            ZdRefreshSeeds::evidence_of_missed(Origin::signed(CHALLENGER), B, vec![A, B, F], 1),
+            ZdRefreshSeeds::missed_in_hashs(Origin::signed(CHALLENGER), B, vec![A, B, F], 1),
             Error::<Test>::PathIndexError
         );
 
         assert_noop!(
-            ZdRefreshSeeds::evidence_of_missed(Origin::signed(CHALLENGER), B, vec![A, B, F], 3),
+            ZdRefreshSeeds::missed_in_hashs(Origin::signed(CHALLENGER), B, vec![A, B, F], 3),
             Error::<Test>::IndexExceedsMaximum
         );
 
@@ -472,7 +472,7 @@ fn missed_path_at_rhashs() {
             Error::<Test>::MissedPathsNotExist
         );
 
-        assert_ok!(ZdRefreshSeeds::evidence_of_missed(
+        assert_ok!(ZdRefreshSeeds::missed_in_hashs(
             Origin::signed(CHALLENGER),
             B,
             vec![A, B, F],
@@ -991,30 +991,29 @@ fn missed_at_paths_test() {
         ));
 
         assert_noop!(
-            ZdRefreshSeeds::evidence_of_missed(Origin::signed(CHALLENGER), B, vec![A, C, D, E], 1),
+            ZdRefreshSeeds::missed_in_paths(Origin::signed(CHALLENGER), B, vec![A, C, D, E]),
             Error::<Test>::NoTargetNode
         );
 
         assert_noop!(
-            ZdRefreshSeeds::evidence_of_missed(Origin::signed(CHALLENGER), B, vec![A, B, D, F], 1),
+            ZdRefreshSeeds::missed_in_paths(Origin::signed(CHALLENGER), B, vec![A, B, D, F]),
             Error::<Test>::AlreadyExist
         );
 
         assert_noop!(
-            ZdRefreshSeeds::evidence_of_missed(Origin::signed(CHALLENGER), B, vec![A, B, E], 1),
+            ZdRefreshSeeds::missed_in_paths(Origin::signed(CHALLENGER), B, vec![A, B, E]),
             Error::<Test>::NotMatch
         );
 
         assert_noop!(
-            ZdRefreshSeeds::evidence_of_missed(Origin::signed(CHALLENGER), B, vec![A, B, F], 1),
+            ZdRefreshSeeds::missed_in_paths(Origin::signed(CHALLENGER), B, vec![A, B, F]),
             Error::<Test>::LengthNotEqual
         );
 
-        assert_ok!(ZdRefreshSeeds::evidence_of_missed(
+        assert_ok!(ZdRefreshSeeds::missed_in_paths(
             Origin::signed(CHALLENGER),
             B,
-            vec![A, B, G, F],
-            1
+            vec![A, B, G, F]
         ));
     });
 }

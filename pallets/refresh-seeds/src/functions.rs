@@ -1,4 +1,3 @@
-
 use crate::*;
 use sha1::{Digest, Sha1};
 use sp_std::vec;
@@ -6,6 +5,83 @@ use sp_std::vec;
 impl<T: Config> Pallet<T> {
     pub fn now() -> T::BlockNumber {
         system::Module::<T>::block_number()
+    }
+
+    // Make sure path.total < 100, or panic
+    pub fn hash_paths(paths: &[Path<T::AccountId>]) -> Vec<u8> {
+        // [AccountId,AccountId,total;...AccountId,AccountId,total;]
+        paths
+            .iter()
+            .flat_map(|path| {
+                let mut nodes_v = path
+                    .nodes
+                    .iter()
+                    .flat_map(|node| {
+                        // push `,`
+                        let mut node = T::AccountId::encode(node).to_vec();
+                        node.push(44u8);
+                        node
+                    })
+                    .collect::<Vec<u8>>();
+                // path.total < 100
+                // Much faster this way
+                if path.total > 9 {
+                    nodes_v.push((path.total / 10) as u8 + 48);
+                }
+                nodes_v.push((path.total % 10) as u8 + 48);
+                // push `;`
+                nodes_v.push(59u8);
+                nodes_v
+            })
+            .collect::<Vec<u8>>()
+    }
+
+    // Collisions have no impact on safety.
+    // sha1 is safe enough.
+    pub fn sha1_hasher(data: &[u8]) -> Vec<u8> {
+        let mut hasher = Sha1::new();
+        hasher.update(data);
+        hasher
+            .finalize()
+            .iter()
+            .flat_map(|n| {
+                vec![n / 16u8, n % 16u8]
+                    .iter()
+                    .map(|u| if u < &10u8 { u + 48u8 } else { u - 10u8 + 97u8 })
+                    .collect::<Vec<u8>>()
+            })
+            .collect::<Vec<u8>>()
+    }
+
+    pub fn make_full_order(
+        start: &T::AccountId,
+        stop: &T::AccountId,
+        deep: usize,
+    ) -> Vec<u8> {
+        let mut points = T::AccountId::encode(start);
+        points.extend(T::AccountId::encode(stop).iter().cloned());
+        let points_hash = Self::sha1_hasher(&points);
+        let index = points_hash.len() - (deep * RANGE);
+        points_hash[index..].to_vec()
+    }
+
+    pub fn insert_hash(target: &T::AccountId, hash_set: OrderedSet<ResultHash>) -> DispatchResult {
+        <ResultHashsSets<T>>::try_mutate(target, |c| {
+            ensure!(
+                (c.len() as u8) < DEEP,
+                Error::<T>::MaximumDepth
+            );
+            c.push(hash_set);
+            Ok(())
+        })
+    }
+
+    pub fn score_list_insert(score_list: &mut Vec<u64>, score: &u64) {
+        let index = score_list
+            .binary_search(score)
+            .unwrap_or_else(|index| index);
+        score_list.insert(index, *score);
+        <ScoreList<T>>::put(score_list);
     }
 
     pub(crate) fn try_get_rhash(
@@ -39,18 +115,6 @@ impl<T: Config> Pallet<T> {
         }
         T::SeedsBase::remove_all();
         Self::deposit_event(Event::SeedsSelected(score_list.len() as u32));
-    }
-
-    pub(crate) fn make_full_order(
-        start: &T::AccountId,
-        stop: &T::AccountId,
-        deep: usize,
-    ) -> Vec<u8> {
-        let mut points = T::AccountId::encode(start);
-        points.extend(T::AccountId::encode(stop).iter().cloned());
-        let points_hash = Self::sha1_hasher(&points);
-        let index = points_hash.len() - (deep * RANGE);
-        points_hash[index..].to_vec()
     }
 
     pub(crate) fn check_hash(data: &[u8], hash: &[u8; 8]) -> bool {
@@ -111,14 +175,6 @@ impl<T: Config> Pallet<T> {
         Self::score_list_insert(&mut score_list, new_score);
     }
 
-    pub fn score_list_insert(score_list: &mut Vec<u64>, score: &u64) {
-        let index = score_list
-            .binary_search(score)
-            .unwrap_or_else(|index| index);
-        score_list.insert(index, *score);
-        <ScoreList<T>>::put(score_list);
-    }
-
     pub(crate) fn check_mid_path(
         mid_path: &[T::AccountId],
         start: &T::AccountId,
@@ -129,23 +185,6 @@ impl<T: Config> Pallet<T> {
         nodes.push(stop.clone());
         T::TrustBase::valid_nodes(&nodes[..])?;
         Ok(nodes.to_vec())
-    }
-
-    pub(crate) fn sha1_hasher(data: &[u8]) -> Vec<u8> {
-        let mut hasher = Sha1::new();
-        hasher.update(data);
-        hasher.finalize()
-            .iter()
-            .flat_map(|n|{
-                vec![n / 16u8, n % 16u8].iter().map(|u| {
-                    if u < &10u8 {
-                        u + 48u8
-                    } else {
-                        u - 10u8 + 97u8
-                    }
-                }).collect::<Vec<u8>>()
-            })
-            .collect::<Vec<u8>>()
     }
 
     pub(crate) fn restart(target: &T::AccountId, pathfinder: &T::AccountId, score: &u64) {
@@ -236,10 +275,10 @@ impl<T: Config> Pallet<T> {
             .collect::<Vec<ResultHash>>();
         let mut r_hashs_sets = <ResultHashsSets<T>>::get(target);
         let current_deep = r_hashs_sets.len();
-        ensure!((current_deep as u8) < DEEP, Error::<T>::MaximumDepth);
 
         match next {
             true => {
+                ensure!((current_deep as u8) <= DEEP, Error::<T>::MaximumDepth);
                 ensure!(!r_hashs_sets.is_empty(), Error::<T>::DataEmpty);
                 let mut r_hashs_vec = r_hashs_sets[current_deep - 1].0.clone();
                 r_hashs_vec.extend_from_slice(&new_r_hashs[..]);
@@ -251,6 +290,7 @@ impl<T: Config> Pallet<T> {
                 r_hashs_sets[current_deep - 1] = full_hashs_set;
             }
             false => {
+                ensure!((current_deep as u8) < DEEP, Error::<T>::MaximumDepth);
                 let r_hashs_set = OrderedSet::from(new_r_hashs.clone());
                 ensure!(
                     new_r_hashs.len() == r_hashs_set.len(),
@@ -284,31 +324,7 @@ impl<T: Config> Pallet<T> {
                     Ok(acc.saturating_add(score))
                 })?;
 
-        // [AccountId,AccountId,total;...AccountId,AccountId,total;]
-        let list_v = paths
-            .iter()
-            .flat_map(|path| {
-                let mut nodes_v = path
-                    .nodes
-                    .iter()
-                    .flat_map(|node| {
-                        // push `,`
-                        let mut node = T::AccountId::encode(node).to_vec();
-                        node.push(44u8);
-                        node
-                    })
-                    .collect::<Vec<u8>>();
-                // path.total < 100
-                // Much faster this way
-                if path.total > 9 {
-                    nodes_v.push((path.total / 10) as u8 + 48);
-                }
-                nodes_v.push((path.total % 10) as u8 + 48);
-                // push `;`
-                nodes_v.push(59u8);
-                nodes_v
-            })
-            .collect::<Vec<u8>>();
+        let list_v = Self::hash_paths(paths);
 
         ensure!(
             Self::check_hash(&list_v[..], &result_hash.hash),
@@ -383,6 +399,85 @@ impl<T: Config> Pallet<T> {
                 Ok(Zero::zero())
             },
         )?;
+        Ok(())
+    }
+
+    pub(crate) fn evidence_of_missed(
+        challenger: &T::AccountId,
+        target: &T::AccountId,
+        nodes: &Vec<T::AccountId>,
+        index: u32,
+    ) -> DispatchResult {
+        Self::check_step()?;
+        Self::checked_nodes(&nodes[..], target)?;
+
+        let (start, stop) = Self::get_nodes_ends(&nodes[..]);
+
+        let deep =
+            <ResultHashsSets<T>>::decode_len(target).ok_or(Error::<T>::ResultHashNotExit)?;
+
+        let user_full_order = Self::make_full_order(start, stop, deep);
+        let maybe_score = T::ChallengeBase::evidence(
+            &APP_ID,
+            challenger,
+            target,
+            |_, order| -> Result<bool, DispatchError> {
+                let index = index as usize;
+                match <Paths<T>>::try_get(target) {
+                    Ok(path_vec) => {
+                        ensure!(
+                            FullOrder::from_u64(&order, deep + 1).0 == user_full_order,
+                            Error::<T>::NotMatch
+                        );
+                        let mut same_ends = false;
+                        for p in path_vec {
+                            if *start == p.nodes[0] && stop == p.nodes.last().unwrap() {
+                                ensure!(
+                                    p.nodes.len() == nodes.len(),
+                                    Error::<T>::LengthNotEqual
+                                );
+                                ensure!(p.nodes != *nodes, Error::<T>::AlreadyExist);
+                                same_ends = true;
+                            }
+                        }
+                        Ok(!same_ends)
+                    }
+                    Err(_) => {
+                        let result_hash_sets = Self::try_get_rhash(target)?;
+                        let last_r_hash = &result_hash_sets.last().unwrap().0;
+                        ensure!(index <= last_r_hash.len(), Error::<T>::IndexExceedsMaximum);
+                        if deep > 1 {
+                            ensure!(
+                                FullOrder::from_u64(&order, deep).0
+                                    == user_full_order[..RANGE * (deep - 1)],
+                                Error::<T>::NotMatch
+                            );
+                        }
+                        if index > 0 {
+                            ensure!(
+                                last_r_hash[index - 1].order[..] < user_full_order[..RANGE],
+                                Error::<T>::PathIndexError
+                            );
+                        }
+                        if index + 1 <= last_r_hash.len() {
+                            ensure!(
+                                last_r_hash[index].order[..] > user_full_order[..RANGE],
+                                Error::<T>::PathIndexError
+                            );
+                        }
+                        // arbitration : Unable to determine the shortest path
+                        Ok(true)
+                    }
+                }
+            },
+        )?;
+
+        match maybe_score {
+            Some(score) => Self::restart(target, challenger, &score),
+            None => <MissedPaths<T>>::insert(target, nodes),
+        }
+
+        Self::deposit_event(Event::MissedPathPresented(challenger.clone(), target.clone(), index));
         Ok(())
     }
 }

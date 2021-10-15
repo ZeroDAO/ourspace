@@ -8,7 +8,7 @@ use frame_support::{
     RuntimeDebug,
 };
 use frame_system::{self as system};
-use orml_utilities::OrderedSet;
+pub use orml_utilities::OrderedSet;
 use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep, Metadata, Pool};
 use zd_support::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
@@ -17,14 +17,15 @@ use sp_std::{cmp::Ordering,vec::Vec};
 
 pub use pallet::*;
 
+#[macro_use]
+pub mod mock;
+mod tests;
 pub mod types;
 pub use self::types::*;
 pub mod functions;
 
-#[cfg(test)]
-mod mock;
-#[cfg(test)]
-mod tests;
+pub mod weights;
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -51,6 +52,8 @@ pub mod pallet {
         type MaxSeedCount: Get<u32>;
         #[pallet::constant]
         type ConfirmationPeriod: Get<Self::BlockNumber>;
+        /// The weight information of this pallet.
+		type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -205,6 +208,10 @@ pub mod pallet {
         MaximumDepth,
         /// Missed Paths does not exist
         MissedPathsNotExist,
+        /// Path uploaded, no hash challenge allowed
+        PathUploaded,
+        /// No path exists to challenge
+        NoPathExists,
     }
 
     #[pallet::hooks]
@@ -212,7 +219,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::start())]
         pub fn start(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             T::Reputation::new_round()?;
@@ -220,7 +227,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::add())]
         pub fn add(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -239,7 +246,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::challenge())]
         pub fn challenge(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -281,7 +288,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::examine())]
         pub fn examine(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -311,7 +318,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::reply_hash(hashs.len().max(1) as u32))]
         pub fn reply_hash(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -344,7 +351,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::reply_hash_next(hashs.len().max(1) as u32))]
         pub fn reply_hash_next(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -371,7 +378,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::reply_path(paths.len().max(1) as u32))]
         pub fn reply_path(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -426,7 +433,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::reply_path_next(paths.len().max(1) as u32))]
         pub fn reply_path_next(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -474,7 +481,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::reply_num(mid_paths.len().max(1) as u32))]
         pub fn reply_num(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -495,89 +502,52 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-        pub fn evidence_of_missed(
+        #[pallet::weight(T::WeightInfo::missed_in_hashs())]
+        pub fn missed_in_hashs(
             origin: OriginFor<T>,
             target: T::AccountId,
             nodes: Vec<T::AccountId>,
             index: u32,
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
-            Self::check_step()?;
-            Self::checked_nodes(&nodes[..], &target)?;
 
-            let (start, stop) = Self::get_nodes_ends(&nodes[..]);
+            ensure!(
+                !<Paths<T>>::contains_key(&target),
+                Error::<T>::PathUploaded
+            );
 
-            let deep =
-                <ResultHashsSets<T>>::decode_len(&target).ok_or(Error::<T>::ResultHashNotExit)?;
-
-            let user_full_order = Self::make_full_order(start, stop, deep);
-            let maybe_score = T::ChallengeBase::evidence(
-                &APP_ID,
+            Self::evidence_of_missed(
                 &challenger,
                 &target,
-                |_, order| -> Result<bool, DispatchError> {
-                    let index = index as usize;
-                    match <Paths<T>>::try_get(&target) {
-                        Ok(path_vec) => {
-                            ensure!(
-                                FullOrder::from_u64(&order, deep + 1).0 == user_full_order,
-                                Error::<T>::NotMatch
-                            );
-                            let mut same_ends = false;
-                            for p in path_vec {
-                                if *start == p.nodes[0] && stop == p.nodes.last().unwrap() {
-                                    ensure!(
-                                        p.nodes.len() == nodes.len(),
-                                        Error::<T>::LengthNotEqual
-                                    );
-                                    ensure!(p.nodes != nodes, Error::<T>::AlreadyExist);
-                                    same_ends = true;
-                                }
-                            }
-                            Ok(!same_ends)
-                        }
-                        Err(_) => {
-                            let result_hash_sets = Self::try_get_rhash(&target)?;
-                            let last_r_hash = &result_hash_sets.last().unwrap().0;
-                            ensure!(index <= last_r_hash.len(), Error::<T>::IndexExceedsMaximum);
-                            if deep > 1 {
-                                ensure!(
-                                    FullOrder::from_u64(&order, deep).0
-                                        == user_full_order[..RANGE * (deep - 1)],
-                                    Error::<T>::NotMatch
-                                );
-                            }
-                            if index > 0 {
-                                ensure!(
-                                    last_r_hash[index - 1].order[..] < user_full_order[..RANGE],
-                                    Error::<T>::PathIndexError
-                                );
-                            }
-                            if index + 1 < last_r_hash.len() {
-                                ensure!(
-                                    last_r_hash[index].order[..] > user_full_order[..RANGE],
-                                    Error::<T>::PathIndexError
-                                );
-                            }
-                            // arbitration : Unable to determine the shortest path
-                            Ok(true)
-                        }
-                    }
-                },
+                &nodes,
+                index,
             )?;
-
-            match maybe_score {
-                Some(score) => Self::restart(&target, &challenger, &score),
-                None => <MissedPaths<T>>::insert(&target, nodes),
-            }
-
-            Self::deposit_event(Event::MissedPathPresented(challenger, target, index));
-
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::missed_in_paths())]
+        pub fn missed_in_paths(
+            origin: OriginFor<T>,
+            target: T::AccountId,
+            nodes: Vec<T::AccountId>,
+        ) -> DispatchResultWithPostInfo {
+            let challenger = ensure_signed(origin)?;
+
+            ensure!(
+                <Paths<T>>::contains_key(&target),
+                Error::<T>::NoPathExists
+            );
+
+            Self::evidence_of_missed(
+                &challenger,
+                &target,
+                &nodes,
+                Zero::zero(),
+            )?;
+            Ok(().into())
+        }
+
+        #[pallet::weight(T::WeightInfo::evidence_of_shorter())]
         pub fn evidence_of_shorter(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -603,7 +573,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::number_too_low(mid_paths.len().max(2) as u32))]
         pub fn number_too_low(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -648,7 +618,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::invalid_evidence())]
         pub fn invalid_evidence(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -681,7 +651,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::harvest_challenge())]
         pub fn harvest_challenge(
             origin: OriginFor<T>,
             target: T::AccountId,
@@ -694,7 +664,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+        #[pallet::weight(T::WeightInfo::harvest_seed())]
         pub fn harvest_seed(
             origin: OriginFor<T>,
             target: T::AccountId,
