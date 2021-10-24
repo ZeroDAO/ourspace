@@ -420,7 +420,7 @@ construct_runtime!(
 		ZdReputation: zd_reputation::{Module, Call, Config<T>, Storage, Event<T>},
 		ZdSeeds: zd_seeds::{Module, Call, Storage, Event<T>},
 		ZdTrust: zd_trust::{Module, Call, Storage, Event<T>},
-		ZdToken: zd_tokens::{Module, Call, Event<T>},
+		ZdToken: zd_tokens::{Module, Call, Storage, Event<T>},
 		ZdChallenges: zd_challenges::{Module, Storage, Event<T>},
 		ZdRefreshReputation: zd_refresh_reputation::{Module, Call, Storage, Event<T>},
 		ZdRefreshSeeds: zd_refresh_seeds::{Module, Call, Storage, Event<T>},
