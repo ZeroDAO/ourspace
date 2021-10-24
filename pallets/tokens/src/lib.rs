@@ -26,7 +26,7 @@ pub use weights::WeightInfo;
 
 /// balance information for an account.
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
-pub struct AccountData<Balance> {
+pub struct SocialAccount<Balance> {
     /// Non-reserved part of the balance. There may still be restrictions on
     /// this, but it is the total pool what may in principle be transferred,
     /// reserved.
@@ -40,7 +40,7 @@ pub struct AccountData<Balance> {
     pub social: Balance,
 }
 
-impl<Balance: Saturating + Copy + Ord> AccountData<Balance> {
+impl<Balance: Saturating + Copy + Ord> SocialAccount<Balance> {
     /// The total balance in this account ignoring any frozen.
     fn total(&self) -> Balance {
         self.pending.saturating_add(self.social)
@@ -114,7 +114,7 @@ pub mod module {
     #[pallet::storage]
     #[pallet::getter(fn accounts)]
     pub type Accounts<T: Config> =
-        StorageMap<_, Twox64Concat, T::AccountId, AccountData<Balance>, ValueQuery>;
+        StorageMap<_, Twox64Concat, T::AccountId, SocialAccount<Balance>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn total_staking)]
