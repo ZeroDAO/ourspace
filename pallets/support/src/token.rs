@@ -13,5 +13,5 @@ pub trait MultiBaseToken<AccountId, Balance> {
     fn pending_balance(who: &AccountId) -> Balance;
     fn transfer_social(from: &AccountId, to: &AccountId, amount: Balance) -> DispatchResult;
     fn pay_with_pending(from: &AccountId, amount: Balance) -> DispatchResult;
-	fn skim(who: &AccountId) -> DispatchResult;
+	fn claim(who: &AccountId) -> DispatchResult;
 }

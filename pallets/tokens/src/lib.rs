@@ -326,7 +326,7 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
     }
 
     #[transactional]
-    fn skim(who: &T::AccountId) -> DispatchResult {
+    fn claim(who: &T::AccountId) -> DispatchResult {
         <Accounts<T>>::try_mutate(who, |account| -> DispatchResult {
             T::Currency::transfer(
                 T::BaceToken::get(),
