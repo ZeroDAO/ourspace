@@ -142,7 +142,7 @@ pub mod module {
             Ok(().into())
         }
 
-        #[pallet::weight(T::WeightInfo::transfer_social())]
+        #[pallet::weight(T::WeightInfo::claim())]
         #[transactional]
         pub fn claim(
             origin: OriginFor<T>,

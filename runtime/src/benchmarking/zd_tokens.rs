@@ -1,7 +1,10 @@
-use crate::{AccountId, CurrencyId, Currencies, GetNativeCurrencyId, Runtime};
+use crate::{AccountId, CurrencyId, Currencies, GetNativeCurrencyId, Runtime, ZdToken};
 use sp_std::prelude::*;
 use frame_system::RawOrigin;
 use frame_benchmarking::{account};
+use frame_support::assert_ok;
+
+use zd_support::MultiBaseToken;
 
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrency;
@@ -19,6 +22,14 @@ runtime_benchmarks! {
         let to: AccountId = account("to", 0, SEED);
 		Currencies::deposit(NATIVE, &from, 10_000)?;
 	}: _(RawOrigin::Signed(from.clone()), to.into(), 10_000)
+
+	claim {
+		let vault = account("vault", 0, 0);
+        assert_ok!(Currencies::deposit(NATIVE, &vault, 1_000_000_000_000u128));
+		let _ = <ZdToken as MultiBaseToken<_,_>>::staking(&vault.clone(), &10_000u128);
+		let who: AccountId = account("who", 0, SEED);
+		ZdToken::set_pending_balance(&who.clone(), 10_000u128);
+	}: _(RawOrigin::Signed(who.clone()))
 
 }
 
