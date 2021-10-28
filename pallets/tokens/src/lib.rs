@@ -99,6 +99,8 @@ pub mod module {
     pub enum Event<T: Config> {
         /// Token transfer_social success. \[from, to, amount\]
         TransferSocial(T::AccountId, T::AccountId, Balance),
+        /// Transferr `pending` Tokens to `free` \[who\]
+        Claim(T::AccountId)
     }
 
     #[pallet::pallet]
@@ -137,6 +139,17 @@ pub mod module {
             let to = T::Lookup::lookup(dest)?;
             <Self as MultiBaseToken<_, _>>::transfer_social(&from, &to, amount)?;
             Self::deposit_event(Event::TransferSocial(from, to, amount));
+            Ok(().into())
+        }
+
+        #[pallet::weight(T::WeightInfo::transfer_social())]
+        #[transactional]
+        pub fn claim(
+            origin: OriginFor<T>,
+        ) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+            <Self as MultiBaseToken<_, _>>::claim(&who)?;
+            Self::deposit_event(Event::Claim(who));
             Ok(().into())
         }
     }
@@ -189,7 +202,7 @@ impl<T: Config> Pallet<T> {
     ///
     /// Note this will not maintain total issuance, and the caller is
     /// expected to do it.
-    pub(crate) fn set_pending_balance(who: &T::AccountId, amount: Balance) {
+    pub fn set_pending_balance(who: &T::AccountId, amount: Balance) {
         <Accounts<T>>::mutate(who, |account| {
             account.pending = amount;
         });
@@ -325,7 +338,6 @@ impl<T: Config> MultiBaseToken<T::AccountId, Balance> for Pallet<T> {
         Self::try_cut_bonus(amount)
     }
 
-    #[transactional]
     fn claim(who: &T::AccountId) -> DispatchResult {
         <Accounts<T>>::try_mutate(who, |account| -> DispatchResult {
             T::Currency::transfer(

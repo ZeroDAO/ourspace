@@ -168,18 +168,23 @@ share_test! {
 }
 
 #[test]
-fn skim_test() {
+fn claim_test() {
     new_test_ext().execute_with(|| {
         assert_ok!(ZdToken::staking(&ALICE, &100));
 
-        assert_ok!(ZdToken::skim(&CHARLIE));
+        assert_ok!(ZdToken::claim(Origin::signed(CHARLIE)));
 
         <Accounts<Test>>::mutate(CHARLIE, |account| {
             account.pending = 91;
         });
 
         let old_balance = ZdToken::free_balance(&CHARLIE);
-        assert_ok!(ZdToken::skim(&CHARLIE));
+        assert_ok!(ZdToken::claim(Origin::signed(CHARLIE)));
+
+        assert_eq!(ZdToken::free_balance(&CHARLIE), old_balance + 91);
+        assert_eq!(ZdToken::pending_balance(&CHARLIE), 0);
+
+        assert_ok!(ZdToken::claim(Origin::signed(CHARLIE)));
 
         assert_eq!(ZdToken::free_balance(&CHARLIE), old_balance + 91);
         assert_eq!(ZdToken::pending_balance(&CHARLIE), 0);
@@ -188,6 +193,6 @@ fn skim_test() {
             account.pending = 91;
         });
 
-        assert!(ZdToken::skim(&CHARLIE).is_err());
+        assert!(ZdToken::claim(Origin::signed(CHARLIE)).is_err());
     });
 }
