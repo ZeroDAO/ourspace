@@ -359,7 +359,7 @@ parameter_types! {
     /// Maximum number of uploads, which is a security setting
     pub const MaxUpdateCount: u32 = 20;
     /// Challenges to reputation will not be allowed beyond this time period.
-    pub const ConfirmationPeriod: BlockNumber = 100;
+    pub const ConfirmationPeriod: BlockNumber = 10;
 }
 
 impl zd_refresh_reputation::Config for Runtime {
