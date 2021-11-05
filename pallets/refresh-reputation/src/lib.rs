@@ -504,11 +504,10 @@ impl<T: Config> Pallet<T> {
     pub(crate) fn next_step() {
         if <StartedAt<T>>::exists() {
             let now = Self::now();
-            let is_ref_timeout = Self::check_timeout(&now).is_err();
             let is_last_ref_timeout =
                 T::Reputation::get_last_refresh_at() + T::ConfirmationPeriod::get() < now;
             let is_cha_all_timeout = T::ChallengeBase::is_all_timeout(&APP_ID, &now);
-            if (is_last_ref_timeout || is_ref_timeout) && is_cha_all_timeout {
+            if is_last_ref_timeout && is_cha_all_timeout {
                 T::TrustBase::remove_all_tmp();
                 T::Reputation::set_free();
                 <StartedAt<T>>::kill();
