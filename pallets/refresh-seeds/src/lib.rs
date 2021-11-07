@@ -213,6 +213,8 @@ pub mod pallet {
         PathUploaded,
         /// No path exists to challenge
         NoPathExists,
+        /// Candidate does not exist or has been harvested
+        CandidateNotExist,
     }
 
     #[pallet::hooks]
@@ -699,6 +701,12 @@ pub mod pallet {
                 Self::hand_first_time(&mut score_list);
             }
             let len = score_list.len();
+            // 未验证重复领取的情况 contains_key
+            ensure!(
+                <Candidates<T>>::contains_key(&target),
+                Error::<T>::CandidateNotExist
+            );
+
             let candidate = <Candidates<T>>::take(&target);
             let staking_amount = if candidate.has_challenge {
                 T::SeedReservStaking::get()

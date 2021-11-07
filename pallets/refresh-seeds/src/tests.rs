@@ -387,6 +387,12 @@ fn pathfinder_win() {
 
         System::set_block_number(ChallengeTimeout::get() + ConfirmationPeriod::get() + 3);
         assert_ok!(ZdRefreshSeeds::harvest_seed(Origin::signed(PATHFINDER), B,));
+
+        assert_noop!(
+            ZdRefreshSeeds::harvest_seed(Origin::signed(PATHFINDER), B,),
+            Error::<Test>::CandidateNotExist
+        );
+
         let bonus_1 = total_bonus / (MaxSeedCount::get() as u128);
         pathfinder_balance += bonus_1 + SeedReservStaking::get();
         assert_eq!(ZdToken::free_balance(&PATHFINDER), pathfinder_balance);
