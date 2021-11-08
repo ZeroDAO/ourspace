@@ -4,6 +4,7 @@
 pub use pallet::*;
 use zd_support::{Reputation, SeedsBase};
 use zd_primitives::TIRStep;
+use orml_utilities::OrderedSet;
 
 #[cfg(test)]
 mod mock;
@@ -16,8 +17,6 @@ pub mod pallet {
 	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use frame_system::ensure_root;
-
-	pub const INIT_SEED_SCORE: u32 = 1000;
 	
     #[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -31,11 +30,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_seeds)]
-	pub type Seeds<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, u32, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn seeds_count)]
-	pub type SeedsCount<T: Config> = StorageValue<_, u32, ValueQuery>;
+	pub type Seeds<T: Config> = StorageValue<_, OrderedSet<T::AccountId>, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::metadata(T::AccountId = "AccountId")]
@@ -68,7 +63,7 @@ pub mod pallet {
 		pub fn new_seed(origin: OriginFor<T>,seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
 			ensure!(T::Reputation::is_step(&TIRStep::Free), Error::<T>::StatusErr);
-			ensure!(!Seeds::<T>::contains_key(&seed), Error::<T>::AlreadySeedUser);
+			ensure!(!Self::is_seed(&seed), Error::<T>::AlreadySeedUser);
 			Self::add_seed(&seed);
 			Ok(().into())
 		}
@@ -77,11 +72,11 @@ pub mod pallet {
 		pub fn remove_seed(origin: OriginFor<T>, seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
 			ensure!(T::Reputation::is_step(&TIRStep::Free), Error::<T>::StatusErr);
-			ensure!(<Seeds<T>>::contains_key(&seed), Error::<T>::NotSeedUser);
-			let seeds_count = <SeedsCount<T>>::get();
-			let new_seeds_count = seeds_count.checked_sub(1).ok_or(Error::<T>::Overflow)?;
-			<Seeds<T>>::remove(&seed);
-			SeedsCount::<T>::mutate(|c| *c = new_seeds_count);
+			ensure!(Self::is_seed(&seed), Error::<T>::NotSeedUser);
+			<Seeds<T>>::get().remove(&seed);
+			Seeds::<T>::mutate(|seeds|{
+				seeds.remove(&seed);
+			});
 			Self::deposit_event(Event::SeedRemoved(seed));
 			Ok(().into())
 		}
@@ -91,21 +86,21 @@ pub mod pallet {
 impl<T: Config> SeedsBase<T::AccountId> for Pallet<T> {
 
 	fn get_seed_count() -> u32 {
-		Self::seeds_count()
+		Seeds::<T>::get().len() as u32
 	}
 
 	fn is_seed(seed: &T::AccountId) -> bool {
-		Seeds::<T>::contains_key(seed)
+		Seeds::<T>::get().contains(seed)
 	}
 
 	fn remove_all() {
-		Seeds::<T>::remove_all();
-		SeedsCount::<T>::put(0u32);
+		Seeds::<T>::kill();
 	}
 
 	fn add_seed(new_seed: &T::AccountId) {
-		Seeds::<T>::mutate(&new_seed,|s|*s = INIT_SEED_SCORE);
-		SeedsCount::<T>::mutate(|c| *c += 1);
+		Seeds::<T>::mutate(|seeds|{
+			seeds.insert(new_seed.clone())
+		});
 		Self::deposit_event(Event::SeedAdded(new_seed.clone()));
 	}
 }
