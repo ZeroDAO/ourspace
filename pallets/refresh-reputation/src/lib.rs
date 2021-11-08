@@ -219,11 +219,6 @@ pub mod pallet {
                 Error::<T>::ChallengeNotClaimed
             );
 
-            let last = T::Reputation::get_last_refresh_at();
-            let now = Self::now();
-
-            // ensure!(Balance::is_allowed_proxy(last, now), Error::<T>::NotInTime);
-
             let total_fee = Payrolls::<T>::drain()
                 .try_fold::<_, _, Result<Balance, DispatchError>>(
                     0u128,
@@ -237,7 +232,7 @@ pub mod pallet {
                     },
                 )?;
             T::MultiBaseToken::release(&who, &total_fee)?;
-            <StartedAt<T>>::put(now);
+            <StartedAt<T>>::put(Self::now());
             Self::deposit_event(Event::Started(who));
             Ok(().into())
         }
