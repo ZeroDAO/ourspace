@@ -189,8 +189,6 @@ pub mod pallet {
         NotMatch,
         /// Status mismatch
         StatusErr,
-        /// Not in time
-        NotInTime,
         /// Not yet started
         NotYetStarted,
         /// Already started
@@ -224,7 +222,7 @@ pub mod pallet {
             let last = T::Reputation::get_last_refresh_at();
             let now = Self::now();
 
-            ensure!(Balance::is_allowed_proxy(last, now), Error::<T>::NotInTime);
+            // ensure!(Balance::is_allowed_proxy(last, now), Error::<T>::NotInTime);
 
             let total_fee = Payrolls::<T>::drain()
                 .try_fold::<_, _, Result<Balance, DispatchError>>(
