@@ -1,8 +1,7 @@
 #[warn(unused_imports)]
-
 use crate::{
-    AccountId, Currencies, CurrencyId, GetNativeCurrencyId, MaxSeedCount,
-    Runtime, System, ZdRefreshSeeds, ZdTrust,
+    AccountId, Currencies, CurrencyId, GetNativeCurrencyId, MaxSeedCount, Runtime, System,
+    ZdRefreshSeeds, ZdTrust,
 };
 use frame_benchmarking::{account, whitelisted_caller};
 use frame_system::RawOrigin;
@@ -43,23 +42,18 @@ fn do_reply_hash(a: u32, does_examine: bool) -> Result<Vec<PostResultHash>, Disp
     let target: AccountId = account("target", 0, 0);
     let challenger: AccountId = account("challenger", 0, 0);
 
-    let mut data: Vec<u8> = Vec::default();
     let mut post_hash_vec: Vec<PostResultHash> = vec![];
     let index = (a / 2) + 1;
     let score: u64 = 10u64;
     for post_id_u32 in 0..a {
         let post_id = post_id_u32 as u8;
-        let post_hash = [post_id; 8];
-        data.extend_from_slice(&post_hash[..]);
-        post_hash_vec.push(PostResultHash([post_id; RANGE], score, post_hash));
+        post_hash_vec.push(PostResultHash([post_id; RANGE], score));
     }
-    let last_hash = &ZdRefreshSeeds::sha1_hasher(&data[..])[..8];
     let mut r_hash_vec: Vec<ResultHash> = vec![];
     for id in 0..MAX_HASH_COUNT {
         r_hash_vec.push(ResultHash {
             order: [id as u8; RANGE],
             score: score,
-            hash: [id as u8; 8],
         });
     }
     do_challenge(score * (post_hash_vec.len() as u64), 100u64);
@@ -72,9 +66,6 @@ fn do_reply_hash(a: u32, does_examine: bool) -> Result<Vec<PostResultHash>, Disp
     for i in 2..DEEP {
         if i == DEEP - 1 {
             r_hash_vec[index as usize].score = score * (post_hash_vec.len() as u64);
-            let mut arr = [0u8; 8];
-            arr.copy_from_slice(last_hash);
-            r_hash_vec[index as usize].hash = arr;
         }
 
         let r_hash_set = OrderedSet::from(r_hash_vec.clone());
@@ -90,7 +81,7 @@ fn do_reply_hash(a: u32, does_examine: bool) -> Result<Vec<PostResultHash>, Disp
     Ok(post_hash_vec)
 }
 
-fn do_reply_path(a: u32,does_examine: bool) -> Result<Vec<Path<AccountId>>, DispatchError> {
+fn do_reply_path(a: u32, does_examine: bool) -> Result<Vec<Path<AccountId>>, DispatchError> {
     let pathfinder: AccountId = account("pathfinder", 0, 0);
     let challenger: AccountId = account("challenger", 0, 0);
 
@@ -132,18 +123,17 @@ fn do_reply_path(a: u32,does_examine: bool) -> Result<Vec<Path<AccountId>>, Disp
     let full_order =
         ZdRefreshSeeds::make_full_order(&start_node.clone(), &end_node.clone(), DEEP as usize);
 
-    let mut posts: Vec<PostResultHash> = vec![];
+    // let mut posts: Vec<PostResultHash> = vec![];
     let score = (100 / a) as u64;
     let total_score = score * (a as u64);
 
-    let _ = (1..(DEEP + 1)).rev().fold(path_hash.clone(), |acc, d| {
-        let mut r_hash = [0u8; 8];
-        r_hash.copy_from_slice(&ZdRefreshSeeds::sha1_hasher(&acc[..])[..8]);
-        let mut order = [0u8; RANGE];
-        order.copy_from_slice(&full_order[((d - 1) as usize * RANGE)..(d as usize * RANGE)]);
-        posts.insert(0, PostResultHash(order, total_score, r_hash));
-        r_hash.to_vec()
-    });
+    let posts = (1..(DEEP + 1))
+        .map(|d| {
+            let mut order = [0u8; RANGE];
+            order.copy_from_slice(&full_order[((d - 1) as usize * RANGE)..(d as usize * RANGE)]);
+            PostResultHash(order, total_score)
+        })
+        .collect::<Vec<PostResultHash>>();
 
     do_challenge(total_score, 88u64);
 
@@ -368,8 +358,7 @@ runtime_benchmarks! {
         for post_id_u32 in 0..count {
             if post_id_u32 != (index as u32) {
                 let post_id = post_id_u32 as u8;
-                let post_hash = [post_id; 8];
-                post_hash_vec.push(PostResultHash([post_id,0u8], score, post_hash));
+                post_hash_vec.push(PostResultHash([post_id,0u8], score));
             }
         }
 
@@ -446,7 +435,7 @@ runtime_benchmarks! {
             RawOrigin::Signed(pathfinder.clone()).into(),
             target.clone(),
             vec![
-                PostResultHash([0u8,0u8], score, [2u8; 8])
+                PostResultHash([0u8,0u8], score)
             ],
             1,
         )?;
@@ -468,7 +457,7 @@ runtime_benchmarks! {
 
     harvest_seed {
         System::set_block_number(2000);
-        
+
         let pathfinder: AccountId = account("pathfinder", 0, 0);
         let target: AccountId = account("target", 0, 0);
 
