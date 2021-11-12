@@ -104,13 +104,11 @@ pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
 
     /// 收取挑战收益。按照 `ChallengeStatus`, `is_all_done`, `joint_benefits` 分配：
     ///
-    /// +-----------+------------+------------+------------+------------+
     /// |           |    Free    |    Reply   |   Examine  |  Evidence  |
-    /// +-----------+------------+------------+------------+------------+
+    /// |-----------|------------|------------|------------|------------|
     /// |   完成    | pathfinder | pathfinder | challenger | challenger |
-    /// +-----------+------------+------------+------------+------------+
+    /// |-----------|------------|------------|------------|------------|
     /// |   中断    | pathfinder | challenger | challenger | pathfinder |
-    /// +-----------+------------+------------+------------+------------+
     ///
     /// 在 `Arbitral` 状态下，结算则按照 `joint_benefits` ，如果为 `true` ,则 `pathfinder`
     /// 和 `challenger` 平分奖励，否则全部归 `pathfinder` 所有。
