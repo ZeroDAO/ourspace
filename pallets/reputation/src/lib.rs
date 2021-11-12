@@ -211,6 +211,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
                 }
             }
             false => {
+                // nonce cannot be smaller than 1
                 if irs[0].nonce == nonce - 1 {
                     return Some(irs[0].score);
                 } else if irs[1].nonce == nonce - 1 {
