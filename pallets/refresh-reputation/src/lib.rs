@@ -5,8 +5,7 @@ use frame_support::{
     codec::{Decode, Encode},
     ensure, pallet,
     traits::Get,
-    RuntimeDebug,
-    transactional,
+    transactional, RuntimeDebug,
 };
 use frame_system::{self as system, ensure_signed};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
@@ -14,9 +13,7 @@ use sp_std::vec::Vec;
 use zd_primitives::{
     fee::ProxyFee, AppId, Balance, ChallengeStatus, Metadata, Pool, Progress, TIRStep,
 };
-use zd_support::{
-    ChallengeBase, MultiBaseToken, RefreshPayrolls, Reputation, SeedsBase, TrustBase,
-};
+use zd_support::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
 #[cfg(test)]
 mod mock;
@@ -95,7 +92,7 @@ pub mod pallet {
         type SeedsBase: SeedsBase<Self::AccountId>;
         type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance, Self::BlockNumber>;
         /// The weight information of this pallet.
-		type WeightInfo: WeightInfo;
+        type WeightInfo: WeightInfo;
     }
 
     // type ChallengeStatus = T::ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber>::ChallengeBase;
@@ -460,80 +457,9 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-    fn now() -> T::BlockNumber {
-        system::Module::<T>::block_number()
-    }
-    pub(crate) fn check_step() -> DispatchResult {
-        ensure!(
-            T::Reputation::is_step(&TIRStep::Reputation),
-            Error::<T>::StatusErr
-        );
-        Ok(())
-    }
+    // pub
 
-    fn check_step_and_stared() -> DispatchResult {
-        Self::check_step()?;
-        ensure!(<StartedAt<T>>::exists(), Error::<T>::NotYetStarted);
-        Ok(())
-    }
-
-    fn check_step_and_not_stared() -> DispatchResult {
-        Self::check_step()?;
-        ensure!(!<StartedAt<T>>::exists(), Error::<T>::AlreadyStarted);
-        Ok(())
-    }
-
-    fn can_harvest(
-        payroll: &Payroll<Balance, T::BlockNumber>,
-        now: &T::BlockNumber,
-    ) -> DispatchResult {
-        ensure!(
-            payroll.update_at + T::ConfirmationPeriod::get() < *now,
-            Error::<T>::ExcessiveBumberOfSeeds
-        );
-        Ok(())
-    }
-
-    pub(crate) fn next_step() {
-        if <StartedAt<T>>::exists() {
-            let now = Self::now();
-            let is_last_ref_timeout =
-                T::Reputation::get_last_refresh_at() + T::ConfirmationPeriod::get() < now;
-            let is_cha_all_timeout = T::ChallengeBase::is_all_timeout(&APP_ID, &now);
-            if is_last_ref_timeout && is_cha_all_timeout {
-                T::TrustBase::remove_all_tmp();
-                T::Reputation::set_free();
-                <StartedAt<T>>::kill();
-            }
-        }
-    }
-
-    fn check_timeout(now: &T::BlockNumber) -> DispatchResult {
-        ensure!(
-            *now < <StartedAt<T>>::get() + T::RefRepuTiomeOut::get(),
-            Error::<T>::RefreshTiomeOut
-        );
-        Ok(())
-    }
-
-    pub(crate) fn do_refresh(
-        pathfinder: &T::AccountId,
-        user_score: &(T::AccountId, u32),
-        update_at: &T::BlockNumber,
-    ) -> Result<Balance, DispatchError> {
-        T::Reputation::refresh_reputation(user_score)?;
-        let who = &user_score.0;
-        let fee = Self::share(who);
-        <Records<T>>::mutate(&pathfinder, &who, |r| {
-            *r = Record {
-                update_at: *update_at,
-                fee,
-            }
-        });
-        Ok(fee)
-    }
-
-    pub(crate) fn mutate_payroll(
+    pub fn mutate_payroll(
         pathfinder: &T::AccountId,
         amount: &Balance,
         count: &u32,
@@ -553,6 +479,56 @@ impl<T: Config> Pallet<T> {
             };
             Ok(())
         })
+    }
+
+    pub fn mutate_record(
+        pathfinder: &T::AccountId,
+        who: &T::AccountId,
+        fee: &Balance,
+        now: &T::BlockNumber,
+    ) {
+        <Records<T>>::mutate(&pathfinder, &who, |r| {
+            *r = Record {
+                update_at: *now,
+                fee: *fee,
+            }
+        });
+    }
+
+    // pub(crate)
+
+    pub(crate) fn check_step() -> DispatchResult {
+        ensure!(
+            T::Reputation::is_step(&TIRStep::Reputation),
+            Error::<T>::StatusErr
+        );
+        Ok(())
+    }
+
+    pub(crate) fn next_step() {
+        if <StartedAt<T>>::exists() {
+            let now = Self::now();
+            let is_last_ref_timeout =
+                T::Reputation::get_last_refresh_at() + T::ConfirmationPeriod::get() < now;
+            let is_cha_all_timeout = T::ChallengeBase::is_all_timeout(&APP_ID, &now);
+            if is_last_ref_timeout && is_cha_all_timeout {
+                T::TrustBase::remove_all_tmp();
+                T::Reputation::set_free();
+                <StartedAt<T>>::kill();
+            }
+        }
+    }
+
+    pub(crate) fn do_refresh(
+        pathfinder: &T::AccountId,
+        user_score: &(T::AccountId, u32),
+        update_at: &T::BlockNumber,
+    ) -> Result<Balance, DispatchError> {
+        T::Reputation::refresh_reputation(user_score)?;
+        let who = &user_score.0;
+        let fee = Self::share(who);
+        Self::mutate_record(&pathfinder, &who, &fee, update_at);
+        Ok(fee)
     }
 
     pub(crate) fn share(user: &T::AccountId) -> Balance {
@@ -637,21 +613,41 @@ impl<T: Config> Pallet<T> {
         }
         Ok(new_score)
     }
-}
 
-impl<T: Config> RefreshPayrolls<T::AccountId, Balance> for Pallet<T> {
-    fn add_payroll(pathfinder: &T::AccountId, total_fee: &Balance, count: u32) -> DispatchResult {
-        let now_block_number = Self::now();
-        Self::mutate_payroll(pathfinder, total_fee, &count, &now_block_number)
+    // private
+
+    fn check_step_and_stared() -> DispatchResult {
+        Self::check_step()?;
+        ensure!(<StartedAt<T>>::exists(), Error::<T>::NotYetStarted);
+        Ok(())
     }
 
-    fn add_record(pathfinder: &T::AccountId, who: &T::AccountId, fee: &Balance) {
-        let now_block_number = Self::now();
-        <Records<T>>::mutate(&pathfinder, &who, |r| {
-            *r = Record {
-                update_at: now_block_number,
-                fee: *fee,
-            }
-        });
+    fn now() -> T::BlockNumber {
+        system::Module::<T>::block_number()
+    }
+
+    fn check_step_and_not_stared() -> DispatchResult {
+        Self::check_step()?;
+        ensure!(!<StartedAt<T>>::exists(), Error::<T>::AlreadyStarted);
+        Ok(())
+    }
+
+    fn can_harvest(
+        payroll: &Payroll<Balance, T::BlockNumber>,
+        now: &T::BlockNumber,
+    ) -> DispatchResult {
+        ensure!(
+            payroll.update_at + T::ConfirmationPeriod::get() < *now,
+            Error::<T>::ExcessiveBumberOfSeeds
+        );
+        Ok(())
+    }
+
+    fn check_timeout(now: &T::BlockNumber) -> DispatchResult {
+        ensure!(
+            *now < <StartedAt<T>>::get() + T::RefRepuTiomeOut::get(),
+            Error::<T>::RefreshTiomeOut
+        );
+        Ok(())
     }
 }
