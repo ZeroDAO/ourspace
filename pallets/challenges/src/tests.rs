@@ -3,7 +3,7 @@
 use super::*;
 use crate::mock::*;
 use frame_support::{assert_noop, assert_ok};
-use zd_primitives::{PROXY_PERIOD, Progress, Pool};
+use zd_primitives::{SWEEPER_PERIOD, Progress, Pool};
 
 const APP_ID: AppId = *b"test    ";
 const CHALLENGER: AccountId = ALICE;
@@ -813,18 +813,18 @@ macro_rules! harvest_should_work {
 
 harvest_should_work! {
     // who, status, done, joint_benefits,staking
-    harvest_should_work_0: (SWEEPER,ChallengeStatus::Free,10,false,200, PROXY_PERIOD + 2),
+    harvest_should_work_0: (SWEEPER,ChallengeStatus::Free,10,false,200, SWEEPER_PERIOD + 2),
     harvest_should_work_1: (PATHINFER,ChallengeStatus::Free,10,false,200221,ChallengeTimeout::get() + 2),
     harvest_should_work_2: (CHALLENGER,ChallengeStatus::Free,10,false,20784,ChallengeTimeout::get() + 2),
     harvest_should_work_3: (CHALLENGER,ChallengeStatus::Examine,10,false,10,ChallengeTimeout::get() + 2),
-    harvest_should_work_4: (SWEEPER,ChallengeStatus::Examine,10,false,241111,PROXY_PERIOD + 2),
-    harvest_should_work_5: (SWEEPER,ChallengeStatus::Reply,100,false,2345564,PROXY_PERIOD + 2),
+    harvest_should_work_4: (SWEEPER,ChallengeStatus::Examine,10,false,241111,SWEEPER_PERIOD + 2),
+    harvest_should_work_5: (SWEEPER,ChallengeStatus::Reply,100,false,2345564,SWEEPER_PERIOD + 2),
     harvest_should_work_6: (PATHINFER,ChallengeStatus::Reply,100,false,22,ChallengeTimeout::get() + 2),
     harvest_should_work_7: (CHALLENGER,ChallengeStatus::Reply,10,false,46453,ChallengeTimeout::get() + 2),
     harvest_should_work_8: (CHALLENGER,ChallengeStatus::Evidence,100,false,42334,ChallengeTimeout::get() + 2),
     harvest_should_work_9: (PATHINFER,ChallengeStatus::Evidence,10,false,478786,ChallengeTimeout::get() + 2),
-    harvest_should_work_10: (SWEEPER,ChallengeStatus::Evidence,10,false,45333,PROXY_PERIOD + 2),
-    harvest_should_work_11: (SWEEPER,ChallengeStatus::Arbitral,10,true,75333,PROXY_PERIOD + 2),
+    harvest_should_work_10: (SWEEPER,ChallengeStatus::Evidence,10,false,45333,SWEEPER_PERIOD + 2),
+    harvest_should_work_11: (SWEEPER,ChallengeStatus::Arbitral,10,true,75333,SWEEPER_PERIOD + 2),
     harvest_should_work_12: (PATHINFER,ChallengeStatus::Arbitral,10,false,46454,ChallengeTimeout::get() + 2),
-    harvest_should_work_13: (SWEEPER,ChallengeStatus::Free,10,false,0,PROXY_PERIOD + 2),
+    harvest_should_work_13: (SWEEPER,ChallengeStatus::Free,10,false,0,SWEEPER_PERIOD + 2),
 }
