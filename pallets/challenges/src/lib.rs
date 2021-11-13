@@ -1,4 +1,4 @@
-//! # Challenges Module
+//! # ZdChallenges Module
 //! 
 //! ## 介绍
 //!
