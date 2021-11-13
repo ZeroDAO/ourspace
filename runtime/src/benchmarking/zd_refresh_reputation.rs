@@ -1,8 +1,7 @@
 #[warn(unused_must_use)]
-
 use crate::{
     AccountId, Currencies, CurrencyId, GetNativeCurrencyId, MaxSeedCount, MaxTrustCount,
-    MaxUpdateCount, Runtime, System, ZdRefreshReputation, ZdReputation, ZdToken, ZdTrust, ZdSeeds
+    MaxUpdateCount, Runtime, System, ZdRefreshReputation, ZdReputation, ZdSeeds, ZdToken, ZdTrust,
 };
 use frame_benchmarking::{account, whitelisted_caller};
 use frame_system::RawOrigin;
@@ -12,7 +11,7 @@ use zd_refresh_reputation::Path;
 
 use orml_benchmarking::runtime_benchmarks;
 use orml_traits::MultiCurrency;
-use zd_support::{RefreshPayrolls, Reputation, MultiBaseToken, SeedsBase, TrustBase};
+use zd_support::{MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
 use frame_support::assert_ok;
 
@@ -30,12 +29,13 @@ fn init_harvest(pathfinder: &AccountId) {
 
     let _ = ZdRefreshReputation::start(RawOrigin::Signed(pathfinder.clone()).into());
 
+    let now = System::block_number();
+
     for t in 1..MAX_REFRESH {
         let targer: AccountId = account("targer", 0, t);
-        <ZdRefreshReputation as RefreshPayrolls<_,_>>::add_record(pathfinder, &targer.clone(), &200u128);
+        ZdRefreshReputation::mutate_record(pathfinder, &targer.clone(), &200u128, &now);
     }
-    let _ =
-        <ZdRefreshReputation as RefreshPayrolls<_,_>>::add_payroll(pathfinder, &2000u128, MAX_REFRESH);
+    let _ = ZdRefreshReputation::mutate_payroll(pathfinder, &2000u128, &MAX_REFRESH, &now);
     ZdReputation::set_step(&TIRStep::Reputation);
 }
 
@@ -54,8 +54,11 @@ fn init_challenge(challenger: &AccountId, targer: &AccountId, score: u32) {
 }
 
 fn checked_trust(source: &AccountId, targer: &AccountId) {
-    if !<ZdTrust as TrustBase<_>>::is_trust(source,targer) {
-        let _ = ZdTrust::trust(RawOrigin::Signed(source.clone()).into(), targer.clone().into());
+    if !<ZdTrust as TrustBase<_>>::is_trust(source, targer) {
+        let _ = ZdTrust::trust(
+            RawOrigin::Signed(source.clone()).into(),
+            targer.clone().into(),
+        );
     }
 }
 
@@ -74,10 +77,11 @@ runtime_benchmarks! {
         for i in 2..12 {
             let finder: AccountId = account("finder", 0, i);
             let total_fee = 1_000;
-            let _ = <ZdRefreshReputation as RefreshPayrolls<_,_>>::add_payroll(
+            ZdRefreshReputation::mutate_payroll(
                &finder,
                 &total_fee.clone(),
-                20
+                &20,
+                &1
             )?;
         }
         Currencies::deposit(NATIVE, &vault, 1_000_000_000_000u128)?;
@@ -90,7 +94,7 @@ runtime_benchmarks! {
 
     refresh {
         let a in 0 .. MAX_UPDATE_COUNT;
-        
+
         let vault = account("vault", 0, 0);
         assert_ok!(Currencies::deposit(NATIVE, &vault, 1_000_000_000_000u128));
         let mut accounts: Vec<(AccountId,u32)> = vec![];
@@ -110,7 +114,7 @@ runtime_benchmarks! {
         System::set_block_number(2000);
         assert_ok!(ZdRefreshReputation::start(RawOrigin::Signed(vault.clone()).into()));
     }: _(RawOrigin::Signed(caller.clone()),accounts)
-        
+
     harvest_ref_all {
         let pathfinder: AccountId = account("pathfinder", 0, 0);
         init_harvest(&pathfinder);

@@ -5,8 +5,7 @@ use frame_support::{
     codec::{Decode, Encode},
     ensure, pallet,
     traits::Get,
-    RuntimeDebug,
-    transactional,
+    transactional, RuntimeDebug,
 };
 use frame_system::{self as system, ensure_signed};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
@@ -14,9 +13,7 @@ use sp_std::vec::Vec;
 use zd_primitives::{
     fee::ProxyFee, AppId, Balance, ChallengeStatus, Metadata, Pool, Progress, TIRStep,
 };
-use zd_support::{
-    ChallengeBase, MultiBaseToken, RefreshPayrolls, Reputation, SeedsBase, TrustBase,
-};
+use zd_support::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
 #[cfg(test)]
 mod mock;
@@ -95,7 +92,7 @@ pub mod pallet {
         type SeedsBase: SeedsBase<Self::AccountId>;
         type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance, Self::BlockNumber>;
         /// The weight information of this pallet.
-		type WeightInfo: WeightInfo;
+        type WeightInfo: WeightInfo;
     }
 
     // type ChallengeStatus = T::ChallengeBase<T::AccountId, AppId, Balance, T::BlockNumber>::ChallengeBase;
@@ -460,6 +457,45 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+    // pub
+
+    pub fn mutate_payroll(
+        pathfinder: &T::AccountId,
+        amount: &Balance,
+        count: &u32,
+        now: &T::BlockNumber,
+    ) -> DispatchResult {
+        <Payrolls<T>>::try_mutate(&pathfinder, |f| -> DispatchResult {
+            let total_fee = f
+                .total_fee
+                .checked_add(*amount)
+                .ok_or(Error::<T>::Overflow)?;
+
+            let count = f.count.checked_add(*count).ok_or(Error::<T>::Overflow)?;
+            *f = Payroll {
+                count,
+                total_fee,
+                update_at: *now,
+            };
+            Ok(())
+        })
+    }
+
+    pub fn mutate_record(
+        pathfinder: &T::AccountId,
+        who: &T::AccountId,
+        fee: &Balance,
+        now: &T::BlockNumber,
+    ) {
+        <Records<T>>::mutate(&pathfinder, &who, |r| {
+            *r = Record {
+                update_at: *now,
+                fee: *fee,
+            }
+        });
+    }
+
+    // pub(crate)
 
     pub(crate) fn check_step() -> DispatchResult {
         ensure!(
@@ -491,35 +527,8 @@ impl<T: Config> Pallet<T> {
         T::Reputation::refresh_reputation(user_score)?;
         let who = &user_score.0;
         let fee = Self::share(who);
-        <Records<T>>::mutate(&pathfinder, &who, |r| {
-            *r = Record {
-                update_at: *update_at,
-                fee,
-            }
-        });
+        Self::mutate_record(&pathfinder, &who, &fee, update_at);
         Ok(fee)
-    }
-
-    pub(crate) fn mutate_payroll(
-        pathfinder: &T::AccountId,
-        amount: &Balance,
-        count: &u32,
-        now: &T::BlockNumber,
-    ) -> DispatchResult {
-        <Payrolls<T>>::try_mutate(&pathfinder, |f| -> DispatchResult {
-            let total_fee = f
-                .total_fee
-                .checked_add(*amount)
-                .ok_or(Error::<T>::Overflow)?;
-
-            let count = f.count.checked_add(*count).ok_or(Error::<T>::Overflow)?;
-            *f = Payroll {
-                count,
-                total_fee,
-                update_at: *now,
-            };
-            Ok(())
-        })
     }
 
     pub(crate) fn share(user: &T::AccountId) -> Balance {
@@ -605,6 +614,8 @@ impl<T: Config> Pallet<T> {
         Ok(new_score)
     }
 
+    // private
+
     fn check_step_and_stared() -> DispatchResult {
         Self::check_step()?;
         ensure!(<StartedAt<T>>::exists(), Error::<T>::NotYetStarted);
@@ -638,22 +649,5 @@ impl<T: Config> Pallet<T> {
             Error::<T>::RefreshTiomeOut
         );
         Ok(())
-    }
-}
-
-impl<T: Config> RefreshPayrolls<T::AccountId, Balance> for Pallet<T> {
-    fn add_payroll(pathfinder: &T::AccountId, total_fee: &Balance, count: u32) -> DispatchResult {
-        let now_block_number = Self::now();
-        Self::mutate_payroll(pathfinder, total_fee, &count, &now_block_number)
-    }
-
-    fn add_record(pathfinder: &T::AccountId, who: &T::AccountId, fee: &Balance) {
-        let now_block_number = Self::now();
-        <Records<T>>::mutate(&pathfinder, &who, |r| {
-            *r = Record {
-                update_at: now_block_number,
-                fee: *fee,
-            }
-        });
     }
 }
