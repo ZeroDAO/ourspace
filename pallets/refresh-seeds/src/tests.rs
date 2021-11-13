@@ -32,49 +32,42 @@ fn init_graph(score: u64) {
     // | total |         150                       |
     // +-------+-----------------------------------+
     //
-    // hash: [AccountId,AccountId,total;...AccountId,AccountId,total;]
-    // Path hash:
-    // +-----------------------+------------------------------------------+
-    // |  "0001,0002,0004,2;"  | a0e8df2a2f413bb7f3339c66130b770debb57796 |
-    // +-----------------------+------------------------------------------+
-    // |  "0001,0002,0005,1;"  | b339911bcb3a3080a2b6fcbd033facd968aecc4c |
-    // +-----------------------+------------------------------------------+
     //
     // Deep 4:
-    // +---------+--------------+--------+
-    // |  order  | hash         | score  |
-    // +---------+--------------+--------+
-    // |   f1    | a0e8df2a     |  50    |
-    // +---------+--------------+--------+
-    // |   66    | b339911b     |  100   |
-    // +---------+--------------+--------+
+    // +---------+--------+
+    // |  order  | score  |
+    // +---------+--------+
+    // |   f1    |  50    |
+    // +---------+--------+
+    // |   66    |  100   |
+    // +---------+--------+
     //
     // Deep 3:
-    // +---------+--------------+--------+
-    // |  order  | hash         | score  |
-    // +---------+--------------+--------+
-    // |   6c    | 43eb70aa     |  50    |
-    // +---------+--------------+--------+
-    // |   02    | 3fd7de1d     |  100   |
-    // +---------+--------------+--------+
+    // +---------+--------+
+    // |  order  | score  |
+    // +---------+--------+
+    // |   6c    |  50    |
+    // +---------+--------+
+    // |   02    |  100   |
+    // +---------+--------+
     //
     // Deep 2:
-    // +---------+--------------+--------+
-    // |  order  | hash         | score  |
-    // +---------+--------------+--------+
-    // |   90    | c248b273     |  50    |
-    // +---------+--------------+--------+
-    // |   fe    | 5757fc60     |  100   |
-    // +---------+--------------+--------+
+    // +---------+--------+
+    // |  order  | score  |
+    // +---------+--------+
+    // |   90    |  50    |
+    // +---------+--------+
+    // |   fe    |  100   |
+    // +---------+--------+
     //
     // Deep 1:
-    // +---------+--------------+--------+
-    // |  order  | hash         | score  |
-    // +---------+--------------+--------+
-    // |   f9    | b3b4e091     |  50    |
-    // +---------+--------------+--------+
-    // |   7c    | 781bbaf6     |  100   |
-    // +---------+--------------+--------+
+    // +---------+--------+
+    // |  order  | score  |
+    // +---------+--------+
+    // |   f9    |  50    |
+    // +---------+--------+
+    // |   7c    |  100   |
+    // +---------+--------+
 
     let paths = vec![[A, B], [A, C], [B, D], [B, E], [D, E], [C, D]];
     for path in paths {
@@ -168,17 +161,17 @@ fn init_challenge(total_bonus: &Balance) {
     ));
 
     // Deep 1:
-    // +---------+--------------+--------+
-    // |  order  | hash         | score  |
-    // +---------+--------------+--------+
-    // |   f9    | b3b4e091     |  50    |
-    // +---------+--------------+--------+
-    // |   7c    | 781bbaf6     |  100   |
-    // +---------+--------------+--------+
+    // +---------+--------+
+    // |  order  | score  |
+    // +---------+--------+
+    // |   f9    |  50    |
+    // +---------+--------+
+    // |   7c    |  100   |
+    // +---------+--------+
     assert_ok!(ZdRefreshSeeds::reply_hash(
         Origin::signed(PATHFINDER),
         B,
-        vec![PostResultHash(*b"f9", 50, *b"b3b4e091")],
+        vec![PostResultHash(*b"f9", 50)],
         2,
     ));
     let event = Event::zd_refresh_seeds(crate::Event::RepliedHash(PATHFINDER, B, 2, false));
@@ -189,8 +182,7 @@ fn init_challenge(total_bonus: &Balance) {
         B,
         vec![PostResultHash(
             *b"7c",
-            100,
-            *b"781bbaf6"
+            100
         )],
     ));
     let event = Event::zd_refresh_seeds(crate::Event::ContinueRepliedHash(PATHFINDER, B, true));
@@ -201,15 +193,15 @@ fn init_challenge(total_bonus: &Balance) {
     assert!(System::events().iter().any(|record| record.event == event));
 
     // Deep 2:
-    // +---------+--------------+--------+
-    // |  order  | hash         | score  |
-    // +---------+--------------+--------+
-    // |   90    | c248b273     |  50    |
-    // +---------+--------------+--------+
+    // +---------+--------+
+    // |  order  | score  |
+    // +---------+--------+
+    // |   90    |  50    |
+    // +---------+--------+
     assert_ok!(ZdRefreshSeeds::reply_hash(
         Origin::signed(PATHFINDER),
         B,
-        vec![PostResultHash(*b"90", 50, *b"c248b273")],
+        vec![PostResultHash(*b"90", 50)],
         1,
     ));
 
@@ -218,28 +210,28 @@ fn init_challenge(total_bonus: &Balance) {
 
     assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
     // Deep 3:
-    // +---------+--------------+--------+
-    // |  order  | hash         | score  |
-    // +---------+--------------+--------+
-    // |   6c    | 43eb70aa     |  50    |
-    // +---------+--------------+--------+
+    // +---------+--------+
+    // |  order  | score  |
+    // +---------+--------+
+    // |   6c    |  50    |
+    // +---------+--------+
     assert_ok!(ZdRefreshSeeds::reply_hash(
         Origin::signed(PATHFINDER),
         B,
-        vec![PostResultHash(*b"6c", 50, *b"43eb70aa")],
+        vec![PostResultHash(*b"6c", 50)],
         1,
     ));
     assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
     // Deep 4:
-    // +---------+--------------+--------+
-    // |  order  | hash         | score  |
-    // +---------+--------------+--------+
-    // |   f1    | a0e8df2a     |  50    |
-    // +---------+--------------+--------+
+    // +---------+--------+
+    // |  order  | score  |
+    // +---------+--------+
+    // |   f1    |  50    |
+    // +---------+--------+
     assert_ok!(ZdRefreshSeeds::reply_hash(
         Origin::signed(PATHFINDER),
         B,
-        vec![PostResultHash(*b"f1", 50, *b"a0e8df2a")],
+        vec![PostResultHash(*b"f1", 50)],
         1,
     ));
 }
@@ -312,8 +304,8 @@ fn pathfinder_win() {
                 Origin::signed(PATHFINDER),
                 B,
                 vec![
-                    PostResultHash(*b"f9", 50, *b"b3b4e091"),
-                    PostResultHash(*b"7c", 100, *b"781bbaf6")
+                    PostResultHash(*b"f9", 50),
+                    PostResultHash(*b"7c", 100)
                 ],
                 2,
             ),
@@ -443,8 +435,8 @@ fn missed_path_at_rhashs() {
                 Origin::signed(PATHFINDER),
                 B,
                 vec![
-                    PostResultHash(*b"f9", 50, *b"b3b4e091"),
-                    PostResultHash(*b"7c", 100, *b"781bbaf6")
+                    PostResultHash(*b"f9", 50),
+                    PostResultHash(*b"7c", 100)
                 ],
                 MAX_HASH_COUNT + 1,
             ),
@@ -455,8 +447,8 @@ fn missed_path_at_rhashs() {
             Origin::signed(PATHFINDER),
             B,
             vec![
-                PostResultHash(*b"f9", 50, *b"b3b4e091"),
-                PostResultHash(*b"7c", 100, *b"781bbaf6")
+                PostResultHash(*b"f9", 50),
+                PostResultHash(*b"7c", 100)
             ],
             2,
         ));
@@ -677,59 +669,50 @@ fn reply_path_next_test() {
         // | total |         216                       |
         // +-------+-----------------------------------+
         //
-        // hash: [AccountId,AccountId,total;...AccountId,AccountId,total;]
-        // Path hash:
-        // +-------------------------------------------------+------------------------------------------+
-        // |  "0001,0002,0004,2;"                            | a0e8df2a2f413bb7f3339c66130b770debb57796 |
-        // +-------------------------------------------------+------------------------------------------+
-        // |  "0001,0002,0005,1;"                            | b339911bcb3a3080a2b6fcbd033facd968aecc4c |
-        // +-------------------------------------------------+------------------------------------------+
-        // |  "0001,0002,0004,0006,3;0001,0002,0007,0006,3;" | 252ca0457a02555ccd3e37513d5989328ad9a476 |
-        // +-------------------------------------------------+------------------------------------------+
         //
         // Deep 4:
-        // +---------+--------------+--------+
-        // |  order  | hash         | score  |
-        // +---------+--------------+--------+
-        // |   f1    | a0e8df2a     |  50    |
-        // +---------+--------------+--------+
-        // |   66    | b339911b     |  100   |
-        // +---------+--------------+--------+
-        // |   1f    | 252ca045     |  66    |
-        // +---------+--------------+--------+
+        // +---------+--------+
+        // |  order  | score  |
+        // +---------+--------+
+        // |   f1    |  50    |
+        // +---------+--------+
+        // |   66    |  100   |
+        // +---------+--------+
+        // |   1f    |  66    |
+        // +---------+--------+
         //
         // Deep 3:
-        // +---------+--------------+--------+
-        // |  order  | hash         | score  |
-        // +---------+--------------+--------+
-        // |   6c    | 43eb70aa     |  50    |
-        // +---------+--------------+--------+
-        // |   02    | 3fd7de1d     |  100   |
-        // +---------+--------------+--------+
-        // |   60    | 0898dcbe     |  66    |
-        // +---------+--------------+--------+
+        // +---------+--------+
+        // |  order  | score  |
+        // +---------+--------+
+        // |   6c    |  50    |
+        // +---------+--------+
+        // |   02    |  100   |
+        // +---------+--------+
+        // |   60    |  66    |
+        // +---------+--------+
         //
         // Deep 2:
-        // +---------+--------------+--------+
-        // |  order  | hash         | score  |
-        // +---------+--------------+--------+
-        // |   90    | c248b273     |  50    |
-        // +---------+--------------+--------+
-        // |   fe    | 5757fc60     |  100   |
-        // +---------+--------------+--------+
-        // |   d0    | f20e66b6     |  66    |
-        // +---------+--------------+--------+
+        // +---------+--------+
+        // |  order  | score  |
+        // +---------+--------+
+        // |   90    |  50    |
+        // +---------+--------+
+        // |   fe    |  100   |
+        // +---------+--------+
+        // |   d0    |  66    |
+        // +---------+--------+
         //
         // Deep 1:
-        // +---------+--------------+--------+
-        // |  order  | hash         | score  |
-        // +---------+--------------+--------+
-        // |   f9    | b3b4e091     |  50    |
-        // +---------+--------------+--------+
-        // |   7c    | 781bbaf6     |  100   |
-        // +---------+--------------+--------+
-        // |   4e    | 7bdb0996     |  66    |
-        // +---------+--------------+--------+
+        // +---------+--------+
+        // |  order  | score  |
+        // +---------+--------+
+        // |   f9    |  50    |
+        // +---------+--------+
+        // |   7c    |  100   |
+        // +---------+--------+
+        // |   4e    |  66    |
+        // +---------+--------+
 
         init_graph(216);
         assert_ok!(ZdRefreshSeeds::challenge(
@@ -743,9 +726,9 @@ fn reply_path_next_test() {
                 Origin::signed(PATHFINDER),
                 B,
                 vec![
-                    PostResultHash(*b"f9", 50, *b"b3b4e091"),
-                    PostResultHash(*b"4e", 66, *b"7bdb0996"),
-                    PostResultHash(*b"4e", 66, *b"11111111"),
+                    PostResultHash(*b"f9", 50),
+                    PostResultHash(*b"4e", 66),
+                    PostResultHash(*b"4e", 66),
                 ],
                 3,
             ),
@@ -757,22 +740,22 @@ fn reply_path_next_test() {
             Origin::signed(PATHFINDER),
             B,
             vec![
-                PostResultHash(*b"f9", 50, *b"b3b4e091"),
-                PostResultHash(*b"7c", 100, *b"781bbaf6"),
-                PostResultHash(*b"4e", 66, *b"7bdb0996"),
+                PostResultHash(*b"f9", 50),
+                PostResultHash(*b"7c", 100),
+                PostResultHash(*b"4e", 66),
             ],
             3,
         ));
 
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
         // Deep 2:
-        // +---------+--------------+--------+
-        // |   d0    | f20e66b6     |  66    |
-        // +---------+--------------+--------+
+        // +---------+--------+
+        // |   d0    |  66    |
+        // +---------+--------+
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash(*b"d0", 66, *b"f20e66b6")],
+            vec![PostResultHash(*b"d0", 66)],
             1,
         ));
         assert_noop!(
@@ -789,24 +772,24 @@ fn reply_path_next_test() {
         );
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
         // Deep 3:
-        // +---------+--------------+--------+
-        // |   60    | 0898dcbe     |  66    |
-        // +---------+--------------+--------+
+        // +---------+--------+
+        // |   60    |  66    |
+        // +---------+--------+
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash(*b"60", 66, *b"0898dcbe")],
+            vec![PostResultHash(*b"60", 66)],
             1,
         ));
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
         // Deep 4:
-        // +---------+--------------+--------+
-        // |   1f    | 252ca045     |  66    |
-        // +---------+--------------+--------+
+        // +---------+--------+
+        // |   1f    |  66    |
+        // +---------+--------+
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash(*b"1f", 66, *b"252ca045")],
+            vec![PostResultHash(*b"1f", 66)],
             1,
         ));
 
@@ -816,9 +799,6 @@ fn reply_path_next_test() {
         // +-------+-------+-------+-------------------+
         // |  ABGF |   3   | 100/3 |    ...4ed0601f    |
         // +-------+-----------------------------------+
-        // +-------------------------------------------------+------------------------------------------+
-        // |  "0001,0002,0004,0006,3;0001,0002,0007,0006,3;" | 252ca0457a02555ccd3e37513d5989328ad9a476 |
-        // +-------------------------------------------------+------------------------------------------+
         assert_ok!(ZdRefreshSeeds::reply_path(
             Origin::signed(PATHFINDER),
             B,
@@ -939,9 +919,9 @@ fn missed_at_paths_test() {
             Origin::signed(PATHFINDER),
             B,
             vec![
-                PostResultHash(*b"f9", 50, *b"b3b4e091"),
-                PostResultHash(*b"7c", 100, *b"781bbaf6"),
-                PostResultHash(*b"4e", 33, *b"993a00e0"),
+                PostResultHash(*b"f9", 50),
+                PostResultHash(*b"7c", 100),
+                PostResultHash(*b"4e", 33),
             ],
             3,
         ));
@@ -953,7 +933,7 @@ fn missed_at_paths_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash(*b"d0", 33, *b"b00dbe72")],
+            vec![PostResultHash(*b"d0", 33)],
             1,
         ));
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
@@ -964,7 +944,7 @@ fn missed_at_paths_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash(*b"60", 33, *b"5dbb6cab")],
+            vec![PostResultHash(*b"60", 33)],
             1,
         ));
         assert_ok!(ZdRefreshSeeds::examine(Origin::signed(CHALLENGER), B, 0,));
@@ -975,7 +955,7 @@ fn missed_at_paths_test() {
         assert_ok!(ZdRefreshSeeds::reply_hash(
             Origin::signed(PATHFINDER),
             B,
-            vec![PostResultHash(*b"1f", 33, *b"e0c4ada0")],
+            vec![PostResultHash(*b"1f", 33)],
             1,
         ));
 

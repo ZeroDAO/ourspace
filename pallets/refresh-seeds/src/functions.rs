@@ -117,9 +117,9 @@ impl<T: Config> Pallet<T> {
         Self::deposit_event(Event::SeedsSelected(score_list.len() as u32));
     }
 
-    pub(crate) fn check_hash(data: &[u8], hash: &[u8; 8]) -> bool {
-        Self::sha1_hasher(data)[..8] == hash[..]
-    }
+    // pub(crate) fn check_hash(data: &[u8], hash: &[u8; 8]) -> bool {
+    //     Self::sha1_hasher(data)[..8] == hash[..]
+    // }
 
     pub(crate) fn get_pathfinder_paths(
         target: &T::AccountId,
@@ -324,12 +324,12 @@ impl<T: Config> Pallet<T> {
                     Ok(acc.saturating_add(score))
                 })?;
 
-        let list_v = Self::hash_paths(paths);
+        // let list_v = Self::hash_paths(paths);
 
-        ensure!(
-            Self::check_hash(&list_v[..], &result_hash.hash),
-            Error::<T>::HashMismatch
-        );
+        // ensure!(
+        //     Self::check_hash(&list_v[..], &result_hash.hash),
+        //     Error::<T>::HashMismatch
+        // );
 
         ensure!(
             total_score as u64 == result_hash.score,
@@ -348,28 +348,28 @@ impl<T: Config> Pallet<T> {
         if deep == 0 {
             return Ok(());
         }
-        let mut data: Vec<u8> = Vec::default();
+        // let mut data: Vec<u8> = Vec::default();
 
         let fold_score = result_hashs[deep - 1]
             .0
             .iter()
             .try_fold::<_, _, Result<u64, Error<T>>>(0u64, |acc, r| {
-                if deep > 1 {
-                    data.extend_from_slice(&r.hash);
-                }
+                // if deep > 1 {
+                //     data.extend_from_slice(&r.hash);
+                // }
                 ensure!(r.order.len() == RANGE, Error::<T>::OrderNotMatch);
                 acc.checked_add(r.score).ok_or(Error::<T>::Overflow)
             })?;
         let total_score = match deep {
             1 => Self::get_candidate(&target).score,
             _ => {
-                ensure!(
-                    Self::check_hash(
-                        data.as_slice(),
-                        &result_hashs[deep - 2].0[index as usize].hash
-                    ),
-                    Error::<T>::HashMismatch
-                );
+                // ensure!(
+                //     Self::check_hash(
+                //         data.as_slice(),
+                //         &result_hashs[deep - 2].0[index as usize].hash
+                //     ),
+                //     Error::<T>::HashMismatch
+                // );
                 result_hashs[deep - 2].0[index as usize].score
             }
         };

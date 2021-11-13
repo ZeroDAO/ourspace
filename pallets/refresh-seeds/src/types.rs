@@ -55,14 +55,13 @@ impl FullOrder {
 }
 
 #[derive(Encode, Decode, Clone, Ord, PartialOrd, PartialEq, Eq, RuntimeDebug)]
-pub struct PostResultHash(pub [u8; RANGE], pub u64, pub [u8; 8]);
+pub struct PostResultHash(pub [u8; RANGE], pub u64);
 
 impl PostResultHash {
     pub fn to_result_hash(&self) -> ResultHash {
         ResultHash {
             order: self.0,
             score: self.1,
-            hash: self.2,
         }
     }
 }
@@ -71,7 +70,6 @@ impl PostResultHash {
 pub struct ResultHash {
     pub order: [u8; RANGE],
     pub score: u64,
-    pub hash: [u8; 8],
 }
 
 // TODO binary_search_by_key & sort_by_key
