@@ -1,3 +1,22 @@
+//! # ZdTrust Module
+//!
+//! ## 介绍
+//!
+//! 本模块管理用户的信任关系，计算路径长度和声誉值传递。
+//!
+//! ### 实现
+//!
+//! 声誉模块实现了以下 trait :
+//!
+//! - `TrustBase` - 一些与信任关系交互的接口。
+//!
+//! ## 接口
+//!
+//! ### 可调用函数
+//!
+//! - `trust` - 调用者信任传入的用户，如果已经信任了该用户则返回错误。
+//! - `do_untrust` - 调用者取消对传入用户的信任，如果信任关系不存在则返回错误。
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
@@ -9,11 +28,11 @@ use frame_support::{
 };
 use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 use frame_system::{ensure_signed, pallet_prelude::*};
+use orml_utilities::OrderedSet;
 use sp_runtime::{DispatchError, DispatchResult, Perbill};
 use sp_std::vec::Vec;
+use zd_primitives::{appro_ln, TIRStep};
 use zd_support::{Reputation, SeedsBase, TrustBase};
-use orml_utilities::OrderedSet;
-use zd_primitives::{TIRStep,appro_ln};
 
 #[cfg(test)]
 mod mock;
@@ -21,15 +40,21 @@ mod mock;
 mod tests;
 
 pub mod weights;
-pub use weights::WeightInfo;
 pub use module::*;
+pub use weights::WeightInfo;
 
 pub const INIT_SEED_RANK: u32 = 1000;
 pub const MIN_TRUST_COUNT: u32 = 5;
 
+/// 信任关系缓存。
+///
+/// 为了在种子和声誉更新期间，始终保持一致性的信任关系集，我们缓存新增的信任关系。
 #[derive(Encode, Decode, Clone, Eq, PartialEq, Default)]
 pub struct TrustTemp<AccountId> {
+    /// 在更新开始后信任的用户。
     pub trust: OrderedSet<AccountId>,
+
+    /// 在更新开始后取消信任的用户。
     pub untrust: OrderedSet<AccountId>,
 }
 
@@ -43,7 +68,11 @@ pub mod module {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
         type SeedsBase: SeedsBase<Self::AccountId>;
+
+        /// 系统必须的相关参数配置。
         type DampingFactor: Get<Perbill>;
+
+        /// 一个用户最多可信任的用户数量。
         #[pallet::constant]
         type MaxTrustCount: Get<u32>;
         type WeightInfo: WeightInfo;
@@ -53,11 +82,13 @@ pub mod module {
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
+    /// 存储用户信任的列表。
     #[pallet::storage]
     #[pallet::getter(fn trust_list)]
     pub type TrustedList<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, OrderedSet<T::AccountId>, ValueQuery>;
 
+    /// 更新期新增的信任缓存，在更新结束后清空。
     #[pallet::storage]
     #[pallet::getter(fn trust_temp_list)]
     pub type TrustTempList<T: Config> =
@@ -96,7 +127,9 @@ pub mod module {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-
+        /// 调用者信任 `target`。
+        ///
+        /// 需要调用者签名。如果已经信任过，则会返回错误。
         #[pallet::weight(T::WeightInfo::trust())]
         #[transactional]
         pub fn trust(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
@@ -106,6 +139,9 @@ pub mod module {
             Ok(().into())
         }
 
+        /// 调用者取消信任 `target`。
+        ///
+        /// 需要调用者签名。如果信任关系不存在，则会返回错误。
         #[pallet::weight(T::WeightInfo::untrust())]
         #[transactional]
         pub fn untrust(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
@@ -122,7 +158,10 @@ impl<T: Config> Pallet<T> {
         ensure!(who != target, Error::<T>::UnableTrustYourself);
 
         <TrustedList<T>>::try_mutate(&who, |t| -> DispatchResult {
-            ensure!((t.len() as u32) < T::MaxTrustCount::get(), Error::<T>::TooMuchTrust);
+            ensure!(
+                (t.len() as u32) < T::MaxTrustCount::get(),
+                Error::<T>::TooMuchTrust
+            );
             ensure!(t.insert(target.clone()), Error::<T>::RepeatTrust);
             Ok(())
         })?;
@@ -134,7 +173,7 @@ impl<T: Config> Pallet<T> {
                 let _ = trust_temp_list.untrust.insert(target.clone());
             }
 
-            <TrustTempList<T>>::mutate(&who, |t|*t = trust_temp_list);
+            <TrustTempList<T>>::mutate(&who, |t| *t = trust_temp_list);
         }
         Ok(())
     }
@@ -154,7 +193,7 @@ impl<T: Config> Pallet<T> {
                 let _ = trust_temp_list.trust.insert(target.clone());
             }
 
-            <TrustTempList<T>>::mutate(&who, |t|*t = trust_temp_list);
+            <TrustTempList<T>>::mutate(&who, |t| *t = trust_temp_list);
         }
         Ok(())
     }
@@ -181,10 +220,7 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
 
     fn valid_nodes(nodes: &[T::AccountId]) -> DispatchResult {
         for w in nodes.windows(2) {
-            ensure!(
-                Self::is_trust_old(&w[0], &w[1]),
-                Error::<T>::WrongPath
-            );
+            ensure!(Self::is_trust_old(&w[0], &w[1]), Error::<T>::WrongPath);
         }
         Ok(())
     }
@@ -214,20 +250,18 @@ impl<T: Config> TrustBase<T::AccountId> for Pallet<T> {
                     let item_dist = appro_ln(start_ir.saturating_sub(end_ir));
                     start_ir = end_ir;
                     let trust_count = Self::get_trust_count_old(&u[0]) as u32;
-                    Ok((item_dist,trust_count))
+                    Ok((item_dist, trust_count))
                 } else {
                     Err(Error::<T>::WrongPath)
                 }
             })
-            .try_fold::<_, _, Result<(u32, u32), Error<T>>>(
-                (0u32, INIT_SEED_RANK),
-                |acc, d| {
-                    let (dist,trust_count) = d?;
-                    let item_score =
-                        T::DampingFactor::get().mul_floor(acc.1) / trust_count.max(MIN_TRUST_COUNT) / dist;
-                    Ok((acc.0.saturating_add(dist as u32), item_score))
-                },
-            )?;
+            .try_fold::<_, _, Result<(u32, u32), Error<T>>>((0u32, INIT_SEED_RANK), |acc, d| {
+                let (dist, trust_count) = d?;
+                let item_score = T::DampingFactor::get().mul_floor(acc.1)
+                    / trust_count.max(MIN_TRUST_COUNT)
+                    / dist;
+                Ok((acc.0.saturating_add(dist as u32), item_score))
+            })?;
         Ok((dist, score))
     }
 }

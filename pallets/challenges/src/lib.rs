@@ -1,12 +1,26 @@
+//! # ZdChallenges Module
+//! 
+//! ## 介绍
+//!
+//! 挑战模块抽象了挑战的一般流程管理、结果判定、资金抵押、奖励发放的逻辑，使得实际挑战仅需要关注其特有的数据
+//! 操作。挑战流程包括：发起挑战、发起质询、回应质询、出示证据、提起仲裁、领取收益，挑战流程并非一成不变，它
+//! 可以灵活地适应不同需求。
+//! 
+//! ### 实现
+//! 
+//! 挑战模块实现了以下 trait :
+//! 
+//!  - `ChallengeBase` - 抽象的通用挑战流程管理。
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
 use frame_support::{ensure, pallet, transactional, traits::Get};
 use frame_system::{self as system};
+use sp_runtime::{traits::Zero, DispatchError, DispatchResult, SaturatedConversion};
+
 use zd_primitives::{fee::ProxyFee, AppId, Balance, ChallengeStatus, Metadata, TIRStep, Pool};
 use zd_support::{ChallengeBase, MultiBaseToken, Reputation};
-
-use sp_runtime::{traits::Zero, DispatchError, DispatchResult, SaturatedConversion};
 
 #[cfg(test)]
 mod mock;
@@ -15,6 +29,7 @@ mod tests;
 
 pub use pallet::*;
 
+/// 数据的最大上传数量，这是一个为安全考虑的设置。
 const MAX_UPDATE_COUNT: u32 = 257;
 
 #[pallet]
@@ -29,8 +44,13 @@ pub mod pallet {
         type CurrencyId: Parameter + Member + Copy + MaybeSerializeDeserialize + Ord;
         type ZdToken: MultiBaseToken<Self::AccountId, Balance>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
+
+        /// 合法操作的最大时间，例如留给挑战者的挑战时间窗口，留给pathfinder的应答时间等等，
+        /// 它们都使用这个常量。
         #[pallet::constant]
         type ChallengeTimeout: Get<Self::BlockNumber>;
+
+        /// 进入挑战游戏的门票价格。
         #[pallet::constant]
         type ChallengeStakingAmount: Get<Balance>;
     }

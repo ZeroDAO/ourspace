@@ -1,3 +1,21 @@
+//! # ZdReputation Module
+//! 
+//! ## 介绍
+//!
+//! 声誉模块是声誉系统的核心模块，提供整个系统的状态管理。
+//! 
+//! ### 实现
+//! 
+//! 声誉模块实现了以下 trait :
+//! 
+//!  - `Reputation` - 提供获取和修改用户声誉值、获取和记录系统状态的功能。
+//!
+//! ## 接口
+//!
+//! ### 可调用函数
+//! 
+//! - `set_period` - 将系统更新间隔设置为给定的区块数，需要管理员权限。
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
@@ -25,18 +43,33 @@ pub const MAX_SEED: usize = 500;
 /// Seed user initializes reputation values
 pub const INIT_SEED_RANK: usize = 1000;
 
+/// 整个声誉系统的状态。
 #[derive(Encode, Decode, Clone, PartialEq, Default, Eq, RuntimeDebug)]
 pub struct OperationStatus<BlockNumber> {
+    /// 每更新一轮，`nonce` 加 1。
     pub nonce: u32,
+
+    /// 整个系统的关系动作最新活跃区块时，它用来方便其他模块控制与时间相关
+    /// 的状态。
     pub last: BlockNumber,
+
+    /// 下一轮至少在这个区块后开始。
     pub next: BlockNumber,
+
+    /// 两轮开始更新时间的最小间隔。
     pub period: BlockNumber,
+
+    /// 声誉系统是否在更新，以及当前处于哪一个步骤。
     pub step: TIRStep,
 }
 
+/// 用户声誉值。
 #[derive(Encode, Decode, Clone, PartialEq, Default, Eq, RuntimeDebug)]
 pub struct ReputationScore {
+    /// 声誉值
     pub score: u32,
+
+    /// 该声誉值是在 `nonce` 轮更新的。
     pub nonce: u32,
 }
 
@@ -60,11 +93,13 @@ pub mod pallet {
     #[pallet::getter(fn system_info)]
     pub type SystemInfo<T: Config> = StorageValue<_, OperationStatus<T::BlockNumber>, ValueQuery>;
 
+    /// 存储用户前两次更新的声誉值。
     #[pallet::storage]
     #[pallet::getter(fn get_ir)]
     pub type ReputationScores<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, [ReputationScore; 2], ValueQuery>;
 
+    /// 初始化一个 `period` 为给定的数值。
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub period: T::BlockNumber,
@@ -114,6 +149,9 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
+    /// 将系统更新间隔设置为给定的区块数。
+    /// 
+    /// 需要管理员权限。
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
@@ -211,6 +249,7 @@ impl<T: Config> Reputation<T::AccountId, T::BlockNumber, TIRStep> for Pallet<T> 
                 }
             }
             false => {
+                // nonce cannot be smaller than 1
                 if irs[0].nonce == nonce - 1 {
                     return Some(irs[0].score);
                 } else if irs[1].nonce == nonce - 1 {

@@ -1,10 +1,32 @@
+//! # ZdToken Module
+//!
+//! ## 介绍
+//!
+//! ZdToken 模块用来管理用户的社交货币、staking和系统奖励。所有的资金统一
+//! 保管在 `SocialPool` 中，而不是实时地发送给用户，这对于需要频繁交互的
+//! 社交货币和 staking 来说更加高效。但在某些情况下，需要调用者自行维护
+//! `SocialPool` 的出入平衡。
+//!
+//! ### 实现
+//!
+//! 声誉模块实现了以下 trait :
+//!
+//! - `MultiBaseToken` - 系统货币的应用管理。
+//!
+//! ## 接口
+//!
+//! ### 可调用函数
+//!
+//! - `transfer_social` - 向某个用户发送社交货币的接口。
+//! - `claim` - 用户将 `pending` 的资金提取到余额。
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-use frame_support::{pallet_prelude::*,transactional};
+use frame_support::{pallet_prelude::*, transactional};
 use frame_system::{ensure_signed, pallet_prelude::*};
 use sp_runtime::{
-    traits::{Zero, MaybeSerializeDeserialize, Member, Saturating, StaticLookup},
+    traits::{MaybeSerializeDeserialize, Member, Saturating, StaticLookup, Zero},
     DispatchResult,
 };
 use sp_std::convert::{TryFrom, TryInto};
@@ -17,9 +39,9 @@ use orml_traits::{
     MultiCurrency,
 };
 
-pub mod weights;
 mod mock;
 mod tests;
+pub mod weights;
 
 pub use module::*;
 pub use weights::WeightInfo;
@@ -31,8 +53,8 @@ pub struct SocialAccount<Balance> {
     /// this, but it is the total pool what may in principle be transferred,
     /// reserved.
     ///
-    /// This is the only balance that matters in terms of most operations on
-    /// tokens.
+    /// 在一些频繁交互的场景下，系统会将资金标记为 `pending` 状态，而非直接发送
+    /// 到用户余额。用户需要自行将 `pending` 的资金提取到余额。
     #[codec(compact)]
     pub pending: Balance,
     /// Balance of social tokens.
@@ -75,14 +97,16 @@ pub mod module {
             Balance = Balance,
         >;
 
-        /// Weight information for extrinsics in this module.
-        type WeightInfo: WeightInfo;
-
+        /// 使用哪一种货币。
         #[pallet::constant]
         type BaceToken: Get<Self::CurrencyId>;
 
+        /// 资金池的地址。
         #[pallet::constant]
         type SocialPool: Get<Self::AccountId>;
+
+        /// Weight information for extrinsics in this module.
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::error]
@@ -100,7 +124,7 @@ pub mod module {
         /// Token transfer_social success. \[from, to, amount\]
         TransferSocial(T::AccountId, T::AccountId, Balance),
         /// Transferr `pending` Tokens to `free` \[who\]
-        Claim(T::AccountId)
+        Claim(T::AccountId),
     }
 
     #[pallet::pallet]
@@ -142,11 +166,10 @@ pub mod module {
             Ok(().into())
         }
 
+        /// 将调用者 `pending` 状态的货币发送到可用余额。 
         #[pallet::weight(T::WeightInfo::claim())]
         #[transactional]
-        pub fn claim(
-            origin: OriginFor<T>,
-        ) -> DispatchResultWithPostInfo {
+        pub fn claim(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
             <Self as MultiBaseToken<_, _>>::claim(&who)?;
             Self::deposit_event(Event::Claim(who));
@@ -186,7 +209,7 @@ impl<T: Config> Pallet<T> {
                 });
 
                 remaining_share = total_share_amount
-                .saturating_sub(share_amount.saturating_mul(trustees.len() as Balance));
+                    .saturating_sub(share_amount.saturating_mul(trustees.len() as Balance));
             } else {
                 remaining_share = total_share_amount;
             }
