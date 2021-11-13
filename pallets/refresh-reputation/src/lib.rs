@@ -460,36 +460,11 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-    fn now() -> T::BlockNumber {
-        system::Module::<T>::block_number()
-    }
+
     pub(crate) fn check_step() -> DispatchResult {
         ensure!(
             T::Reputation::is_step(&TIRStep::Reputation),
             Error::<T>::StatusErr
-        );
-        Ok(())
-    }
-
-    fn check_step_and_stared() -> DispatchResult {
-        Self::check_step()?;
-        ensure!(<StartedAt<T>>::exists(), Error::<T>::NotYetStarted);
-        Ok(())
-    }
-
-    fn check_step_and_not_stared() -> DispatchResult {
-        Self::check_step()?;
-        ensure!(!<StartedAt<T>>::exists(), Error::<T>::AlreadyStarted);
-        Ok(())
-    }
-
-    fn can_harvest(
-        payroll: &Payroll<Balance, T::BlockNumber>,
-        now: &T::BlockNumber,
-    ) -> DispatchResult {
-        ensure!(
-            payroll.update_at + T::ConfirmationPeriod::get() < *now,
-            Error::<T>::ExcessiveBumberOfSeeds
         );
         Ok(())
     }
@@ -506,14 +481,6 @@ impl<T: Config> Pallet<T> {
                 <StartedAt<T>>::kill();
             }
         }
-    }
-
-    fn check_timeout(now: &T::BlockNumber) -> DispatchResult {
-        ensure!(
-            *now < <StartedAt<T>>::get() + T::RefRepuTiomeOut::get(),
-            Error::<T>::RefreshTiomeOut
-        );
-        Ok(())
     }
 
     pub(crate) fn do_refresh(
@@ -636,6 +603,41 @@ impl<T: Config> Pallet<T> {
             })
         }
         Ok(new_score)
+    }
+
+    fn check_step_and_stared() -> DispatchResult {
+        Self::check_step()?;
+        ensure!(<StartedAt<T>>::exists(), Error::<T>::NotYetStarted);
+        Ok(())
+    }
+
+    fn now() -> T::BlockNumber {
+        system::Module::<T>::block_number()
+    }
+
+    fn check_step_and_not_stared() -> DispatchResult {
+        Self::check_step()?;
+        ensure!(!<StartedAt<T>>::exists(), Error::<T>::AlreadyStarted);
+        Ok(())
+    }
+
+    fn can_harvest(
+        payroll: &Payroll<Balance, T::BlockNumber>,
+        now: &T::BlockNumber,
+    ) -> DispatchResult {
+        ensure!(
+            payroll.update_at + T::ConfirmationPeriod::get() < *now,
+            Error::<T>::ExcessiveBumberOfSeeds
+        );
+        Ok(())
+    }
+
+    fn check_timeout(now: &T::BlockNumber) -> DispatchResult {
+        ensure!(
+            *now < <StartedAt<T>>::get() + T::RefRepuTiomeOut::get(),
+            Error::<T>::RefreshTiomeOut
+        );
+        Ok(())
     }
 }
 
