@@ -36,7 +36,7 @@ use frame_system::{self as system, ensure_signed};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
 use sp_std::vec::Vec;
 use zd_primitives::{
-    fee::ProxyFee, AppId, Balance, ChallengeStatus, Metadata, Pool, Progress, TIRStep,
+    fee::SweeperFee, AppId, Balance, ChallengeStatus, Metadata, Pool, Progress, TIRStep,
 };
 use zd_support::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
@@ -219,7 +219,7 @@ pub mod pallet {
         /// Calculation overflow.
         Overflow,
         /// Calculation overflow.
-        FailedProxy,
+        FailedSweeper,
         /// The presence of unharvested challenges.
         ChallengeNotClaimed,
         /// Excessive number of seeds
@@ -284,11 +284,11 @@ pub mod pallet {
                 .try_fold::<_, _, Result<Balance, DispatchError>>(
                     0u128,
                     |acc: Balance, (pathfinder, payroll)| {
-                        let (proxy_fee, without_fee) = payroll.total_amount::<T>().with_fee();
+                        let (sweeper_fee, without_fee) = payroll.total_amount::<T>().with_fee();
 
                         T::MultiBaseToken::release(&pathfinder, &without_fee)?;
 
-                        acc.checked_add(proxy_fee)
+                        acc.checked_add(sweeper_fee)
                             .ok_or_else(|| Error::<T>::Overflow.into())
                     },
                 )?;
@@ -393,7 +393,7 @@ pub mod pallet {
             let (sweeper_fee, without_fee) = payroll
                 .total_amount::<T>()
                 .checked_with_fee(payroll.update_at, Self::now())
-                .ok_or(Error::<T>::FailedProxy)?;
+                .ok_or(Error::<T>::FailedSweeper)?;
             <Records<T>>::remove_prefix(&pathfinder);
             T::MultiBaseToken::release(&sweeper, &sweeper_fee)?;
             T::MultiBaseToken::release(&pathfinder, &without_fee)?;

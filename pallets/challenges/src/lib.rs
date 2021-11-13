@@ -19,7 +19,7 @@ use frame_support::{ensure, pallet, transactional, traits::Get};
 use frame_system::{self as system};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult, SaturatedConversion};
 
-use zd_primitives::{fee::ProxyFee, AppId, Balance, ChallengeStatus, Metadata, TIRStep, Pool};
+use zd_primitives::{fee::SweeperFee, AppId, Balance, ChallengeStatus, Metadata, TIRStep, Pool};
 use zd_support::{ChallengeBase, MultiBaseToken, Reputation};
 
 #[cfg(test)]

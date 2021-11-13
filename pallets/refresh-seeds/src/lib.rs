@@ -10,7 +10,7 @@ use frame_support::{
 };
 use frame_system::{self as system};
 pub use orml_utilities::OrderedSet;
-use zd_primitives::{fee::ProxyFee, AppId, Balance, TIRStep, Metadata, Pool};
+use zd_primitives::{fee::SweeperFee, AppId, Balance, TIRStep, Metadata, Pool};
 use zd_support::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};

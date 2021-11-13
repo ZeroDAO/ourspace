@@ -22,10 +22,10 @@ pub type AppId = [u8; 8];
 /// Balance of an account.
 pub type Balance = u128;
 
-pub const PROXY_PERIOD: u64 = 500;
+pub const SWEEPER_PERIOD: u64 = 500;
 
 /// When other users receive their earnings, they receive that percentage of the earnings.
-pub const PROXY_PICKUP_RATIO: Perbill = Perbill::from_perthousand(20);
+pub const SWEEPER_PICKUP_RATIO: Perbill = Perbill::from_perthousand(20);
 
 pub mod per_social_currency {
     use super::Perbill;
@@ -64,11 +64,11 @@ impl Default for TIRStep {
 pub mod fee {
     use super::*;
 
-    pub trait ProxyFee
+    pub trait SweeperFee
     where
         Self: Sized,
     {
-        fn is_allowed_proxy<B: AtLeast32BitUnsigned>(last: B, now: B) -> bool;
+        fn is_allowed_sweeper<B: AtLeast32BitUnsigned>(last: B, now: B) -> bool;
         fn checked_with_fee<B: AtLeast32BitUnsigned>(
             &self,
             last: B,
@@ -77,11 +77,11 @@ pub mod fee {
         fn with_fee(&self) -> (Self, Self);
     }
 
-    impl ProxyFee for Balance {
-        fn is_allowed_proxy<B: AtLeast32BitUnsigned>(last: B, now: B) -> bool {
+    impl SweeperFee for Balance {
+        fn is_allowed_sweeper<B: AtLeast32BitUnsigned>(last: B, now: B) -> bool {
             let now_into = TryInto::<u64>::try_into(now).ok().unwrap();
             let last_into = TryInto::<u64>::try_into(last).ok().unwrap();
-            last_into + PROXY_PERIOD < now_into
+            last_into + SWEEPER_PERIOD < now_into
         }
 
         fn checked_with_fee<B: AtLeast32BitUnsigned>(
@@ -89,15 +89,15 @@ pub mod fee {
             last: B,
             now: B,
         ) -> Option<(Self, Self)> {
-            match Balance::is_allowed_proxy(last, now) {
+            match Balance::is_allowed_sweeper(last, now) {
                 true => Some(self.with_fee()),
                 false => None,
             }
         }
 
         fn with_fee(&self) -> (Self, Self) {
-            let proxy_fee = PROXY_PICKUP_RATIO.mul_floor(*self);
-            (proxy_fee, self.saturating_sub(proxy_fee))
+            let sweeper_fee = SWEEPER_PICKUP_RATIO.mul_floor(*self);
+            (sweeper_fee, self.saturating_sub(sweeper_fee))
         }
     }
 }
