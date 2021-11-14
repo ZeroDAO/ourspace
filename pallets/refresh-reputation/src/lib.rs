@@ -1,27 +1,31 @@
 //! # ZdRefreshReputation Module
 //!
-//! ## 介绍
+//! ## Overview
 //!
-//! 该模块用于刷新声誉并通过挑战游戏确保正确的声誉值。刷新声誉的流程如下：
+//! This module is used to refresh the reputation and ensure the correct reputation value by challenging 
+//! the game. The process for refreshing reputation is as follows.
 //!
-//! 1 `start` - 使系统进入可刷新状态；
-//! 2 `refresh` - `pathfinder` 抵押相应金额，刷新用户声誉值；
-//! 3 `challenge` - `challenger` 抵押相应金额，对错误的声誉值发起挑战；
-//! 4 `challenge_update` - `challenger` 上传正确的路径，系统不进行数值验证，路径上传完成后进入仲裁状态；
-//! 5 `arbitral` - 任何人都可以抵押一定的金额，上传更短的路径或不一样的得分来证明原数据是错误的；
+//! 1 `start` - Bringing the system into a refreshable state.
+//! 2 `refresh` - `pathfinder` staking the corresponding amount and refreshes the user's reputation value.
+//! 3 `challenge` - `challenger` staking the corresponding amount to challenge the incorrect reputation value.
+//! 4 `challenge_update` - `challenger` uploads the correct path, the system does not validate the value and 
+//! enters arbitration when the path upload is complete.
+//! 5 `arbitral` - Anyone can staking a certain amount of money to upload a shorter path or a different score 
+//! to prove that the original data is wrong
 //!
-//! ## 接口
+//! ## Implementations
 //!
-//! ### 可调用函数
+//! ### Dispatchable Functions
 //!
-//! - `start` - 开启声誉刷新。
-//! - `refresh` - 接受一个用户和声誉值元组的数组，并刷新数组内所有用户的声誉值。
-//! - `harvest_ref_all` - 调用者领取其所有刷新收益。
-//! - `harvest_ref_all_sweeper` - `sweeper` 领取 `pathfinder` 超时未领取的刷新收益。
-//! - `harvest_challenge` - 调用者领取自己的挑战收益。
-//! - `challenge` - 向传入用户的声誉值发起挑战。
-//! - `arbitral` - 上传更短的路径对已存在的路径进行仲裁。
-//! - `challenge_update` - 上传挑战路径。
+//! - `start` - Turn on reputation refreshing.
+//! - `refresh` - Accepts an array of users and a tuple of reputation values, and refreshes the reputation values 
+//! of all users within the array.
+//! - `harvest_ref_all` - Callers receive all their refresh proceeds.
+//! - `harvest_ref_all_sweeper` - `sweeper` collects `pathfinder` timeout for unclaimed refresh proceeds.
+//! - `harvest_challenge` - Callers receive the proceeds of the challenge.
+//! - `challenge` - Challenge the reputation value of the incoming user.
+//! - `arbitral` - Upload a shorter path to arbitrate on an already existing path.
+//! - `challenge_update` - Upload the challenge path.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -57,30 +61,30 @@ const MAX_NODE_COUNT: usize = 5;
 /// Maximum number of refreshes for the same address
 const MAX_REFRESH: u32 = 500;
 
-/// 目标用户的声誉值更新记录。
+/// Update records of the target user's reputation value.
 #[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
 pub struct Record<BlockNumber, Balance> {
-    /// 刷新发送的时间。
+    /// The time at which the refresh occurs.
     pub update_at: BlockNumber,
 
-    /// 本次刷新获得的手续费。
+    /// The handling fee obtained for this refresh.
     pub fee: Balance,
 }
 
-/// `pathfinder` 的收益记录。
+/// The earnings record for `pathfinder`.
 #[derive(Encode, Decode, Clone, Default, PartialEq, RuntimeDebug)]
 pub struct Payroll<Balance, BlockNumber> {
-    /// 共刷新了多少个用户的声誉值。
+    /// Number of refreshes.
     pub count: u32,
 
-    /// 获得的手续费总额。
+    /// The total amount of fees received.
     pub total_fee: Balance,
 
-    /// 最后刷新时间。
+    /// Last refreshed time.
     pub update_at: BlockNumber,
 }
 
-/// 返回应支付给 `pathfinder` 的全部金额，包括抵押金额和收益。
+/// Returns the total amount due to `pathfinder`, including the amount of the staking and the earnings.
 impl<BlockNumber> Payroll<Balance, BlockNumber> {
     fn total_amount<T: Config>(&self) -> Balance {
         T::UpdateStakingAmount::get()
@@ -89,18 +93,19 @@ impl<BlockNumber> Payroll<Balance, BlockNumber> {
     }
 }
 
-/// 从种子到用户的信任传递路径。
+/// The path to a trusting relationship from seed to user.
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
 pub struct Path<AccountId> {
-    /// 从种子到目标用户之间的路径，不包括种子和目标用户。
+    /// The path between the seed and the target user, excluding the seed and the target user.
     pub nodes: Vec<AccountId>,
 
-    /// 用户从该种子获得的声誉值得分。
+    /// The reputation that users gain from this seed is worth points.
     pub score: u32,
 }
 
 impl<AccountId> Path<AccountId> {
-    // 返回是否超过了最长路径，因为不包括种子和目标用户，所以需要加上2
+    // Returns whether or not the longest path is exceeded, as it does not include the 
+    // seed and target user, so 2 needs to be added
     fn check_nodes_leng(&self) -> bool {
         self.nodes.len() + 2 <= MAX_NODE_COUNT
     }
@@ -125,19 +130,20 @@ pub mod pallet {
         type SeedsBase: SeedsBase<Self::AccountId>;
         type ChallengeBase: ChallengeBase<Self::AccountId, AppId, Balance, Self::BlockNumber>;
 
-        /// 最多上传数量。
+        /// Maximum number of uploads.
         #[pallet::constant]
         type MaxUpdateCount: Get<u32>;
 
-        /// 需要抵押的金额。
+        /// The amount to be staking.
         #[pallet::constant]
         type UpdateStakingAmount: Get<Balance>;
 
-        /// 超过此区块数的时间后，数据将被确认。
+        /// After this number of blocks has been exceeded, the data will be validated.
         #[pallet::constant]
         type ConfirmationPeriod: Get<Self::BlockNumber>;
 
-        /// 超过此期间后，将不可新增刷新，这是为了防止恶意的拖延导致更新期过长。
+        /// After this period, no new refreshes can be added, this is to prevent malicious delays 
+        /// leading to long update periods.
         #[pallet::constant]
         type RefRepuTiomeOut: Get<Self::BlockNumber>;
 
@@ -149,18 +155,18 @@ pub mod pallet {
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
-    /// 本轮刷新的开始时间。
+    /// Start time for this round of refreshments.
     #[pallet::storage]
     #[pallet::getter(fn started_at)]
     pub type StartedAt<T: Config> = StorageValue<_, T::BlockNumber, ValueQuery>;
 
-    /// `AccountId` 的应付账单。
+    /// The bill payable for `AccountId`.
     #[pallet::storage]
     #[pallet::getter(fn get_payroll)]
     pub type Payrolls<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, Payroll<Balance, T::BlockNumber>, ValueQuery>;
 
-    /// `pathfinder` 更新的 `target` 用户的记录。
+    /// `pathfinder` updated records for the `target` user.
     #[pallet::storage]
     #[pallet::getter(fn update_record)]
     pub type Records<T: Config> = StorageDoubleMap<
@@ -173,7 +179,7 @@ pub mod pallet {
         ValueQuery,
     >;
 
-    /// `seed` 到 `target` 的信任关系路径。
+    /// The path of the trust relationship from `seed` to `target`.
     #[pallet::storage]
     #[pallet::getter(fn get_path)]
     pub type Paths<T: Config> = StorageDoubleMap<
@@ -257,18 +263,19 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// 开始新的一轮。
+        /// Start a new round.
         /// 
-        /// 任何人都可以调用，无需抵押。用户处于两种目的：
+        /// Anyone can call on it without collateral. The user does so for two purposes:
         /// 
-        /// - 存在过期领取的 `Payrolls` ，调用者将会获得一定比例的金额；
-        /// - `pathfinder` 获得先发优势，抢先更新手续费较高的用户。
+        /// - The existence of `Payrolls` that have expired for collection, for which the caller 
+        /// will receive a percentage of the amount.
+        /// - `pathfinder` gets a first-mover advantage, preempting users with higher renewal fees.
         /// 
-        /// 以下情况无法开始：
+        /// Is a no-op if:
         /// 
-        /// 1 尚存在未被领取的挑战，或者
-        /// 2 已经开始，或
-        /// 3 未超过最小间隔时间。
+        /// 1 Challenges that remain uncollected, or
+        /// 2 Already started, or
+        /// 3 Minimum interval not exceeded.
         #[pallet::weight(T::WeightInfo::start())]
         #[transactional]
         pub fn start(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
@@ -298,7 +305,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 刷新一组用户的声誉值。
+        /// Refresh the reputation value of a group of users.
         #[pallet::weight(T::WeightInfo::refresh((user_scores.len() as u32).max(1u32)))]
         #[transactional]
         pub fn refresh(
@@ -353,11 +360,11 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 调用者领取其所有收益，并清空所有更新记录。
+        /// The caller receives all their earnings and clears all update records.
         /// 
-        /// 用户的最后一条更新未过确认期将返回错误。
+        /// An `Err` will be returned if the user's last update has not passed the confirmation period.
         /// 
-        /// NOTE: 相比于每条领取依次，这样更节省高效。
+        /// NOTE: This is more economical and efficient than collecting each item in turn.
         #[pallet::weight(T::WeightInfo::harvest_ref_all())]
         #[transactional]
         pub fn harvest_ref_all(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
@@ -373,12 +380,13 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// `sweeper` 领取 `pathfinder` 过期未领的收益。
+        /// `sweeper` collects `pathfinder` overdue proceeds.
         /// 
-        /// `sweeper` 从中获得一定比例的收益。
+        /// `sweeper` receives a percentage of the proceeds from it.
         /// 
-        /// NOTE: `pathfinder` 有责任及时领取收益并清除数据，以保障链上数据的清洁。`sweeper` 策略保障
-        /// 系统顺畅运行。
+        /// NOTE: It is the responsibility of `pathfinder` to secure the cleanliness of the data on the chain 
+        /// by collecting the proceeds and clearing the data in a timely manner. The `sweeper` policy ensures 
+        /// that the system runs smoothly.
         #[pallet::weight(T::WeightInfo::harvest_ref_all_sweeper())]
         #[transactional]
         pub fn harvest_ref_all_sweeper(
@@ -406,9 +414,9 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 领取针对 `target` 的挑战收益。
+        /// Receive the benefits of a challenge against `target`.
         /// 
-        /// 调用者必须为该挑战的获胜者。
+        /// The caller must be the winner of the challenge.
         #[pallet::weight(T::WeightInfo::harvest_challenge())]
         #[transactional]
         pub fn harvest_challenge(
@@ -422,20 +430,21 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 发起挑战。
+        /// Launching the challenge.
         /// 
-        /// 对 `pathfinder` 更新的 `target` 声誉发起挑战，需要上传路径一共为 `quantity` 条，正确的
-        /// 声誉得分是 `score` 。
+        /// A challenge to the `target` reputation updated by `pathfinder` requires a total 
+        /// of `quantity` of paths to be uploaded, the correct reputation score is `score`.
         /// 
-        /// 以下情况不执行
+        /// Is a no-op if:
         /// 
-        /// - `score` 与原声誉值相同，或
-        /// - `quantity` 大于种子数量，或
-        /// - 声誉值未被更新，或
-        /// - 声誉值已被挑战，或
-        /// - 声誉值已超过确认期。
+        /// - `score` is the same as the original reputation value, or
+        /// - `quantity` is greater than the number of seeds, or
+        /// - Reputation value has not been updated, or
+        /// - Reputation value has been challenged, or
+        /// - Reputation value has exceeded the confirmation period.
         /// 
-        /// NOTE: 如果需要挑战已存在的挑战的声誉，应当调用 `arbitral` 。
+        /// NOTE: If you need to challenge the reputation of an existing challenge, you should 
+        /// call `arbitral`.
         #[pallet::weight(T::WeightInfo::challenge())]
         #[transactional]
         pub fn challenge(
@@ -488,14 +497,17 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 对挑战中的路径仲裁。
+        /// Arbitration of paths in challenge.
         /// 
-        /// 接受 `target` 下的 `seeds` 的正确路径 `paths` , `seeds` 和 `paths` 是集合，必须保持
-        /// 一一对应的关系。
+        /// accepts the correct path `paths` for `seeds` under `target` , `seeds` and `paths` are sets 
+        /// that must be kept one to one correspondence.
         /// 
         /// NOTE: 
-        /// - 调用者必须纠正所有错误，否则其他挑战者可再次发起 `arbitral` ,从而导致本次挑战失败。
-        /// - 在保护期限内，同一个调用者可多次发起 `arbitral` 而只需支付一次抵押。
+        /// 
+        /// - The caller must correct all errors, otherwise the other challenger can launch `arbitral` 
+        /// again, thus causing this challenge to fail.
+        /// - During the protection period, the same caller may initiate `arbitral` several times 
+        /// without paying a single staking.
         #[pallet::weight(T::WeightInfo::arbitral(seeds.len().max(paths.len()) as u32))]
         #[transactional]
         pub fn arbitral(
@@ -524,13 +536,14 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 挑战者上传路径。
+        /// Challenger upload path.
         /// 
-        /// 接受 `target` 下的 `seeds` 的正确路径 `paths` , `seeds` 和 `paths` 是集合，必须保持
-        /// 一一对应的关系。
+        /// Accepts the correct path `paths` for `seeds` under `target` , `seeds` and `paths` 
+        /// are sets and must correspond one-to-one.
         /// 
-        /// 在上传保护期内，挑战者可多次调用本接口，以便将所有路径上传完毕。这种“断点续传”，在种子数量过大，或网络
-        /// 拥堵的情况下很有用。
+        /// During the upload protection period, the challenger can call this interface several 
+        /// times in order to finish uploading all the paths. This "intermittent upload" is useful 
+        /// when the number of seeds is too large, or when the network is congested.
         #[pallet::weight(T::WeightInfo::challenge_update(seeds.len().max(paths.len()) as u32))]
         #[transactional]
         pub fn challenge_update(
@@ -567,8 +580,8 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
     // pub
 
-    /// 在原有的基础上，增加 `pathfinder` `amount` 的应付账款 , 以及 `count` 个更新，并将
-    /// 最后活动时间设置为 `now` 。
+    /// Add `pathfinder` `amount` of accounts payable, and `count` updates to the original, 
+    /// and set last active time to `now`.
     pub fn mutate_payroll(
         pathfinder: &T::AccountId,
         amount: &Balance,
@@ -591,7 +604,8 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    /// 增加或修改 `pathfinder` 下针对`who`的挑战记录，其中获得的手续费为 `fee`,并将更新时间设置为 `now`。
+    /// Add or modify a challenge record for `who` under `pathfinder`, where the processing fee 
+    /// obtained is `fee`, and set the update time to `now`.
     pub fn mutate_record(
         pathfinder: &T::AccountId,
         who: &T::AccountId,

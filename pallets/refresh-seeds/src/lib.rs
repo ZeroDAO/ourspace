@@ -1,92 +1,98 @@
 //! # ZdRefreshSeeds Module
-//! 
-//! ## 介绍
-//! 
-//! 该模块用于种子选取并通过挑战游戏确保正确。
-//! 
-//! ## 算法
-//! 
-//! 用户的信任关系构成有向图，其中介数中心度最高的用户将成为种子。为了保证一致性，要
-//! 求精确地计算介数中心度。例入有如下路径，需要我们计算 D 的中心度得分。
-//! 
+//!
+//! ## Overview
+//!
+//! This module is used for seed selection and to ensure correctness through challenge games.
+//!
+//! ## Algorithms
+//!
+//! Users' trust relationships form a directed graph, and the user with the highest intermediary
+//! count centrality will be the seed. To ensure consistency, it is necessary to calculate the
+//! mediator centrality exactly. For example, we have the following path and we need to compute
+//! the centrality score of D.
+//!
 //! A -> B -> D -> E
 //! A -> C -> D -> E
-//! 
-//! ### 计算得分
-//! 
-//! 经过 `D` 的所有最短路径为：
-//! 
+//!
+//! ### Calculating the score
+//!
+//! All shortest paths through `D` are
+//!
 //! 1 A -> B -> D -> E
 //! 2 A -> C -> D -> E
 //! 3 B -> D -> E
 //! 4 C -> D -> E
-//! 
-//! 其中 A 到 E 有两条相同长度的最短路径，即 `num = 2`，每条路径的得分为 `100 / 2`, 其他两条
-//! 路径的得分为 100 。`D` 的总得分为 300 。
-//! 
+//!
+//! where there are two shortest paths of the same length from A to E, i.e. `num = 2`,
+//! and the score for each path is `100 / 2`, and the score for the other two paths is
+//! `100`. The total score for `D` is 300.
+//!
 //! |  path  | num | score |
 //! |--------|-----|-------|
 //! | ABDE   |  2  |  50   |
 //! | ACDE   |  2  |  50   |
 //! | BDE    |  1  |  100  |
 //! | CDE    |  1  |  100  |
-//! 
-//! ### 排序
-//! 
-//! 当网络较大时，经过某个节点的最短路径数量可能有几亿条，将其在链上一一验证是不现实，而且也是
-//! 没有必要的。因此我们采用交互式验证。
-//! 
-//! #### 端点hash
-//! 
-//! 对端点进行哈希，取最后八位。
-//! 
+//!
+//! ### Sorting
+//!
+//! When the network is large, the number of shortest paths through a node may be in the
+//! hundreds of millions, and it is impractical and unnecessary to verify them all on
+//! the chain. We therefore use interactive verification.
+//!
+//! #### Endpoint hash
+//!
+//! Hash the endpoints and take the last eight bits.
+//!
 //! |  path  | num | score |     sha1(start,stop)      |
 //! |--------|-----|-------|---------------------------|
 //! | ABDE   |  2  |  50   |     ...f9 90 6c f1        |
 //! | ACDE   |  2  |  50   |     ...f9 90 6c f1        |
 //! | BDE    |  1  |  100  |     ...7c fe 03 66        |
 //! | CDE    |  1  |  100  |     ...65 ce 02 66        |
-//! 
-//! #### 树
-//! 
-//! 从哈希值尾部开始，对该位置值相同的中心度得分进行求和。
-//! 
+//!
+//! #### Tree
+//!
+//! Starting from the tail of the hash, the centrality scores are summed separately.
+//!
 //! | order  | score |
 //! |--------|-------|
 //! |   f1   |  100  |
 //! |   66   |  200  |
-//! 
-//! 当挑战者发起挑战后，`pathfinder` 需要通过 `PostResultHash` 上传第一层的所有数据。这样
-//! 挑战者可识别出差异位置，并继续质询。假设挑战者质询 `66` 。则 `pathfinder` 需要上传第二
-//! 层数据：
-//! 
+//!
+//! Once the challenger has launched the challenge, `pathfinder` needs to upload all
+//! the data from the first level via `PostResultHash`. This allows the challenger to
+//! identify the location of the discrepancy and continue to question (examine) it. Suppose the
+//! challenger questions(examine) `66`. Then `pathfinder` needs to upload the second level of data.
+//!
 //! | order  | score |
 //! |--------|-------|
 //! |   03   |  100  |
 //! |   02   |  100  |
-//! 
-//! 直至系统设定的最大深度， `pathfinder` 上传符合条件的所有路径，挑战者可以继续对路径进行质询。
-//! 
-//! ## 接口
 //!
-//! ### 可调用函数
+//! Up to the maximum depth set by the system, `pathfinder` uploads all paths that meet the criteria
+//! and the challenger can continue to `examine` the paths.
 //!
-//! - `start` - 开启种子更新。
-//! - `add` - 增加一个种子候选人和中心度得分。
-//! - `challenge` - 对一个种子的得分发起挑战。
-//! - `examine` - 对指定位置的数据发起质询。
-//! - `reply_hash` - 在收到质询后回复。
-//! - `reply_hash_next` - 继续上传回复数据。
-//! - `reply_path` - 在收到质询后回复路径。
-//! - `reply_path_next` - 继续上传回复的路径数据。
-//! - `reply_num` - 回复两个用户间最短路径数量。
-//! - `missed_in_hashs` - 在hash阶段指出缺失的路径。
-//! - `missed_in_paths` - 在 path 阶段指出缺失的路径
-//! - `evidence_of_shorter` - 出示更短路径的证据。
-//! - `number_too_low` - 出示两点之间路径数量过小的证据。
-//! - `invalid_evidence` - 证明证据是错误的。
-//! - `harvest_challenge` - 领取挑战收益。
-//! - `harvest_seed` - 领取种子收益。
+//! ## Interface
+//!
+//! ### Dispatchable Functions
+//!
+//! - `start` - Start refreshing the seeds.
+//! - `add` - Add a seed candidate and centrality score.
+//! - `challenge` - A challenge to the scoring of a seed.
+//! - `examine` - Initiate a examine on the data at the specified location.
+//! - `reply_hash` - Reply to examine upon receipt.
+//! - `reply_hash_next` - Continue to upload reply data.
+//! - `reply_path` - reply to the path after receiving the examine.
+//! - `reply_path_next` - Continue to upload the path data for the reply.
+//! - `reply_num` - Reply to the number of shortest paths between two users.
+//! - `missed_in_hashs` - Indicate the missing path in the hash phase.
+//! - `missed_in_paths` - Indicate missing paths in the path phase.
+//! - `evidence_of_shorter` - Show evidence of shorter paths.
+//! - `number_too_low` - Show evidence that the number of paths between two users is too small.
+//! - `invalid_evidence` - The evidence was proved to be wrong.
+//! - `harvest_challenge` - Receive the proceeds of the challenge.
+//! - `harvest_seed` - Receive seed proceeds.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
@@ -94,16 +100,15 @@ use frame_support::{
     codec::{Decode, Encode},
     ensure,
     traits::Get,
-    RuntimeDebug,
-    transactional,
+    transactional, RuntimeDebug,
 };
 use frame_system::{self as system};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
-use sp_std::{cmp::Ordering,vec::Vec};
+use sp_std::{cmp::Ordering, vec::Vec};
 
 pub use orml_utilities::OrderedSet;
 
-use zd_primitives::{fee::SweeperFee, AppId, Balance, TIRStep, Metadata, Pool};
+use zd_primitives::{fee::SweeperFee, AppId, Balance, Metadata, Pool, TIRStep};
 use zd_support::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
 pub use pallet::*;
@@ -134,43 +139,44 @@ pub mod pallet {
         type SeedsBase: SeedsBase<Self::AccountId>;
         type MultiBaseToken: MultiBaseToken<Self::AccountId, Balance>;
 
-        /// 添加种子候选人的抵押金额。
-        /// 
+        /// Add the amount of staking for seed candidates.
+        ///
         /// SeedStakingAmount = SeedChallengeAmount + SeedReservStaking
         #[pallet::constant]
         type SeedStakingAmount: Get<Balance>;
 
-        /// 挑战种子候选人种子度得分的抵押金额。
+        /// Staking amount of seeding score for challenge seeding candidates.
         #[pallet::constant]
         type SeedChallengeAmount: Get<Balance>;
 
-        /// 这部分抵押金额不受到挑战影响，用户领取该部分金额的同时将会正式添加种子。
+        /// This portion of the staking amount is not affected by the challenge and will be
+        /// officially seeded when the user receives that portion.
         #[pallet::constant]
         type SeedReservStaking: Get<Balance>;
 
-        /// 种子的最大数量。
+        ///  Maximum number of seeds.
         #[pallet::constant]
         type MaxSeedCount: Get<u32>;
 
-        /// 确认周期。
+        /// Confirmation period.
         #[pallet::constant]
         type ConfirmationPeriod: Get<Self::BlockNumber>;
 
         /// The weight information of this pallet.
-		type WeightInfo: WeightInfo;
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
-    /// 被挑战种子候选人的中心度得分数据。
+    /// Data on the centrality scores of the challenged seed candidates.
     #[pallet::storage]
     #[pallet::getter(fn get_result_hashs)]
     pub type ResultHashsSets<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, Vec<OrderedSet<ResultHash>>, ValueQuery>;
 
-    /// 种子候选人列表。
+    /// List of seeded candidates.
     #[pallet::storage]
     #[pallet::getter(fn get_candidate)]
     pub type Candidates<T: Config> = StorageMap<
@@ -181,24 +187,24 @@ pub mod pallet {
         ValueQuery,
     >;
 
-    /// 有效中心度得分集合。
+    /// The set of valid centrality scores.
     #[pallet::storage]
     #[pallet::getter(fn get_score_list)]
     pub type ScoreList<T: Config> = StorageValue<_, Vec<u64>, ValueQuery>;
 
-    /// 被挑战种子候选人的路径
+    /// Pathway for challenged seed candidates.
     #[pallet::storage]
     #[pallet::getter(fn get_path)]
     pub type Paths<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, Vec<Path<T::AccountId>>, ValueQuery>;
 
-    /// 缺失的路径
+    /// The Missing Path
     #[pallet::storage]
     #[pallet::getter(fn get_missed_paths)]
     pub type MissedPaths<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, Vec<T::AccountId>, ValueQuery>;
 
-    /// 是否已确认全部种子
+    /// Have all seeds been confirmed
     #[pallet::storage]
     #[pallet::getter(fn seeds_confirmed)]
     pub type SeedsConfirmed<T: Config> = StorageValue<_, bool, ValueQuery>;
@@ -207,37 +213,37 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// 发起了新一轮的种子更新。 \[who\]
+        /// A new round of seed refreshing was initiated. \[who\]
         RefershSeedStared(T::AccountId),
-        /// 新的种子候选人。 \[pthfinder, candidate,score\]
+        /// New seeding candidates. \[pthfinder, candidate,score\]
         NewCandidate(T::AccountId, T::AccountId, u64),
-        /// 新的挑战。 \[challenger, candidate\]
+        /// A new challenge. \[challenger, candidate\]
         NewChallenge(T::AccountId, T::AccountId),
-        /// 新的质询。 \[challenger, candidate\]
+        /// New examine. \[challenger, candidate\]
         NewExamine(T::AccountId, T::AccountId),
-        /// 新的hash被回复了。 \[pthfinder, candidate, quantity, completed\]
+        /// The new hash was replied to. \[pthfinder, candidate, quantity, completed\]
         RepliedHash(T::AccountId, T::AccountId, u32, bool),
-        /// 继续回复了新的hash \[pthfinder, candidate, completed\]
+        /// Continued reply with a new hash \[pthfinder, candidate, completed\]
         ContinueRepliedHash(T::AccountId, T::AccountId, bool),
-        /// 回复了路径。 \[pthfinder, candidate, quantity, completed\]
+        /// The path was replied to. \[pthfinder, candidate, quantity, completed\]
         RepliedPath(T::AccountId, T::AccountId, u32, bool),
-        /// 继续回复了路径。 \[pthfinder, candidate, completed\]
+        /// The path continued to be replied to. \[pthfinder, candidate, completed\]
         ContinueRepliedPath(T::AccountId, T::AccountId, bool),
-        /// 回复了两用户间最短路径数量。 \[pthfinder, candidate\]
+        /// Responded to the number of shortest paths between two users. \[pthfinder, candidate\]
         RepliedNum(T::AccountId, T::AccountId),
-        /// 出示了漏掉的最短路径。 \[challenger, candidate,index\]
+        /// Show the shortest path that was missed. \[challenger, candidate,index\]
         MissedPathPresented(T::AccountId, T::AccountId, u32),
-        /// 出示了更短的路径。 \[challenger, candidate,index\]
+        /// Shorter paths are shown. \[challenger, candidate,index\]
         ShorterPresented(T::AccountId, T::AccountId, u32),
-        /// 出示了两用户间最短路径总量过小的证据。 \[challenger, candidate,index\]
+        /// Evidence is presented that the total number of shortest paths is too small. \[challenger, candidate,index\]
         EvidenceOfNumTooLowPresented(T::AccountId, T::AccountId, u32),
-        /// 出示了证据为无效的证明。 \[challenger, candidate,score\]
+        /// A certificate that the evidence is invalid was produced. \[challenger, candidate,score\]
         EvidenceOfInvalidPresented(T::AccountId, T::AccountId, u64),
-        /// 领取了挑战收益。 \[who, candidate\]
+        /// Received the proceeds of the challenge. \[who, candidate\]
         ChallengeHarvested(T::AccountId, T::AccountId),
-        /// 领取了种子更新收益。 \[who, candidate\]
+        /// Received seed refresh proceeds. \[who, candidate\]
         SeedHarvested(T::AccountId, T::AccountId),
-        /// 发起了一个挑战。 \[candidate, score\]
+        /// A challenge was launched. \[candidate, score\]
         ChallengeRestarted(T::AccountId, u64),
         /// All seeds have been selected \[number \]
         SeedsSelected(u32),
@@ -332,7 +338,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// 开始种子更新。
+        /// Start seed refreshing.
         #[pallet::weight(T::WeightInfo::start())]
         #[transactional]
         pub fn start(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
@@ -342,9 +348,9 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 添加 `target` 为种子候选人，中心度得分为 `score` 。
-        /// 
-        /// 将扣除调用者 `SeedStakingAmount` 的资金。
+        /// Add `target` as a seed candidate with a centrality score of `score`.
+        ///
+        /// Funds from the caller's `SeedStakingAmount` will be deducted.
         #[pallet::weight(T::WeightInfo::add())]
         #[transactional]
         pub fn add(
@@ -365,12 +371,13 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 对种子候选人 `target` 发起挑战，新的得分为 `score` 。
-        /// 
-        /// 以下情况下将失败：
-        /// 
-        /// - 候选人不存在，或
-        /// - 种子已经过挑战，并且处于 `Free` 状态，但已经超过确认期。
+        /// Launch a challenge to the seed candidate `target` with a new score of `score`.
+        ///
+        /// Is a no-op if:
+        ///
+        /// - the candidate does not exist, or
+        /// - The seeds have been challenged and are in `Free` status, but the confirmation period
+        /// has expired.
         #[pallet::weight(T::WeightInfo::challenge())]
         #[transactional]
         pub fn challenge(
@@ -405,8 +412,7 @@ pub mod pallet {
                     },
                     score,
                     ..Metadata::default()
-                }
-
+                },
             )?;
             <Candidates<T>>::mutate(&target, |c| c.has_challenge = true);
             T::Reputation::set_last_refresh_at();
@@ -414,10 +420,12 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 质询种子候选人 `target` 下，`index` 位置的数据。
-        /// 
-        /// - 在 hash 期，即当前深度小于 `DEEP` , 挑战数据指是 `ResultHashsSets` 中的数据;
-        /// - 在路径上传后，指向的是路径数据中的 `num`，即两点间最短路径的数量。
+        /// Interrogate the data under `target`, `index` position of the seed candidate.
+        ///
+        /// - In the hash period, i.e. when the current depth is less than `DEEP`, the
+        /// challenge data is the data in `ResultHashsSets`;
+        /// - After the path has been uploaded, it points to `num` in the path data,
+        /// which is the number of shortest paths between two points.
         #[pallet::weight(T::WeightInfo::examine())]
         #[transactional]
         pub fn examine(
@@ -449,7 +457,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 回复hash数据集合，一共有 `quantity` 条。
+        /// Reply to the hash data collection with a total of `quantity` entries.
         #[pallet::weight(T::WeightInfo::reply_hash(hashs.len().max(1) as u32))]
         #[transactional]
         pub fn reply_hash(
@@ -484,9 +492,10 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 继续回复 hash 数据。
-        /// 
-        /// `pathfinder` 应当在允许期间内上传，否则系统有权判定为失败。
+        /// Continue to reply with hash data.
+        ///
+        /// The `pathfinder` should be uploaded within the allowed period, otherwise the system
+        /// has the right to determine that it has failed.
         #[pallet::weight(T::WeightInfo::reply_hash_next(hashs.len().max(1) as u32))]
         #[transactional]
         pub fn reply_hash_next(
@@ -515,12 +524,12 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 回复针对 `target` 的挑战的路径数据，一共为 `quantity` 条。
-        /// 
-        /// 以下情况将失败：
-        /// 
-        /// - 未达到最大深度（此时应该回复 hash）,或
-        /// - 路径重复或错误。
+        /// Respond to the path data for the challenge against `target` with a total of `quantity` entries.
+        ///
+        /// Is a no-op if:
+        ///
+        /// - the maximum depth is not reached (you should revert to hash at this point), or
+        /// - Duplicate or incorrect paths.
         #[pallet::weight(T::WeightInfo::reply_path(paths.len().max(1) as u32))]
         #[transactional]
         pub fn reply_path(
@@ -577,9 +586,9 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 继续回复路径数据。
-        /// 
-        /// 这在数据过多，或网络拥堵的情况下很有用。
+        /// Continue to reply to the path data.
+        ///
+        /// This is useful in case of too much data, or network congestion.
         #[pallet::weight(T::WeightInfo::reply_path_next(paths.len().max(1) as u32))]
         #[transactional]
         pub fn reply_path_next(
@@ -629,15 +638,17 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 回复最短路径总量。
-        /// 
-        /// 这发生在挑战者认为 `pathfinder` 的路径数据中总量数据过大的情况下，需要 `pathfinder`
-        /// 上传两端点间所有最短路径，以证明数据正确性。
-        /// 
-        /// `mid_paths` - 此处两个端点已经确定，所以只需要上传中间的 `node`,如果中间没有用户，则
-        /// 为 `[]` 。
-        /// 
-        /// NOTE: 当两端点间路径总数大于 100 时，该路径是无效的。我们只精确到小数点后两位。
+        /// Reply to the shortest path total.
+        ///
+        /// This occurs when the challenger believes that the total data in `pathfinder`'s
+        /// path data is too large, requiring `pathfinder` to upload all shortest paths
+        /// between the two endpoints to prove that the data is correct.
+        ///
+        /// `mid_paths` - Here the two endpoints are known, so only the middle `node` needs
+        /// to be uploaded, or `[]` if there is no user in between.
+        ///
+        /// NOTE: When the total number of paths between two endpoints is greater than 100,
+        /// the path is invalid. We are only accurate to two decimal places.
         #[pallet::weight(T::WeightInfo::reply_num(mid_paths.len().max(1) as u32))]
         #[transactional]
         pub fn reply_num(
@@ -660,14 +671,16 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 在 hash 阶段出具丢失路径的证据。
-        /// 
-        /// - `nodes`- 完整的路径向量。
-        /// - `index` - 丢失路径处于的位置。例如，hash 集为 [5,8,10], 如果你的拥有hash为 4 的路径，则
-        /// `index` 为 `0` 。如果为 `11`,则 `index` 为 `2` 。
-        /// 
-        /// 调用成功后将进入仲裁阶段，因为我们无法确定 `nodes` 是否为最短路径，需要再次通过挑战游戏确
-        /// 定。
+        /// Evidence of missing paths is produced at the hash stage.
+        ///
+        /// - `nodes`- The complete path vector.
+        /// - `index` - The location where the missing path is located. For example, if
+        /// the hash set is [5,8,10], if you have a path with a hash of `4`, then `index`
+        /// will be `0`. If it is `11`, then `index` will be `2`.
+        ///
+        /// After a successful call we will enter the arbitration phase, as we cannot
+        /// determine if `nodes` is the shortest path and will need to play the challenge
+        /// game again to determine to determine this.
         #[pallet::weight(T::WeightInfo::missed_in_hashs())]
         #[transactional]
         pub fn missed_in_hashs(
@@ -678,24 +691,18 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
 
-            ensure!(
-                !<Paths<T>>::contains_key(&target),
-                Error::<T>::PathUploaded
-            );
+            ensure!(!<Paths<T>>::contains_key(&target), Error::<T>::PathUploaded);
 
-            Self::evidence_of_missed(
-                &challenger,
-                &target,
-                &nodes,
-                index,
-            )?;
+            Self::evidence_of_missed(&challenger, &target, &nodes, index)?;
             Ok(().into())
         }
 
-        /// 路径集中丢失的路径。
-        /// 
-        /// 上传有效的 `nodes` ，如果它不在路径集中，则证明 `pathfinder` ** 有可能 ** 丢失了该路径。调用成功
-        /// 后将进入仲裁阶段，因为我们无法确定 `nodes` 是否为最短路径，需要再次通过挑战游戏确定。
+        /// Lost paths in the path set.
+        ///
+        /// Upload a valid `nodes`, if it is not in the path set, it is **possible** that `pathfinder`
+        /// has lost the path. A successful call will lead to an arbitration phase, as we cannot
+        /// determine if `nodes` is the shortest path and will need to determine this again through
+        /// a challenge game.
         #[pallet::weight(T::WeightInfo::missed_in_paths())]
         #[transactional]
         pub fn missed_in_paths(
@@ -705,26 +712,21 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let challenger = ensure_signed(origin)?;
 
-            ensure!(
-                <Paths<T>>::contains_key(&target),
-                Error::<T>::NoPathExists
-            );
+            ensure!(<Paths<T>>::contains_key(&target), Error::<T>::NoPathExists);
 
-            Self::evidence_of_missed(
-                &challenger,
-                &target,
-                &nodes,
-                Zero::zero(),
-            )?;
+            Self::evidence_of_missed(&challenger, &target, &nodes, Zero::zero())?;
             Ok(().into())
         }
 
-        /// 传入更短的有效路径，来证明针对 `target` 中的路径集中 `index` 位置的路径是无效的。
-        /// 
-        /// 路径两个端点已经确定，因此仅仅需要传入不包含端点的中间节点 : `mid_path`。
-        /// 
-        /// 因为“更短的路径”是确定性的，执行成功后 `pathfinder` 将失败，而当前挑战者将作为
-        /// 新的 `pathfinder` 接受其他挑战者的挑战。
+        /// Pass in a shorter valid path to prove that the path to the `index` position
+        /// in the path set under `target` is invalid.
+        ///
+        /// `mid_paths` - Here the two endpoints are known, so only the middle `node` needs
+        /// to be uploaded, or `[]` if there is no user in between.
+        ///
+        /// Since `shorter paths' are deterministic, a successful execution of `pathfinder` 
+        /// will result in failure and the current challenger will be challenged by other 
+        /// challengers as a new `pathfinder`.
         #[pallet::weight(T::WeightInfo::evidence_of_shorter())]
         #[transactional]
         pub fn evidence_of_shorter(
@@ -752,13 +754,16 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 传入全部路径来证明 `target` 的路径集中`index`下的路径总量过小。
-        /// 
-        /// 路径两个端点已经确定，因此仅仅需要传入不包含端点的中间节点 : `mid_path`。如果路径总数
-        /// 超过 `MAX_SHORTEST_PATH` ,那么只需要上传 `MAX_SHORTEST_PATH` + 1 条路径以证明原路径
-        /// 是无效的。
-        /// 
-        /// NOTE: 路径的长度必须和原有长度一致，如果你有更短的路径，应该调用 `evidence_of_shorter`。
+        /// Pass in all paths to prove that the total number of paths under `index` in path set 
+        /// of `target` is too small.
+        ///
+        /// `mid_paths` - Here the two endpoints are known, so only the middle `node` needs
+        /// to be uploaded, or `[]` if there is no user in between.If the total number of paths 
+        /// exceeds `MAX_SHORTEST_PATH`, then only `MAX_SHORTEST_PATH` + 1 path needs to be 
+        /// uploaded to prove that the original path is invalid.
+        ///
+        /// NOTE: The length of the path must be the same as the original length, if you have a 
+        /// shorter path you should call `evidence_of_shorter`.
         #[pallet::weight(T::WeightInfo::number_too_low(mid_paths.len().max(2) as u32))]
         #[transactional]
         pub fn number_too_low(
@@ -805,13 +810,15 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 上传更短的路径 `mid_path`, 证明 `missed_in_paths` 或 `missed_in_hashs` 出示的证据是错误的。
-        /// 
-        /// 如果 `mid_path` 包含 `target` ,则表示 `pathfinder` 是错误的，调用者将作为新的挑战者，使用 `score`
-        /// 作为新的中心度得分接受挑战。
-        /// 
-        /// 如果`mid_path` 不包含 `target`，则无法证明 `pathfinder` 是错误的，调用者将作为 `pathfinder` 的共同
-        /// 受益人平分池中的资金。
+        /// Upload a shorter path `mid_path`, proving that the evidence presented by `missed_in_paths` 
+        /// or `missed_in_hashs` is wrong.
+        ///
+        /// If `mid_path` contains `target` , it means that `pathfinder` is wrong and the caller will 
+        /// be challenged as the new challenger using `score` as the new centrality score to be challenged.
+        ///
+        /// If `mid_path` does not contain `target`, then `pathfinder` cannot be proven wrong and the 
+        /// caller will act as a common `pathfinder` for beneficiary of `pathfinder` to share the pool 
+        /// equally.
         #[pallet::weight(T::WeightInfo::invalid_evidence())]
         #[transactional]
         pub fn invalid_evidence(
@@ -846,7 +853,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 领取挑战收益。
+        /// Receive the proceeds of the challenge.
         #[pallet::weight(T::WeightInfo::harvest_challenge())]
         #[transactional]
         pub fn harvest_challenge(
@@ -861,15 +868,16 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 领取种子收益。
-        /// 
-        /// 以下情况将失败：
-        /// - 挑战尚未全部领取完毕，或
-        /// - 种子尚未全部超过确认期。
-        /// 
-        /// 每一轮中首次领取将首先确定全部种子，例如种子候选人为 100 个，但种子最大数量
-        /// 为 90 个，则会取得分最高的 90 个。如果第 91 个和第 90 个得分相同，则首先领取
-        /// 的会被确认。
+        /// Receive seed proceeds.
+        ///
+        /// Is a no-op if:
+        /// - The challenge has not yet been fully collected, or
+        /// - The seeds have not all passed the confirmation period.
+        ///
+        /// The first collection in each round will determine all the seeds first, 
+        /// e.g. if there are 100 seed candidates but the maximum number of seeds 
+        /// is 90, the 90 with the highest score will be taken. If the 91st and 
+        /// 90th scores are the same, the first to be claimed will be confirmed.
         #[pallet::weight(T::WeightInfo::harvest_seed())]
         #[transactional]
         pub fn harvest_seed(

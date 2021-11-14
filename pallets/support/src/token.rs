@@ -1,44 +1,47 @@
 use sp_runtime::DispatchResult;
 
 pub trait MultiBaseToken<AccountId, Balance> {
-    /// 获取当前 `bonus` 金额。
+    /// Get the current `bonus` amount.
     fn get_bonus_amount() -> Balance;
 
     /// `who` staking `amount`。
     fn staking(who: &AccountId, amount: &Balance) -> DispatchResult;
 
-    /// 释放 `amount` 的货币到 `who` 的账户。
+    /// Release the currency of `amount` to the account of `who`.
     fn release(who: &AccountId, amount: &Balance) -> DispatchResult;
 
-    /// 返回 `who` 的当前 `free_balance`。
+    /// Returns the current `free_balance` of `who`.
     fn free_balance(who: &AccountId) -> Balance;
 
-    /// 返回 `who` 的当前 `social_balance`。
+    /// Returns the current `social_balance` of `who`.
     fn social_balance(who: &AccountId) -> Balance;
 
-    /// 按比例将 `who` 的社交货币分割，并返回手续费金额。
+    /// Split `who`s social currency proportionally and return the fee amount.
     fn share(who: &AccountId, target: &[AccountId]) -> Balance;
 
-    /// `who` 向池中注入 `amount` 金额的 `bonus`，优先扣除 `who` 的 `pending`。
+    /// `who` injects `bonus` in the amount of `amount` into the pool, prioritising 
+    /// the deduction of `pending` from `who`.
     fn increase_bonus(who: &AccountId, amount: &Balance) -> DispatchResult;
 
-    /// 直接减少 `amount` 金额的 `bonus`。
+    /// Direct reduction of `bonus` by the amount of `amount`.
     ///
-    /// 这是一个低级别操作，调用者应当自行维护金额平衡。
+    /// This is a low level operation and the caller should maintain the balance 
+    /// of amounts themselves.
     fn cut_bonus(amount: &Balance) -> DispatchResult;
 
-    /// 返回 `who` 的 `actual_balance`, 包括 `pending`,`social`和`free`。
+    /// Returns the `actual_balance` of `who`, including `pending`, `social` and `free`.
     fn actual_balance(who: &AccountId) -> Balance;
 
-    /// 返回 `who` 的 `pending_balance`。
+    /// Returns the `pending_balance` of `who`.
     fn pending_balance(who: &AccountId) -> Balance;
 
-    /// `from` 向 `to` 的社交账户中转入 `amount` 金额的货币。
+    /// `from` transfers currency in the amount of `amount` to the social account of `to`.
     fn transfer_social(from: &AccountId, to: &AccountId, amount: Balance) -> DispatchResult;
 
-    /// 优先使用 `from` 的 `pending` 向 `SocialPool` 账户转账 `amount` 金额的货币。
+    /// Preference is given to currencies that use `pending` from `from` to transfer `amount` 
+    /// amounts to `SocialPool` accounts.
     fn pay_with_pending(from: &AccountId, amount: Balance) -> DispatchResult;
 
-    /// 将 `who` 的 `pending` 取出。
+    /// Take the `pending` out of `who`.
     fn claim(who: &AccountId) -> DispatchResult;
 }

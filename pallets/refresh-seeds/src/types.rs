@@ -2,40 +2,40 @@ use crate::*;
 
 pub const APP_ID: AppId = *b"seed    ";
 
-/// 可容纳 (16 * RANGE) ^ DEEP * n 的路径数据
+/// Can hold (16 * RANGE) ^ DEEP * n of path data
 pub const DEEP: u8 = 4;
 
-/// 每个深度的步数，总量为 16 * RANGE 。
+/// Number of steps per depth, for a total of 16 * RANGE.
 pub const RANGE: usize = 2;
 
 /// Number of valid shortest paths.
 pub const MAX_SHORTEST_PATH: u32 = 100;
 
-/// 编译期计算的最大哈希上传数量。
+/// The maximum number of hash uploads.
 pub const MAX_HASH_COUNT: u32 = 16u32.pow(RANGE as u32);
 
-/// 种子候选人。
+/// Seeded candidates.
 #[derive(Encode, Decode, Clone, Default, Ord, PartialOrd, PartialEq, Eq, RuntimeDebug)]
 pub struct Candidate<AccountId,BlockNumber> {
-    /// 中心度得分
+    /// Centrality score
     pub score: u64,
 
-    /// 提交该候选人的 `pathfinder` 。
+    /// Submit the candidate's `pathfinder`.
     pub pathfinder: AccountId,
 
-    /// 是否有挑战 。
+    /// Whether challenged.
     pub has_challenge: bool,
 
-    /// 在哪一个区块添加。
+    /// In which block to add.
     pub add_at: BlockNumber,
 }
 
-/// 某个深度下的完整序号
+/// The full serial number at a given depth
 #[derive(Encode, Decode, Clone, Default, Ord, PartialOrd, PartialEq, Eq, RuntimeDebug)]
 pub struct FullOrder(pub Vec<u8>);
 
 impl FullOrder {
-    /// 转换为 `u64` 格式，便于在挑战模块中保存。
+    /// Convert to `u64` format for easy saving in the challenge module.
     pub fn try_to_u64(&mut self) -> Option<u64> {
         let len = self.0.len();
         if len > 8 {
@@ -47,7 +47,7 @@ impl FullOrder {
         Some(u64::from_le_bytes(arr))
     }
 
-    /// 将 `u64` 的数据转换为 `FullOrder`。
+    /// Converts data from `u64` to `FullOrder`.
     pub fn from_u64(from: &u64, deep: usize) -> Self {
         let mut full_order = FullOrder::default();
         if deep <= 1 {
@@ -62,24 +62,25 @@ impl FullOrder {
         full_order
     }
 
-    /// 连接当前 `FullOrder` 和传入的 `order` 。
+    /// Connects the current `FullOrder` with the incoming `order`.
     pub fn connect(&mut self, order: &[u8]) {
         self.0.extend_from_slice(&order[..RANGE]);
     }
 
-    /// 连接当前 `FullOrder` 和传入的 `order` ，并转换为 `u64` 。
+    /// Connects the current `FullOrder` with the incoming `order` 
+    /// and converts it to `u64`.
     pub fn connect_to_u64(&mut self, order: &[u8]) -> Option<u64> {
         self.connect(order);
         self.try_to_u64()
     }
 }
 
-/// 用于用户提交的简化版 `ResultHash`。
+/// A simplified version of `ResultHash` for user submission.
 #[derive(Encode, Decode, Clone, Ord, PartialOrd, PartialEq, Eq, RuntimeDebug)]
 pub struct PostResultHash(pub [u8; RANGE], pub u64);
 
 impl PostResultHash {
-    /// 转换为 `ResultHash` 。
+    /// Convert to `ResultHash`.
     pub fn to_result_hash(&self) -> ResultHash {
         ResultHash {
             order: self.0,
@@ -89,7 +90,7 @@ impl PostResultHash {
 }
 
 
-/// 保存序号和得分。
+/// Save the serial number and score.
 #[derive(Encode, Decode, Clone, Default, RuntimeDebug)]
 pub struct ResultHash {
     pub order: [u8; RANGE],
@@ -118,7 +119,8 @@ impl PartialEq for ResultHash {
     }
 }
 
-/// 路径数据，包括路径的节点集合，和经过路径两端点的最短路径条数。
+/// Path data, including the set of nodes of the path, and the number of shortest 
+/// paths that pass through the two endpoints of the path.
 #[derive(Encode, Decode, Ord, PartialOrd, Eq, Clone, Default, PartialEq, RuntimeDebug)]
 pub struct Path<AccountId> {
     pub nodes: Vec<AccountId>,

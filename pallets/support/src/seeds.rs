@@ -1,14 +1,14 @@
 pub trait SeedsBase<AccountId> {
 
-	/// 返回 `seed` 是否为种子用户。
+	/// Returns whether `seed` is the seed user.
 	fn is_seed(seed: &AccountId) -> bool;
 
-	/// 返回种子用户数量。
+	/// Returns the number of seed users.
 	fn get_seed_count() -> u32;
 
-	/// 清空所有种子。
+	/// Empty all seeds.
 	fn remove_all();
 
-	/// 增加种子。
+	/// Add a seed.
 	fn add_seed(new_seed: &AccountId);
 }

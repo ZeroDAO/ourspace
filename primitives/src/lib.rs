@@ -47,7 +47,7 @@ pub mod per_social_currency {
     // pub const PRE_REWARD: Perbill = Perbill::from_percent(10);
 }
 
-/// 系统处于算法的状态
+/// The system is in the state of the algorithm.
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum TIRStep {
@@ -69,17 +69,18 @@ pub mod fee {
     where
         Self: Sized,
     {
-        /// 最后活跃时间为 `last` 且当前时间为 `now` 时，是否允许 `sweeper` 参与。
+        /// Whether to allow `sweeper` participation when the last active time 
+        /// is `last` and the current time is `now`.
         fn is_allowed_sweeper<B: AtLeast32BitUnsigned>(last: B, now: B) -> bool;
 
-        /// 返回经过检查的 `fee`。
+        /// Returns a checked `fee` and the remaining amount.
         fn checked_with_fee<B: AtLeast32BitUnsigned>(
             &self,
             last: B,
             now: B,
         ) -> Option<(Self, Self)>;
 
-        /// 返回未经检查的 `fee`。
+        ///  Returns the unchecked `fee` and the remaining amount.
         fn with_fee(&self) -> (Self, Self);
     }
 
@@ -108,7 +109,7 @@ pub mod fee {
     }
 }
 
-/// 返回近似到整数的自然对数，最大为 8 。
+/// Returns the natural logarithm approximated to an integer, up to a maximum of 8.
 pub fn appro_ln(value: u32) -> u32 {
     if value < 3 {
         1
@@ -129,7 +130,7 @@ pub fn appro_ln(value: u32) -> u32 {
     }
 }
 
-/// 挑战游戏的状态
+/// The state of the challenge game.
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum ChallengeStatus {
@@ -146,48 +147,48 @@ impl Default for ChallengeStatus {
     }
 }
 
-/// 用于保存用户抵押和收益的资金池。
+/// A pool of funds secured by staking and earnings.
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
 pub struct Pool {
     pub staking: Balance,
     pub earnings: Balance,
 }
 
-/// 断点续传的进度信息。
+/// Information on the progress of the breakpoint transfer.
 #[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, Default, RuntimeDebug)]
 pub struct Progress {
     pub total: u32,
     pub done: u32,
 }
 
-/// 挑战游戏的元数据。
+/// Challenge game metadata.
 #[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug)]
 pub struct Metadata<AccountId, BlockNumber> {
-    /// 当前资金池。
+    /// Current pool of funds.
     pub pool: Pool,
 
-    /// `pathfinder` 和挑战者是否为共同受益人。
+    /// Whether `pathfinder` and the challenger are co-beneficiaries.
     pub joint_benefits: bool,
 
-    /// 断点续传的进度信息。
+    /// Information on the progress of the breakpoint transfer.
     pub progress: Progress,
 
-    /// 上一次更新时间。
+    /// Last updated.
     pub last_update: BlockNumber,
 
-    /// 用于存储有用信息的备注数据。
+    /// Remarks data for storing useful information.
     pub remark: u32,
 
-    /// 当前得分。
+    /// Current score.
     pub score: u64,
 
-    /// `pathfinder` 的 `AccountId`。
+    /// `AccountId` of `pathfinder`.
     pub pathfinder: AccountId,
 
-    /// 当前处于的挑战状态。
+    /// The current state of challenge.
     pub status: ChallengeStatus,
 
-    /// 挑战者的 `AccountId`。
+    /// The `AccountId` of challenger.
     pub challenger: AccountId,
 }
 
@@ -196,50 +197,50 @@ where
     AccountId: Ord + Clone,
     BlockNumber: Copy + AtLeast32Bit,
 {
-    /// 资金池的总额。
+    /// The total amount of the pool of funds.
     pub fn total_amount(&self) -> Option<Balance> {
         self.pool.staking.checked_add(self.pool.earnings)
     }
 
-    /// 是否全部上传结束。
+    /// Are all uploads complete.
     pub fn is_all_done(&self) -> bool {
         self.progress.total == self.progress.done
     }
 
-    /// 是否未上传结束。
+    /// Whether the upload is not finished.
     pub fn check_progress(&self) -> bool {
         self.progress.total >= self.progress.done
     }
 
-    /// `who` 是否为挑战者。
+    /// `who` is the challenger or not.
     pub fn is_challenger(&self, who: &AccountId) -> bool {
         self.challenger == *who
     }
 
-    /// `who` 是否为 `pathfinder` 。
+    /// `who` is the pathfinder or not.
     pub fn is_pathfinder(&self, who: &AccountId) -> bool {
         self.pathfinder == *who
     }
 
-    /// 重置进度。
+    /// Reset progress.
     pub fn new_progress(&mut self, total: u32) -> &mut Self {
         self.progress.total = total;
         self.progress.done = Zero::zero();
         self
     }
 
-    /// 将进度向前推进 `count` 条。
+    /// Advances progress by `count` bars.
     pub fn next(&mut self, count: u32) -> &mut Self {
         self.progress.done = self.progress.done.saturating_add(count);
         self
     }
 
-    /// 设置挑战状态为 `status`。
+    /// Set the challenge status to `status`.
     pub fn set_status(&mut self, status: &ChallengeStatus) {
         self.status = *status;
     }
 
-    /// 再次开始。
+    /// Start again.
     pub fn restart(&mut self, full_probative: bool) {
         self.status = ChallengeStatus::Free;
         self.joint_benefits = false;

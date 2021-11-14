@@ -3,13 +3,13 @@ use sha1::{Digest, Sha1};
 use sp_std::vec;
 
 impl<T: Config> Pallet<T> {
-    /// 返回当前区块
+    /// Return to current block
     pub fn now() -> T::BlockNumber {
         system::Module::<T>::block_number()
     }
 
     // Make sure path.total < 100, or panic
-    /// 计算路径 hash 。
+    /// Calculate the path hash.
     pub fn hash_paths(paths: &[Path<T::AccountId>]) -> Vec<u8> {
         // [AccountId,AccountId,total;...AccountId,AccountId,total;]
         paths
@@ -38,7 +38,7 @@ impl<T: Config> Pallet<T> {
             .collect::<Vec<u8>>()
     }
 
-    /// 对 `&[u8]` 类型的数据 `sha1`。
+    /// For data of type `&[u8]` `sha1`.
     // Collisions have no impact on safety.
     // sha1 is safe enough.
     pub fn sha1_hasher(data: &[u8]) -> Vec<u8> {
@@ -56,7 +56,7 @@ impl<T: Config> Pallet<T> {
             .collect::<Vec<u8>>()
     }
 
-    /// 生成 `deep` 深度下开始用户为`start`,结束用户为`stop` 下的 `full_order`
+    /// Generate `full_order` with `start` as the start user and `stop` as the end user at depth `deep.
     pub fn make_full_order(
         start: &T::AccountId,
         stop: &T::AccountId,
@@ -69,7 +69,7 @@ impl<T: Config> Pallet<T> {
         points_hash[index..].to_vec()
     }
 
-    /// 插入一个新的 hash 结果。
+    /// Insert a new hash result.
     pub fn insert_hash(target: &T::AccountId, hash_set: OrderedSet<ResultHash>) -> DispatchResult {
         <ResultHashsSets<T>>::try_mutate(target, |c| {
             ensure!(
@@ -81,7 +81,7 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    /// 在 `score_list` 中插入 `score` 并保存到 `ScoreList` 下。
+    /// Insert `score` into `score_list` and save it under `ScoreList`.
     pub fn score_list_insert(score_list: &mut Vec<u64>, score: &u64) {
         let index = score_list
             .binary_search(score)

@@ -2,28 +2,29 @@ use sp_runtime::{DispatchError, DispatchResult};
 use sp_std::vec::Vec;
 
 pub trait TrustBase<AccountId> {
-    /// 清除 `TrustTempList` 中的所有数据。
+    /// Clear all data from the `TrustTempList`.
     fn remove_all_tmp();
 
-    /// 获取 `who` 信任了多少用户。
+    /// Get how many users `who` trusts.
     fn get_trust_count(who: &AccountId) -> usize;
 
-    /// 获取 `who` 在更新开始前信任了多少用户。
+    /// Gets the number of users trusted by `who` before the refresh started.
     fn get_trust_count_old(who: &AccountId) -> usize;
 
-    /// 返回 `who` 是否信任 `target`。
+    /// Returns whether `who` trusts `target`.
     fn is_trust(who: &AccountId, target: &AccountId) -> bool;
 
-    /// 返回 `who` 在更新开始前是否信任 `target`。
+    /// Returns whether `who` trusts `target` before the refresh started.
     fn is_trust_old(who: &AccountId, target: &AccountId) -> bool;
 
-    /// 返回 `who` 在更新开始前信任的用户。
+    /// Returns the user trusted by `who` before the refresh started.
     fn get_trust_old(who: &AccountId) -> Vec<AccountId>;
 
-    /// 以元组返回 `users` 路径的总长度，这传递到最终用户的声誉
-    /// 值，首个用户并非种子用户，或者路径错误将返回 `Error`。
+    /// Returns the total length of the `users` path as a tuple, which is passed 
+    /// to the end user's reputation value, the first user is not the seed user, 
+    /// or an error in the path will return `Error`.
     fn computed_path(users: &[AccountId]) -> Result<(u32, u32), DispatchError>;
 
-    /// 路径正确时将返回 `Ok`。
+    /// `Ok` will be returned if the path is correct.
     fn valid_nodes(nodes: &[AccountId]) -> DispatchResult;
 }

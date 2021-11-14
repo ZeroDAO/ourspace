@@ -1,16 +1,17 @@
 //! # ZdChallenges Module
 //! 
-//! ## 介绍
+//! ## Overview
 //!
-//! 挑战模块抽象了挑战的一般流程管理、结果判定、资金抵押、奖励发放的逻辑，使得实际挑战仅需要关注其特有的数据
-//! 操作。挑战流程包括：发起挑战、发起质询、回应质询、出示证据、提起仲裁、领取收益，挑战流程并非一成不变，它
-//! 可以灵活地适应不同需求。
+//! The challenge module abstracts the logic of the general process of managing challenges, determining 
+//! results, pledging funds and awarding rewards, leaving the upper level modules to focus only on their 
+//! specific data operations. The challenge process includes: initiating a challenge, initiating a examine, 
+//! responding to a examine, presenting evidence, initiating arbitration, and receiving a reward.
 //! 
-//! ### 实现
+//! ### Implementations
 //! 
-//! 挑战模块实现了以下 trait :
+//! The ZdChallenges pallet provides implementations for the following traits:
 //! 
-//!  - `ChallengeBase` - 抽象的通用挑战流程管理。
+//!  - `ChallengeBase` - Abstract General Challenge Process Management。
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -29,7 +30,7 @@ mod tests;
 
 pub use pallet::*;
 
-/// 数据的最大上传数量，这是一个为安全考虑的设置。
+/// Maximum number of data uploads, this is a setting for security reasons.
 const MAX_UPDATE_COUNT: u32 = 257;
 
 #[pallet]
@@ -45,12 +46,13 @@ pub mod pallet {
         type ZdToken: MultiBaseToken<Self::AccountId, Balance>;
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
 
-        /// 合法操作的最大时间，例如留给挑战者的挑战时间窗口，留给pathfinder的应答时间等等，
-        /// 它们都使用这个常量。
+        /// The maximum time for legitimate operations, such as the challenge time window 
+        /// left for the challenger, the reply time left for the pathfinder, etc., they 
+        /// all use this constant.
         #[pallet::constant]
         type ChallengeTimeout: Get<Self::BlockNumber>;
 
-        /// 进入挑战游戏的门票价格。
+        /// The price of admission to the challenge game.
         #[pallet::constant]
         type ChallengeStakingAmount: Get<Balance>;
     }

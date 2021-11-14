@@ -1,20 +1,23 @@
 //! # ZdReputation Module
 //! 
-//! ## 介绍
+//! ## Overview
 //!
-//! 声誉模块是声誉系统的核心模块，提供整个系统的状态管理。
+//! The Reputation module is the core module of the reputation system and 
+//! provides status management of the entire system.
 //! 
-//! ### 实现
+//! ### Implementations
 //! 
-//! 声誉模块实现了以下 trait :
+//! The Reputation module implements the following trait :
 //! 
-//!  - `Reputation` - 提供获取和修改用户声誉值、获取和记录系统状态的功能。
+//!  - `Reputation` -  Provides the ability to obtain and modify user 
+//! reputation values and to obtain and record system status.
 //!
-//! ## 接口
+//! ## Interface
 //!
-//! ### 可调用函数
+//! ### Dispatchable Functions
 //! 
-//! - `set_period` - 将系统更新间隔设置为给定的区块数，需要管理员权限。
+//! - `set_period` - Setting the system update interval to a given number 
+//! of blocks requires administrator privileges.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -43,33 +46,35 @@ pub const MAX_SEED: usize = 500;
 /// Seed user initializes reputation values
 pub const INIT_SEED_RANK: usize = 1000;
 
-/// 整个声誉系统的状态。
+/// The state of the entire reputation system.
 #[derive(Encode, Decode, Clone, PartialEq, Default, Eq, RuntimeDebug)]
 pub struct OperationStatus<BlockNumber> {
-    /// 每更新一轮，`nonce` 加 1。
+    /// For each update round, add 1 to `nonce`.
     pub nonce: u32,
 
-    /// 整个系统的关系动作最新活跃区块时，它用来方便其他模块控制与时间相关
-    /// 的状态。
+    /// It is used to facilitate other modules to control time-related when 
+    /// the latest active block of relational actions for the whole system 
+    /// of the state.
     pub last: BlockNumber,
 
-    /// 下一轮至少在这个区块后开始。
+    /// The next round starts at least after this block.
     pub next: BlockNumber,
 
-    /// 两轮开始更新时间的最小间隔。
+    /// Minimum interval between rounds.
     pub period: BlockNumber,
 
-    /// 声誉系统是否在更新，以及当前处于哪一个步骤。
+    /// Whether the Reputation System is being updated and which step it 
+    /// is currently at.
     pub step: TIRStep,
 }
 
-/// 用户声誉值。
+/// User reputation value.
 #[derive(Encode, Decode, Clone, PartialEq, Default, Eq, RuntimeDebug)]
 pub struct ReputationScore {
-    /// 声誉值
+    /// Reputation value.
     pub score: u32,
 
-    /// 该声誉值是在 `nonce` 轮更新的。
+    /// The reputation value is updated in the `nonce` round.
     pub nonce: u32,
 }
 
@@ -93,13 +98,13 @@ pub mod pallet {
     #[pallet::getter(fn system_info)]
     pub type SystemInfo<T: Config> = StorageValue<_, OperationStatus<T::BlockNumber>, ValueQuery>;
 
-    /// 存储用户前两次更新的声誉值。
+    /// Stores the last two updates of the reputation value of user `AccountId`.
     #[pallet::storage]
     #[pallet::getter(fn get_ir)]
     pub type ReputationScores<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, [ReputationScore; 2], ValueQuery>;
 
-    /// 初始化一个 `period` 为给定的数值。
+    /// Initializes a `period` to the given value.
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub period: T::BlockNumber,
@@ -149,9 +154,9 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-    /// 将系统更新间隔设置为给定的区块数。
+    /// Set the system update interval to the given number of blocks.
     /// 
-    /// 需要管理员权限。
+    /// The dispatch origin for this call must be `Signed` by the root.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]

@@ -2,38 +2,42 @@ use sp_runtime::{DispatchError, DispatchResult};
 use zd_primitives::{ChallengeStatus, Metadata};
 
 pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
-    /// 直接修改挑战游戏的数据。
+    /// Directly modify the data of the challenge game.
     fn set_metadata(
         app_id: &AppId,
         target: &AccountId,
         metadata: &Metadata<AccountId, BlockNumber>,
     );
 
-    /// `app_id` 下的挑战是否全部结算完毕。
+    /// Whether the challenges under `app_id` are all settled.
     fn is_all_harvest(app_id: &AppId) -> bool;
 
-    /// `app_id` 下的挑战是否全部超过挑战时间。
+    /// Whether all the challenges under `app_id` have exceeded the challenge time.
     fn is_all_timeout(app_id: &AppId, now: &BlockNumber) -> bool;
 
-    /// 设置 `app_id` 下针对 `target`挑战的状态。
+    /// Set the status of the challenge against `target` under `app_id`.
     fn set_status(app_id: &AppId, target: &AccountId, status: &ChallengeStatus);
 
-    /// 发起一个 `app_id` 下针对 `target` 的挑战， `metadata` 用来设置初始的挑战状态。
+    /// Launch a challenge against `target` under `app_id`, `metadata` is used to 
+    /// set the initial challenge status.
     fn launch(
         app_id: &AppId,
         target: &AccountId,
         metadata: &Metadata<AccountId, BlockNumber>,
     ) -> DispatchResult;
 
-    /// 继续上传了 `app_id` 下针对 `target` 的挑战中 `count` 条数据，`who` 用来验证原始发起者。
+    /// Continued uploading `count` data from the challenge against `target` under 
+    /// `app_id`, `who` is used to verify the original initiator.
     ///
-    /// `up` 向调用者传递三个参数：
+    /// `up` passes three arguments to the caller.
     ///
-    /// - `score` 该挑战当前记录的分数。
-    /// - `remark` 该挑战当前的备注信息，方便调用者记录挑战信息。
-    /// - `is_all_done` 数据是否全部上传完成。
+    /// - `score` - The score currently recorded for this challenge.
+    /// - `remark` - The current note information for this challenge makes it easy 
+    /// for the caller to record information about the challenge.
+    /// - `is_all_done` Whether the data has all been uploaded.
     ///
-    /// 当 `up` 返回 `Error` 不执行挑战，否则更新返回的 `score` 和 `remark` 。
+    /// Execute only when `up` returns `Ok()` and updates the returned `score` and 
+    /// `remark`.
     fn next(
         app_id: &AppId,
         who: &AccountId,
@@ -42,19 +46,20 @@ pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
         up: impl FnMut(u64, u32, bool) -> Result<(u64, u32), DispatchError>,
     ) -> DispatchResult;
 
-    /// 向 `index` 位置的数据发起挑战
+    /// Challenge the data under `index`
     fn examine(app_id: &AppId, who: &AccountId, target: &AccountId, index: u32) -> DispatchResult;
 
-    /// 回复 `examine` 质询的数据，需要上传共 `total` 条数据，
-    /// 本次上传 `count` 条。
+    /// In response to the `examine` query, you need to upload a total of 
+    /// `total` data. This upload `count` entries.
     ///
-    /// `up` 向调用者传递三个参数：
+    /// `up` passes three arguments to the caller.
     ///
-    /// - `is_all_done` 数据是否全部上传完成。
-    /// - `score` 该挑战当前记录的分数。
-    /// - `remark` 该挑战当前的备注信息，方便调用者记录挑战信息。
+    /// - `is_all_done` - Whether the data has all been uploaded.
+    /// - `score` - The score currently recorded for this challenge.
+    /// - `remark` - The current note information for this challenge makes 
+    /// it easy for the caller to record information about the challenge.
     ///
-    /// 仅当 `up` 返回 `Ok(score)` 时更新挑战，并更新 `score`。
+    /// Update the challenge only when `up` returns `Ok()`, and update `score`.
     fn reply(
         app_id: &AppId,
         who: &AccountId,
@@ -64,17 +69,20 @@ pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
         up: impl Fn(bool, u32, u64) -> Result<u64, DispatchError>,
     ) -> DispatchResult;
 
-    /// 提交证据
+    /// Submitting evidence
     ///
-    /// `up` 向调用者传递两个参数：
+    /// `up` passes two arguments to the caller.
     ///
-    /// - `remark` 该挑战当前的备注信息，方便调用者记录挑战信息。
-    /// - `score` 该挑战当前记录的分数。
+    /// - `remark` - The current note information for this challenge makes 
+    /// it easy for the caller to record information about the challenge.
+    /// - `score` - Challenge the current recorded score.
     ///
-    /// 仅当 `up` 返回 `Ok(needs_arbitration)` 时更新挑战，并根据其值进入相应状态：
+    /// Update the challenge only when `up` returns `Ok(needs_arbitration)` 
+    /// and enter the corresponding state according to its value.
     ///
-    /// - `true` 挑战成功，将通过 `restart` 进行初始化。
-    /// - `false` 证据力不足，挑战将进入仲裁状态。
+    /// - `true` - A successful challenge will be initialised with `restart`.
+    /// - `false` - The evidence is not strong enough and the challenge will 
+    /// go to arbitration.
     fn evidence(
         app_id: &AppId,
         who: &AccountId,
@@ -82,19 +90,24 @@ pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
         up: impl Fn(u32, u64) -> Result<bool, DispatchError>,
     ) -> Result<Option<u64>, DispatchError>;
 
-    /// 对提交的数据进行仲裁，这一般用于无法在链上直接计算但可验证的数据，例如
-    /// 最短路径。
+    /// Arbitration of submitted data, this is generally used for data that 
+    /// cannot be computed directly on the chain but can be verified, for 
+    /// example **shortest path**.
     ///
-    /// `up` 向调用者传递两个参数：
+    /// `up` passes two arguments to the caller.
     ///
-    /// - `score` 该挑战当前记录的分数。
-    /// - `remark` 该挑战当前的备注信息，方便调用者记录挑战信息。
+    /// - `score` - The score currently recorded for this challenge.
+    /// - `remark` - The current note information for this challenge makes 
+    /// it easy for the caller to record information about the challenge.
     ///
-    /// 仅当 `up` 返回 `Ok(joint_benefits, restart, score)` 时更新挑战，并根据其值进入相应状态：
+    /// Update the challenge only when `up` returns `Ok(joint_benefits, restart, score)` 
+    /// and enter the corresponding state according to its value.
     ///
-    /// - `joint_benefits` 为 `true` 时，`pathfinder` 和 `challenger` 将作为共同受益人。
-    /// - `restart` 是否需要初始化挑战，此时原 `challenger` 将接受挑战。
-    /// - `score` 记录到挑战系统的分数。
+    /// - `joint_benefits` - If `true`, `pathfinder` and `challenger` will 
+    /// act as co-beneficiaries.
+    /// - `restart` - Whether the challenge needs to be initialized, when the 
+    /// original `challenger` will accept the challenge.
+    /// - `score` - Record the score to the challenge system.
     fn arbitral(
         app_id: &AppId,
         who: &AccountId,
@@ -102,29 +115,33 @@ pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
         up: impl Fn(u64, u32) -> Result<(bool, bool, u64), DispatchError>,
     ) -> DispatchResult;
 
-    /// 收取挑战收益。按照 `ChallengeStatus`, `is_all_done`, `joint_benefits` 分配：
+    /// Receive the challenge benefits. Assigned according to `ChallengeStatus`, 
+    /// `is_all_done`, `joint_benefits`.
     ///
-    /// |           |    Free    |    Reply   |   Examine  |  Evidence  |
-    /// |-----------|------------|------------|------------|------------|
-    /// |   完成    | pathfinder | pathfinder | challenger | challenger |
-    /// |-----------|------------|------------|------------|------------|
-    /// |   中断    | pathfinder | challenger | challenger | pathfinder |
+    /// |            |    Free    |    Reply   |   Examine  |  Evidence  |
+    /// |------------|------------|------------|------------|------------|
+    /// |    Done    | pathfinder | pathfinder | challenger | challenger |
+    /// |------------|------------|------------|------------|------------|
+    /// | Disruption | pathfinder | challenger | challenger | pathfinder |
     ///
-    /// 在 `Arbitral` 状态下，结算则按照 `joint_benefits` ，如果为 `true` ,则 `pathfinder`
-    /// 和 `challenger` 平分奖励，否则全部归 `pathfinder` 所有。
+    /// In the `Arbitral` state, settlement is according to `joint_benefits`, if 
+    /// `true`, then `pathfinder` and `challenger`, otherwise all rewards go to 
+    /// `pathfinder`.
     fn harvest(
         who: &AccountId,
         app_id: &AppId,
         target: &AccountId,
     ) -> Result<Option<u64>, DispatchError>;
 
-    /// 结算当前挑战。这是一个低级别的操作。
+    /// Settle the current challenge. This is a low level operation.
     ///
-	/// 当 `restart` 为 `true` 时，挑战将被设为 `Free` 状态，同时当 `joint_benefits` 为
-	///  - `true` 将平分奖金池，并发送给 `challenger`。
-	///  - `false` 直接修改挑战数据。
+	/// When `restart` is `true`, the challenge will be set to the `Free` state, 
+    /// and when `joint_benefits` is
+	///  - `true` - The prize pool will be divided equally and sent to `challenger`.
+	///  - `false` - Modify challenge data directly.
 	///
-	/// 当 `restart` 为 `false`，修改挑战系统中 `joint_benefits` 和 `score`。
+	/// When `restart` is `false`, modify `joint_benefits` and `score` in the 
+    /// challenge system.
     fn settle(
         app_id: &AppId,
         target: &AccountId,

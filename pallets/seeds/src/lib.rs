@@ -1,21 +1,21 @@
 //! # ZdSeeds Module
 //!
-//! ## 介绍
+//! ## Overview
 //!
-//! 存储种子数据并提供交互接口的模块。
+//! A module that stores seed data and provides an interactive interface.
 //!
-//! ### 实现
+//! ### Implementations
 //!
-//! 挑战模块实现了以下 trait :
+//! This pallet provides implementations for the following traits.
 //!
-//!  - `SeedsBase` - 与种子数据交互的接口。
+//!  - `SeedsBase` - Interface for interaction with seed data.
 //!
-//! ## 接口
+//! ## Interface
 //!
-//! ### 可调用函数
+//! ### Dispatchable Functions
 //!
-//! - `new_seed` - 增加新的种子，需要管理员权限。
-//! - `remove_seed` - 删除种子，需要管理员权限。
+//! - `new_seed` - Add new seeds, root access required.
+//! - `remove_seed` - Remove seeds, root access required.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -78,9 +78,9 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// 增加种子，如果种子已存在则调用失败。
+        /// Add seed, or return `Err` if seeds already exist.
         ///
-        /// 调用需要管理员权限。
+        /// The dispatch origin for this call must be `Signed` by the transactor.
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn new_seed(origin: OriginFor<T>, seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
@@ -93,9 +93,9 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// 删除提供的种子，如果种子不存在则调用失败。
+        /// Remove seed, or return `Err` if seeds not exist.
         ///
-        /// 调用需要管理员权限。
+        /// The dispatch origin for this call must be `Signed` by the transactor.
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         pub fn remove_seed(origin: OriginFor<T>, seed: T::AccountId) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;

@@ -1,21 +1,22 @@
 //! # ZdTrust Module
 //!
-//! ## 介绍
+//! ## Overview
 //!
-//! 本模块管理用户的信任关系，计算路径长度和声誉值传递。
+//! This module manages the user's trust relationship, calculates path length 
+//! and reputation value transfer.
 //!
-//! ### 实现
+//! ### Implementations
 //!
-//! 声誉模块实现了以下 trait :
+//! This module implements the following trait :
 //!
-//! - `TrustBase` - 一些与信任关系交互的接口。
+//! - `TrustBase` - Some interfaces for interacting with trust relationships.
 //!
-//! ## 接口
+//! ## Interface
 //!
-//! ### 可调用函数
+//! ### Dispatchable Functions
 //!
-//! - `trust` - 调用者信任传入的用户，如果已经信任了该用户则返回错误。
-//! - `do_untrust` - 调用者取消对传入用户的信任，如果信任关系不存在则返回错误。
+//! - `trust` - The caller trusts the incoming user.
+//! - `do_untrust` - The caller untrusts the incoming user.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -46,15 +47,16 @@ pub use weights::WeightInfo;
 pub const INIT_SEED_RANK: u32 = 1000;
 pub const MIN_TRUST_COUNT: u32 = 5;
 
-/// 信任关系缓存。
+/// Trusted relationship cache.
 ///
-/// 为了在种子和声誉更新期间，始终保持一致性的信任关系集，我们缓存新增的信任关系。
+/// To maintain a consistent set of trust relationships throughout the seeding 
+/// and reputation updates, we cache the added trust relationships.
 #[derive(Encode, Decode, Clone, Eq, PartialEq, Default)]
 pub struct TrustTemp<AccountId> {
-    /// 在更新开始后信任的用户。
+    /// Users trusted after the start of the refresh.
     pub trust: OrderedSet<AccountId>,
 
-    /// 在更新开始后取消信任的用户。
+    /// Untrusted users after the refresh has started.
     pub untrust: OrderedSet<AccountId>,
 }
 
@@ -69,12 +71,13 @@ pub mod module {
         type Reputation: Reputation<Self::AccountId, Self::BlockNumber, TIRStep>;
         type SeedsBase: SeedsBase<Self::AccountId>;
 
-        /// 系统必须的相关参数配置。
+        /// Configuration of the relevant parameters necessary for the system.
         type DampingFactor: Get<Perbill>;
 
-        /// 一个用户最多可信任的用户数量。
+        /// The maximum number of users a user can trust.
         #[pallet::constant]
         type MaxTrustCount: Get<u32>;
+
         type WeightInfo: WeightInfo;
     }
 
@@ -82,13 +85,13 @@ pub mod module {
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
-    /// 存储用户信任的列表。
+    /// Store a list of user trusts.
     #[pallet::storage]
     #[pallet::getter(fn trust_list)]
     pub type TrustedList<T: Config> =
         StorageMap<_, Twox64Concat, T::AccountId, OrderedSet<T::AccountId>, ValueQuery>;
 
-    /// 更新期新增的信任缓存，在更新结束后清空。
+    /// The trust cache added during the refresh period is emptied at the end of the refresh.
     #[pallet::storage]
     #[pallet::getter(fn trust_temp_list)]
     pub type TrustTempList<T: Config> =
@@ -127,9 +130,9 @@ pub mod module {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// 调用者信任 `target`。
+        /// The caller trust `target`.
         ///
-        /// 需要调用者签名。如果已经信任过，则会返回错误。
+        /// If it has already been trusted, an `Err` is returned.
         #[pallet::weight(T::WeightInfo::trust())]
         #[transactional]
         pub fn trust(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {
@@ -139,9 +142,9 @@ pub mod module {
             Ok(().into())
         }
 
-        /// 调用者取消信任 `target`。
+        /// The caller untrust `target`.
         ///
-        /// 需要调用者签名。如果信任关系不存在，则会返回错误。
+        /// If the trust relationship does not exist, an `Err` will be returned.
         #[pallet::weight(T::WeightInfo::untrust())]
         #[transactional]
         pub fn untrust(origin: OriginFor<T>, target: T::AccountId) -> DispatchResultWithPostInfo {

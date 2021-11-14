@@ -2,23 +2,22 @@
 //!
 //! ## 介绍
 //!
-//! ZdToken 模块用来管理用户的社交货币、staking和系统奖励。所有的资金统一
-//! 保管在 `SocialPool` 中，而不是实时地发送给用户，这对于需要频繁交互的
-//! 社交货币和 staking 来说更加高效。但在某些情况下，需要调用者自行维护
-//! `SocialPool` 的出入平衡。
+//! The ZdToken module is used to manage social currency of users, staking and system rewards.
+//! All funds are held in a `SocialPool` rather than being sent to the user in real time, 
+//! which is more efficient for social currency and staking, which require frequent interaction. 
 //!
-//! ### 实现
+//! ### Implementations
 //!
-//! 声誉模块实现了以下 trait :
+//! The ZdToken module implements the following trait :
 //!
-//! - `MultiBaseToken` - 系统货币的应用管理。
+//! - `MultiBaseToken` - Application management of system currency.
 //!
-//! ## 接口
+//! ## Interface
 //!
-//! ### 可调用函数
+//! ### Dispatchable Functions
 //!
-//! - `transfer_social` - 向某个用户发送社交货币的接口。
-//! - `claim` - 用户将 `pending` 的资金提取到余额。
+//! - `transfer_social` - An interface for sending social currency to a particular user.
+//! - `claim` - The user withdraws the funds from `pending` to the balance.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -53,8 +52,10 @@ pub struct SocialAccount<Balance> {
     /// this, but it is the total pool what may in principle be transferred,
     /// reserved.
     ///
-    /// 在一些频繁交互的场景下，系统会将资金标记为 `pending` 状态，而非直接发送
-    /// 到用户余额。用户需要自行将 `pending` 的资金提取到余额。
+    /// In some frequent interaction scenarios, the system will mark the funds 
+    /// as `pending` instead of sending them directly to the user's balance. 
+    /// The user will need to withdraw the `pending` funds to the balance 
+    /// themselves.
     #[codec(compact)]
     pub pending: Balance,
     /// Balance of social tokens.
@@ -97,11 +98,11 @@ pub mod module {
             Balance = Balance,
         >;
 
-        /// 使用哪一种货币。
+        /// Which currency to use.
         #[pallet::constant]
         type BaceToken: Get<Self::CurrencyId>;
 
-        /// 资金池的地址。
+        /// Address of the pool.
         #[pallet::constant]
         type SocialPool: Get<Self::AccountId>;
 
@@ -166,7 +167,7 @@ pub mod module {
             Ok(().into())
         }
 
-        /// 将调用者 `pending` 状态的货币发送到可用余额。 
+        /// Extract the caller `pending` to the `free` balance.
         #[pallet::weight(T::WeightInfo::claim())]
         #[transactional]
         pub fn claim(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
