@@ -1,16 +1,30 @@
+// Copyright 2021 ZeroDAO
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! # ZdRefreshReputation Module
 //!
 //! ## Overview
 //!
-//! This module is used to refresh the reputation and ensure the correct reputation value by challenging 
+//! This module is used to refresh the reputation and ensure the correct reputation value by challenging
 //! the game. The process for refreshing reputation is as follows.
 //!
 //! 1 `start` - Bringing the system into a refreshable state.
 //! 2 `refresh` - `pathfinder` staking the corresponding amount and refreshes the user's reputation value.
 //! 3 `challenge` - `challenger` staking the corresponding amount to challenge the incorrect reputation value.
-//! 4 `challenge_update` - `challenger` uploads the correct path, the system does not validate the value and 
+//! 4 `challenge_update` - `challenger` uploads the correct path, the system does not validate the value and
 //! enters arbitration when the path upload is complete.
-//! 5 `arbitral` - Anyone can staking a certain amount of money to upload a shorter path or a different score 
+//! 5 `arbitral` - Anyone can staking a certain amount of money to upload a shorter path or a different score
 //! to prove that the original data is wrong
 //!
 //! ## Implementations
@@ -18,7 +32,7 @@
 //! ### Dispatchable Functions
 //!
 //! - `start` - Turn on reputation refreshing.
-//! - `refresh` - Accepts an array of users and a tuple of reputation values, and refreshes the reputation values 
+//! - `refresh` - Accepts an array of users and a tuple of reputation values, and refreshes the reputation values
 //! of all users within the array.
 //! - `harvest_ref_all` - Callers receive all their refresh proceeds.
 //! - `harvest_ref_all_sweeper` - `sweeper` collects `pathfinder` timeout for unclaimed refresh proceeds.
@@ -104,7 +118,7 @@ pub struct Path<AccountId> {
 }
 
 impl<AccountId> Path<AccountId> {
-    // Returns whether or not the longest path is exceeded, as it does not include the 
+    // Returns whether or not the longest path is exceeded, as it does not include the
     // seed and target user, so 2 needs to be added
     fn check_nodes_leng(&self) -> bool {
         self.nodes.len() + 2 <= MAX_NODE_COUNT
@@ -142,7 +156,7 @@ pub mod pallet {
         #[pallet::constant]
         type ConfirmationPeriod: Get<Self::BlockNumber>;
 
-        /// After this period, no new refreshes can be added, this is to prevent malicious delays 
+        /// After this period, no new refreshes can be added, this is to prevent malicious delays
         /// leading to long update periods.
         #[pallet::constant]
         type RefRepuTiomeOut: Get<Self::BlockNumber>;
@@ -264,15 +278,15 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Start a new round.
-        /// 
+        ///
         /// Anyone can call on it without collateral. The user does so for two purposes:
-        /// 
-        /// - The existence of `Payrolls` that have expired for collection, for which the caller 
+        ///
+        /// - The existence of `Payrolls` that have expired for collection, for which the caller
         /// will receive a percentage of the amount.
         /// - `pathfinder` gets a first-mover advantage, preempting users with higher renewal fees.
-        /// 
+        ///
         /// Is a no-op if:
-        /// 
+        ///
         /// 1 Challenges that remain uncollected, or
         /// 2 Already started, or
         /// 3 Minimum interval not exceeded.
@@ -361,9 +375,9 @@ pub mod pallet {
         }
 
         /// The caller receives all their earnings and clears all update records.
-        /// 
+        ///
         /// An `Err` will be returned if the user's last update has not passed the confirmation period.
-        /// 
+        ///
         /// NOTE: This is more economical and efficient than collecting each item in turn.
         #[pallet::weight(T::WeightInfo::harvest_ref_all())]
         #[transactional]
@@ -381,11 +395,11 @@ pub mod pallet {
         }
 
         /// `sweeper` collects `pathfinder` overdue proceeds.
-        /// 
+        ///
         /// `sweeper` receives a percentage of the proceeds from it.
-        /// 
-        /// NOTE: It is the responsibility of `pathfinder` to secure the cleanliness of the data on the chain 
-        /// by collecting the proceeds and clearing the data in a timely manner. The `sweeper` policy ensures 
+        ///
+        /// NOTE: It is the responsibility of `pathfinder` to secure the cleanliness of the data on the chain
+        /// by collecting the proceeds and clearing the data in a timely manner. The `sweeper` policy ensures
         /// that the system runs smoothly.
         #[pallet::weight(T::WeightInfo::harvest_ref_all_sweeper())]
         #[transactional]
@@ -415,7 +429,7 @@ pub mod pallet {
         }
 
         /// Receive the benefits of a challenge against `target`.
-        /// 
+        ///
         /// The caller must be the winner of the challenge.
         #[pallet::weight(T::WeightInfo::harvest_challenge())]
         #[transactional]
@@ -431,19 +445,19 @@ pub mod pallet {
         }
 
         /// Launching the challenge.
-        /// 
-        /// A challenge to the `target` reputation updated by `pathfinder` requires a total 
+        ///
+        /// A challenge to the `target` reputation updated by `pathfinder` requires a total
         /// of `quantity` of paths to be uploaded, the correct reputation score is `score`.
-        /// 
+        ///
         /// Is a no-op if:
-        /// 
+        ///
         /// - `score` is the same as the original reputation value, or
         /// - `quantity` is greater than the number of seeds, or
         /// - Reputation value has not been updated, or
         /// - Reputation value has been challenged, or
         /// - Reputation value has exceeded the confirmation period.
-        /// 
-        /// NOTE: If you need to challenge the reputation of an existing challenge, you should 
+        ///
+        /// NOTE: If you need to challenge the reputation of an existing challenge, you should
         /// call `arbitral`.
         #[pallet::weight(T::WeightInfo::challenge())]
         #[transactional]
@@ -498,15 +512,15 @@ pub mod pallet {
         }
 
         /// Arbitration of paths in challenge.
-        /// 
-        /// accepts the correct path `paths` for `seeds` under `target` , `seeds` and `paths` are sets 
+        ///
+        /// accepts the correct path `paths` for `seeds` under `target` , `seeds` and `paths` are sets
         /// that must be kept one to one correspondence.
-        /// 
-        /// NOTE: 
-        /// 
-        /// - The caller must correct all errors, otherwise the other challenger can launch `arbitral` 
+        ///
+        /// NOTE:
+        ///
+        /// - The caller must correct all errors, otherwise the other challenger can launch `arbitral`
         /// again, thus causing this challenge to fail.
-        /// - During the protection period, the same caller may initiate `arbitral` several times 
+        /// - During the protection period, the same caller may initiate `arbitral` several times
         /// without paying a single staking.
         #[pallet::weight(T::WeightInfo::arbitral(seeds.len().max(paths.len()) as u32))]
         #[transactional]
@@ -537,12 +551,12 @@ pub mod pallet {
         }
 
         /// Challenger upload path.
-        /// 
-        /// Accepts the correct path `paths` for `seeds` under `target` , `seeds` and `paths` 
+        ///
+        /// Accepts the correct path `paths` for `seeds` under `target` , `seeds` and `paths`
         /// are sets and must correspond one-to-one.
-        /// 
-        /// During the upload protection period, the challenger can call this interface several 
-        /// times in order to finish uploading all the paths. This "intermittent upload" is useful 
+        ///
+        /// During the upload protection period, the challenger can call this interface several
+        /// times in order to finish uploading all the paths. This "intermittent upload" is useful
         /// when the number of seeds is too large, or when the network is congested.
         #[pallet::weight(T::WeightInfo::challenge_update(seeds.len().max(paths.len()) as u32))]
         #[transactional]
@@ -580,7 +594,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
     // pub
 
-    /// Add `pathfinder` `amount` of accounts payable, and `count` updates to the original, 
+    /// Add `pathfinder` `amount` of accounts payable, and `count` updates to the original,
     /// and set last active time to `now`.
     pub fn mutate_payroll(
         pathfinder: &T::AccountId,
@@ -604,7 +618,7 @@ impl<T: Config> Pallet<T> {
         })
     }
 
-    /// Add or modify a challenge record for `who` under `pathfinder`, where the processing fee 
+    /// Add or modify a challenge record for `who` under `pathfinder`, where the processing fee
     /// obtained is `fee`, and set the update time to `now`.
     pub fn mutate_record(
         pathfinder: &T::AccountId,
