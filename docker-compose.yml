@@ -3,7 +3,7 @@ version: "3.2"
 services:
   dev:
     container_name: zerodao-node
-    image: paritytech/ci-linux:105b919b-20210611
+    image: paritytech/ci-linux:105b919b-20210617
     working_dir: /var/www/zerodao-node
     ports:
       - "9944:9944"
