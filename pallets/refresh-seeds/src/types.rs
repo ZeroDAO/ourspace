@@ -1,3 +1,17 @@
+// Copyright 2021 ZeroDAO
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::*;
 
 pub const APP_ID: AppId = *b"seed    ";
@@ -67,7 +81,7 @@ impl FullOrder {
         self.0.extend_from_slice(&order[..RANGE]);
     }
 
-    /// Connects the current `FullOrder` with the incoming `order` 
+    /// Connects the current `FullOrder` with the incoming `order`
     /// and converts it to `u64`.
     pub fn connect_to_u64(&mut self, order: &[u8]) -> Option<u64> {
         self.connect(order);
@@ -119,7 +133,7 @@ impl PartialEq for ResultHash {
     }
 }
 
-/// Path data, including the set of nodes of the path, and the number of shortest 
+/// Path data, including the set of nodes of the path, and the number of shortest
 /// paths that pass through the two endpoints of the path.
 #[derive(Encode, Decode, Ord, PartialOrd, Eq, Clone, Default, PartialEq, RuntimeDebug)]
 pub struct Path<AccountId> {

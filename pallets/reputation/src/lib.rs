@@ -1,22 +1,36 @@
+// Copyright 2021 ZeroDAO
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! # ZdReputation Module
-//! 
+//!
 //! ## Overview
 //!
-//! The Reputation module is the core module of the reputation system and 
+//! The Reputation module is the core module of the reputation system and
 //! provides status management of the entire system.
-//! 
+//!
 //! ### Implementations
-//! 
+//!
 //! The Reputation module implements the following trait :
-//! 
-//!  - `Reputation` -  Provides the ability to obtain and modify user 
+//!
+//!  - `Reputation` -  Provides the ability to obtain and modify user
 //! reputation values and to obtain and record system status.
 //!
 //! ## Interface
 //!
 //! ### Dispatchable Functions
-//! 
-//! - `set_period` - Setting the system update interval to a given number 
+//!
+//! - `set_period` - Setting the system update interval to a given number
 //! of blocks requires administrator privileges.
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -52,8 +66,8 @@ pub struct OperationStatus<BlockNumber> {
     /// For each update round, add 1 to `nonce`.
     pub nonce: u32,
 
-    /// It is used to facilitate other modules to control time-related when 
-    /// the latest active block of relational actions for the whole system 
+    /// It is used to facilitate other modules to control time-related when
+    /// the latest active block of relational actions for the whole system
     /// of the state.
     pub last: BlockNumber,
 
@@ -63,7 +77,7 @@ pub struct OperationStatus<BlockNumber> {
     /// Minimum interval between rounds.
     pub period: BlockNumber,
 
-    /// Whether the Reputation System is being updated and which step it 
+    /// Whether the Reputation System is being updated and which step it
     /// is currently at.
     pub step: TIRStep,
 }
@@ -155,7 +169,7 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     /// Set the system update interval to the given number of blocks.
-    /// 
+    ///
     /// The dispatch origin for this call must be `Signed` by the root.
     #[pallet::call]
     impl<T: Config> Pallet<T> {

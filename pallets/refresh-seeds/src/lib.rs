@@ -1,3 +1,17 @@
+// Copyright 2021 ZeroDAO
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //! # ZdRefreshSeeds Module
 //!
 //! ## Overview
@@ -724,8 +738,8 @@ pub mod pallet {
         /// `mid_paths` - Here the two endpoints are known, so only the middle `node` needs
         /// to be uploaded, or `[]` if there is no user in between.
         ///
-        /// Since `shorter paths' are deterministic, a successful execution of `pathfinder` 
-        /// will result in failure and the current challenger will be challenged by other 
+        /// Since `shorter paths' are deterministic, a successful execution of `pathfinder`
+        /// will result in failure and the current challenger will be challenged by other
         /// challengers as a new `pathfinder`.
         #[pallet::weight(T::WeightInfo::evidence_of_shorter())]
         #[transactional]
@@ -754,15 +768,15 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Pass in all paths to prove that the total number of paths under `index` in path set 
+        /// Pass in all paths to prove that the total number of paths under `index` in path set
         /// of `target` is too small.
         ///
         /// `mid_paths` - Here the two endpoints are known, so only the middle `node` needs
-        /// to be uploaded, or `[]` if there is no user in between.If the total number of paths 
-        /// exceeds `MAX_SHORTEST_PATH`, then only `MAX_SHORTEST_PATH` + 1 path needs to be 
+        /// to be uploaded, or `[]` if there is no user in between.If the total number of paths
+        /// exceeds `MAX_SHORTEST_PATH`, then only `MAX_SHORTEST_PATH` + 1 path needs to be
         /// uploaded to prove that the original path is invalid.
         ///
-        /// NOTE: The length of the path must be the same as the original length, if you have a 
+        /// NOTE: The length of the path must be the same as the original length, if you have a
         /// shorter path you should call `evidence_of_shorter`.
         #[pallet::weight(T::WeightInfo::number_too_low(mid_paths.len().max(2) as u32))]
         #[transactional]
@@ -810,14 +824,14 @@ pub mod pallet {
             Ok(().into())
         }
 
-        /// Upload a shorter path `mid_path`, proving that the evidence presented by `missed_in_paths` 
+        /// Upload a shorter path `mid_path`, proving that the evidence presented by `missed_in_paths`
         /// or `missed_in_hashs` is wrong.
         ///
-        /// If `mid_path` contains `target` , it means that `pathfinder` is wrong and the caller will 
+        /// If `mid_path` contains `target` , it means that `pathfinder` is wrong and the caller will
         /// be challenged as the new challenger using `score` as the new centrality score to be challenged.
         ///
-        /// If `mid_path` does not contain `target`, then `pathfinder` cannot be proven wrong and the 
-        /// caller will act as a common `pathfinder` for beneficiary of `pathfinder` to share the pool 
+        /// If `mid_path` does not contain `target`, then `pathfinder` cannot be proven wrong and the
+        /// caller will act as a common `pathfinder` for beneficiary of `pathfinder` to share the pool
         /// equally.
         #[pallet::weight(T::WeightInfo::invalid_evidence())]
         #[transactional]
@@ -874,9 +888,9 @@ pub mod pallet {
         /// - The challenge has not yet been fully collected, or
         /// - The seeds have not all passed the confirmation period.
         ///
-        /// The first collection in each round will determine all the seeds first, 
-        /// e.g. if there are 100 seed candidates but the maximum number of seeds 
-        /// is 90, the 90 with the highest score will be taken. If the 91st and 
+        /// The first collection in each round will determine all the seeds first,
+        /// e.g. if there are 100 seed candidates but the maximum number of seeds
+        /// is 90, the 90 with the highest score will be taken. If the 91st and
         /// 90th scores are the same, the first to be claimed will be confirmed.
         #[pallet::weight(T::WeightInfo::harvest_seed())]
         #[transactional]
