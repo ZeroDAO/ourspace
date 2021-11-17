@@ -17,7 +17,3 @@ init:
 .PHONY: test
 test:
 	SKIP_WASM_BUILD=1 cargo test --release --all
-
-.PHONY: docker-run
-docker-run:
-	./scripts/docker_run.sh
