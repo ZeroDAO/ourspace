@@ -666,7 +666,7 @@ impl<T: Config> Pallet<T> {
         T::Reputation::refresh_reputation(user_score)?;
         let who = &user_score.0;
         let fee = Self::share(who);
-        Self::mutate_record(&pathfinder, &who, &fee, update_at);
+        Self::mutate_record(pathfinder, who, &fee, update_at);
         Ok(fee)
     }
 
