@@ -17,7 +17,6 @@ frame-support = {default-features = false, version = '3.0.0'}
 frame-system = {default-features = false, version = '3.0.0'}
 sp-runtime = {default-features = false, version = '3.0.0'}
 
-orml-utilities = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao'}
 zd-primitives = {path = "../../primitives", default-features = false, version = '0.0.1'}
 zd-support = {path = "../support", default-features = false, version = '0.0.1'}
 
@@ -35,5 +34,4 @@ std = [
   'frame-system/std',
   'zd-support/std',
   'zd-reputation/std',
-  'orml-utilities/std',
 ]

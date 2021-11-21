@@ -43,11 +43,11 @@ use frame_support::{
 };
 use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 use frame_system::{ensure_signed, pallet_prelude::*};
-use orml_utilities::OrderedSet;
+// use orml_utilities::OrderedSet;
 use sp_runtime::{DispatchError, DispatchResult, Perbill};
 use sp_std::vec::Vec;
 use zd_primitives::{appro_ln, TIRStep};
-use zd_support::{Reputation, SeedsBase, TrustBase};
+use zd_support::{OrderedSet, Reputation, SeedsBase, TrustBase};
 
 #[cfg(test)]
 mod mock;

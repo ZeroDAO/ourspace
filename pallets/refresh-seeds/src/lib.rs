@@ -120,10 +120,10 @@ use frame_system::{self as system};
 use sp_runtime::{traits::Zero, DispatchError, DispatchResult};
 use sp_std::{cmp::Ordering, vec::Vec};
 
-pub use orml_utilities::OrderedSet;
+// pub use orml_utilities::OrderedSet;
 
 use zd_primitives::{fee::SweeperFee, AppId, Balance, Metadata, Pool, TIRStep};
-use zd_support::{ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
+use zd_support::{OrderedSet, ChallengeBase, MultiBaseToken, Reputation, SeedsBase, TrustBase};
 
 pub use pallet::*;
 

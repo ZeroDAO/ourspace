@@ -34,10 +34,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-use orml_utilities::OrderedSet;
+// use orml_utilities::OrderedSet;
 pub use pallet::*;
 use zd_primitives::TIRStep;
-use zd_support::{Reputation, SeedsBase};
+use zd_support::{Reputation, SeedsBase, OrderedSet};
 
 #[cfg(test)]
 mod mock;

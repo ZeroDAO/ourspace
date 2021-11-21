@@ -24,7 +24,7 @@ sp-std = {version = "3.0.0", default-features = false}
 zd-primitives = {path = "../../primitives", default-features = false, version = '0.0.1'}
 zd-support = {path = "../support", default-features = false, version = '0.0.1'}
 
-orml-utilities = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao'}
+# orml-utilities = {default-features = false, version = '0.4.0', git = 'https://github.com/ZeroDAO/open-runtime-module-library.git', branch = 'feature-zerodao'}
 
 [dev-dependencies]
 sp-io = {default-features = false, version = '3.0.0'}
@@ -52,7 +52,7 @@ std = [
   'sp-core/std',
   'sp-runtime/std',
   'zd-support/std',
-  'orml-utilities/std',
+  # 'orml-utilities/std',
   'zd-primitives/std', # 'sha-1/std',
   'zd-reputation/std',
   'orml-tokens/std',
