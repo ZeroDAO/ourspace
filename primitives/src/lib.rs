@@ -264,3 +264,90 @@ where
     }
 }
 
+#[cfg(test)]
+mod tests {
+	use super::*;
+    pub type AccountId = u32;
+    pub type BlockNumber = u32;
+
+	#[test]
+	fn metadata_total_amount() {
+		let mut m = <Metadata<AccountId,BlockNumber>>::default();
+		m.pool.staking = 100;
+        m.pool.earnings = 500;
+		assert_eq!(m.total_amount(), Some(600u128));
+        m.pool.staking = 100;
+        m.pool.earnings = u128::MAX;
+        assert_eq!(m.total_amount(), None);
+	}
+
+    #[test]
+	fn metadata_progress() {
+		let mut m = <Metadata<AccountId,BlockNumber>>::default();
+
+		m.progress.total = 100;
+        m.progress.done = 50;
+		assert_eq!(m.is_all_done(), false);
+        assert_eq!(m.check_progress(), true);
+        m.progress.done = 100;
+        assert_eq!(m.is_all_done(), true);
+        assert_eq!(m.check_progress(), true);
+        m.progress.done = 101;
+        assert_eq!(m.check_progress(), false);
+	}
+
+    #[test]
+	fn metadata_new_progress() {
+		let mut m = <Metadata<AccountId,BlockNumber>>::default();
+
+		m.progress.done = 100;
+        m.new_progress(100);
+		assert_eq!(m.progress.total, 100);
+        assert_eq!(m.progress.done, 0);
+	}
+
+    #[test]
+	fn metadata_next() {
+		let mut m = <Metadata<AccountId,BlockNumber>>::default();
+
+		m.progress.total = 100;
+        m.progress.done = 10;
+        m.next(20);
+		assert_eq!(m.progress.total, 100);
+        assert_eq!(m.progress.done, 30);
+	}
+
+    #[test]
+	fn metadata_set_status() {
+		let mut m = <Metadata<AccountId,BlockNumber>>::default();
+
+		m.progress.total = 100;
+        m.progress.done = 10;
+        m.set_status(&ChallengeStatus::Free);
+		assert_eq!(m.status, ChallengeStatus::Free);
+        m.set_status(&ChallengeStatus::Evidence);
+        assert_eq!(m.status, ChallengeStatus::Evidence);
+        m.set_status(&ChallengeStatus::Examine);
+        assert_eq!(m.status, ChallengeStatus::Examine);
+        m.set_status(&ChallengeStatus::Arbitral);
+	}
+
+    #[test]
+	fn metadata_restart() {
+		let mut m = <Metadata<AccountId,BlockNumber>>::default();
+
+		m.status = ChallengeStatus::Evidence;
+        m.progress.done = 10;
+        m.joint_benefits = true;
+        m.challenger = 1;
+
+        m.restart(true);
+
+		assert_eq!(m.status, ChallengeStatus::Free);
+        assert_eq!(m.pathfinder, 1);
+
+
+	}
+}
+
+

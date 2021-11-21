@@ -1,6 +1,6 @@
 [package]
 authors = ["ZeroDAO <https://github.com/ZeroDAO>"]
-description = 'The challenge logic of the TIR algorithm.'
+description = 'ZeroDAO trust pallet.'
 edition = "2018"
 homepage = 'https://0p0.org'
 license = "Apache-2.0"
