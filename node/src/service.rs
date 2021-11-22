@@ -86,12 +86,12 @@ pub fn new_partial(config: &Configuration) -> Result<sc_service::PartialComponen
 	})
 }
 
-fn remote_keystore(_url: &str) -> Result<Arc<LocalKeystore>, &'static str> {
-	// FIXME: here would the concrete keystore be built,
-	//        must return a concrete type (NOT `LocalKeystore`) that
-	//        implements `CryptoStore` and `SyncCryptoStore`
-	Err("Remote Keystore not supported.")
-}
+// fn remote_keystore(_url: &str) -> Result<Arc<LocalKeystore>, &'static str> {
+// 	// FIXME: here would the concrete keystore be built,
+// 	//        must return a concrete type (NOT `LocalKeystore`) that
+// 	//        implements `CryptoStore` and `SyncCryptoStore`
+// 	Err("Remote Keystore not supported.")
+// }
 
 /// Builds a new service for a full client.
 pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> {
@@ -101,15 +101,15 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 		other: (block_import, grandpa_link),
 	} = new_partial(&config)?;
 
-	if let Some(url) = &config.keystore_remote {
-		match remote_keystore(url) {
-			Ok(k) => keystore_container.set_remote_keystore(k),
-			Err(e) => {
-				return Err(ServiceError::Other(
-					format!("Error hooking up remote keystore for {}: {}", url, e)))
-			}
-		};
-	}
+	// if let Some(url) = &config.keystore_remote {
+	// 	match remote_keystore(url) {
+	// 		Ok(k) => keystore_container.set_remote_keystore(k),
+	// 		Err(e) => {
+	// 			return Err(ServiceError::Other(
+	// 				format!("Error hooking up remote keystore for {}: {}", url, e)))
+	// 		}
+	// 	};
+	// }
 
 	config.network.extra_sets.push(sc_finality_grandpa::grandpa_peers_set_config());
 
