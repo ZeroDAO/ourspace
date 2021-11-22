@@ -1,11 +1,11 @@
 [package]
 name = "zd-support"
 description = "Shared traits including `Renew`, `Reputation`, `Seed` and `Trust`."
-repository = "https://github.com/ZeroDAO/ZeroDAO-node/tree/master/traits"
+authors = ["ZeroDAO <https://github.com/ZeroDAO>"]
+repository = "https://github.com/ZeroDAO/ZeroDAO-node"
 license = "Apache-2.0"
 version = "0.0.1"
-authors = ["ZeroDAO <https://github.com/ZeroDAO>"]
-homepage = 'https://0p0.org'
+homepage = 'https://zerodao.net'
 edition = "2018"
 
 [dependencies]

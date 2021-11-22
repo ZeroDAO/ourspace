@@ -5,7 +5,7 @@ name = 'zd-challenges'
 repository = "https://github.com/ZeroDAO/ZeroDAO-node"
 license = "Apache-2.0"
 version = "0.0.1"
-homepage = 'https://0p0.org'
+homepage = 'https://zerodao.net'
 edition = "2018"
 
 [package.metadata.docs.rs]

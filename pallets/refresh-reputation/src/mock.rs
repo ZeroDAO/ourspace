@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg(test)]
-
 use crate as zd_refresh_reputation;
 use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup}, testing::Header,

@@ -42,7 +42,7 @@ pub fn new_partial(config: &Configuration) -> Result<sc_service::PartialComponen
 >, ServiceError> {
 	if config.keystore_remote.is_some() {
 		return Err(ServiceError::Other(
-			format!("Remote Keystores are not supported.")))
+			"Remote Keystores are not supported.".to_string()))
 	}
 	let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
