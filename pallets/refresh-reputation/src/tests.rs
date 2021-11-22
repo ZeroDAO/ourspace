@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg(test)]
-
 use super::*;
 use crate::mock::{Event, *};
 use frame_support::{assert_err_ignore_postinfo, assert_noop, assert_ok};
