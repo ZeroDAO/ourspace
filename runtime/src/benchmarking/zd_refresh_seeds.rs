@@ -119,7 +119,6 @@ fn do_reply_path(a: u32, does_examine: bool) -> Result<Vec<Path<AccountId>>, Dis
 
     paths.sort();
 
-    let path_hash = ZdRefreshSeeds::hash_paths(&paths[..]);
     let full_order =
         ZdRefreshSeeds::make_full_order(&start_node.clone(), &end_node.clone(), DEEP as usize);
 

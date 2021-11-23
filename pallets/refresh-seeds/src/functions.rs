@@ -22,36 +22,6 @@ impl<T: Config> Pallet<T> {
         system::Module::<T>::block_number()
     }
 
-    // Make sure path.total < 100, or panic
-    /// Calculate the path hash.
-    pub fn hash_paths(paths: &[Path<T::AccountId>]) -> Vec<u8> {
-        // [AccountId,AccountId,total;...AccountId,AccountId,total;]
-        paths
-            .iter()
-            .flat_map(|path| {
-                let mut nodes_v = path
-                    .nodes
-                    .iter()
-                    .flat_map(|node| {
-                        // push `,`
-                        let mut node = T::AccountId::encode(node).to_vec();
-                        node.push(44u8);
-                        node
-                    })
-                    .collect::<Vec<u8>>();
-                // path.total < 100
-                // Much faster this way
-                if path.total > 9 {
-                    nodes_v.push((path.total / 10) as u8 + 48);
-                }
-                nodes_v.push((path.total % 10) as u8 + 48);
-                // push `;`
-                nodes_v.push(59u8);
-                nodes_v
-            })
-            .collect::<Vec<u8>>()
-    }
-
     /// For data of type `&[u8]` `sha1`.
     // Collisions have no impact on safety.
     // sha1 is safe enough.
@@ -343,13 +313,6 @@ impl<T: Config> Pallet<T> {
                     let score = 100 / p.total;
                     Ok(acc.saturating_add(score))
                 })?;
-
-        // let list_v = Self::hash_paths(paths);
-
-        // ensure!(
-        //     Self::check_hash(&list_v[..], &result_hash.hash),
-        //     Error::<T>::HashMismatch
-        // );
 
         ensure!(
             total_score as u64 == result_hash.score,
