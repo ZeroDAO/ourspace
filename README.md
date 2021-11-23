@@ -5,6 +5,7 @@
 <div align="center">
 
 [![Substrate version](https://img.shields.io/badge/Substrate-3.0.0-brightgreen?logo=Parity%20Substrate)](https://substrate.dev/)
+[![codecov](https://codecov.io/gh/ZeroDAO/ZeroDAO-node/branch/main/graph/badge.svg)](https://app.codecov.io/gh/ZeroDAO/ZeroDAO-node)
 [![License](https://img.shields.io/github/license/ZeroDAO/ZeroDAO-node?color=green)](https://github.com/ZeroDAO/ZeroDAO-node/blob/main/LICENSE)
  <br />
 [![Twitter URL](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2Fzerodaonet)](https://twitter.com/zerodaonet)
