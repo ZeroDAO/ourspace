@@ -135,7 +135,6 @@ pub trait ChallengeBase<AccountId, AppId, Balance, BlockNumber> {
     /// |            |    Free    |    Reply   |   Examine  |  Evidence  |
     /// |------------|------------|------------|------------|------------|
     /// |    Done    | pathfinder | pathfinder | challenger | challenger |
-    /// |------------|------------|------------|------------|------------|
     /// | Disruption | pathfinder | challenger | challenger | pathfinder |
     ///
     /// In the `Arbitral` state, settlement is according to `joint_benefits`, if

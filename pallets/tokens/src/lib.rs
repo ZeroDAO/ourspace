@@ -14,7 +14,7 @@
 
 //! # ZdToken Module
 //!
-//! ## 介绍
+//! ## Overview
 //!
 //! The ZdToken module is used to manage social currency of users, staking and system rewards.
 //! All funds are held in a `SocialPool` rather than being sent to the user in real time, 
