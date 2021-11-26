@@ -1,17 +1,3 @@
-// Copyright 2021 ZeroDAO
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 //! Weights for zd_refresh_seeds
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 3.0.0
 //! DATE: 2021-11-26, STEPS: [50, ], REPEAT: 20, LOW RANGE: [], HIGH RANGE: []
@@ -36,7 +22,6 @@
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 #![allow(clippy::unnecessary_cast)]
-#[no_coverage]
 
 use frame_support::{
     traits::Get,
@@ -67,93 +52,109 @@ pub trait WeightInfo {
 /// Weights for zd_refresh_seeds using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+    #[cfg(not(tarpaulin_include))]
     fn start() -> Weight {
-        (28_400_000 as Weight)
+        (29_400_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(1 as Weight))
             .saturating_add(T::DbWeight::get().writes(1 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn add() -> Weight {
-        (119_100_000 as Weight)
+        (126_600_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(7 as Weight))
             .saturating_add(T::DbWeight::get().writes(7 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn challenge() -> Weight {
-        (132_300_000 as Weight)
+        (130_400_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(8 as Weight))
             .saturating_add(T::DbWeight::get().writes(8 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn examine() -> Weight {
-        (90_400_000 as Weight)
+        (91_000_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(5 as Weight))
             .saturating_add(T::DbWeight::get().writes(3 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn reply_hash(a: u32, ) -> Weight {
-        (118_097_000 as Weight)
-            .saturating_add((155_000 as Weight).saturating_mul(a as Weight))
+        (128_881_000 as Weight)
+            .saturating_add((129_000 as Weight).saturating_mul(a as Weight))
             .saturating_add(T::DbWeight::get().reads(3 as Weight))
             .saturating_add(T::DbWeight::get().writes(3 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn reply_hash_next(a: u32, ) -> Weight {
-        (106_768_000 as Weight)
-            .saturating_add((88_000 as Weight).saturating_mul(a as Weight))
+        (110_099_000 as Weight)
+            .saturating_add((103_000 as Weight).saturating_mul(a as Weight))
             .saturating_add(T::DbWeight::get().reads(4 as Weight))
             .saturating_add(T::DbWeight::get().writes(3 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn reply_path(a: u32, ) -> Weight {
         (0 as Weight)
-            .saturating_add((86_072_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add((79_562_000 as Weight).saturating_mul(a as Weight))
             .saturating_add(T::DbWeight::get().reads(8 as Weight))
             .saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(a as Weight)))
             .saturating_add(T::DbWeight::get().writes(3 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn reply_path_next(a: u32, ) -> Weight {
         (0 as Weight)
-            .saturating_add((79_266_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add((80_924_000 as Weight).saturating_mul(a as Weight))
             .saturating_add(T::DbWeight::get().reads(9 as Weight))
             .saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(a as Weight)))
             .saturating_add(T::DbWeight::get().writes(4 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn reply_num(a: u32, ) -> Weight {
         (0 as Weight)
-            .saturating_add((38_006_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add((40_388_000 as Weight).saturating_mul(a as Weight))
             .saturating_add(T::DbWeight::get().reads(7 as Weight))
             .saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(a as Weight)))
             .saturating_add(T::DbWeight::get().writes(2 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn evidence_of_shorter() -> Weight {
-        (116_200_000 as Weight)
+        (121_500_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(10 as Weight))
             .saturating_add(T::DbWeight::get().writes(7 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn number_too_low(a: u32, ) -> Weight {
         (0 as Weight)
-            .saturating_add((39_172_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add((51_664_000 as Weight).saturating_mul(a as Weight))
             .saturating_add(T::DbWeight::get().reads(10 as Weight))
             .saturating_add(T::DbWeight::get().reads((2 as Weight).saturating_mul(a as Weight)))
             .saturating_add(T::DbWeight::get().writes(7 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn missed_in_hashs() -> Weight {
-        (111_700_000 as Weight)
+        (202_100_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(9 as Weight))
             .saturating_add(T::DbWeight::get().writes(3 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn missed_in_paths() -> Weight {
-        (288_400_000 as Weight)
+        (281_900_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(13 as Weight))
             .saturating_add(T::DbWeight::get().writes(7 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn invalid_evidence() -> Weight {
-        (128_000_000 as Weight)
+        (65_600_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(6 as Weight))
             .saturating_add(T::DbWeight::get().writes(2 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn harvest_challenge() -> Weight {
-        (335_400_000 as Weight)
+        (183_800_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(7 as Weight))
             .saturating_add(T::DbWeight::get().writes(9 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn harvest_seed() -> Weight {
-        (299_800_000 as Weight)
+        (300_900_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(12 as Weight))
             .saturating_add(T::DbWeight::get().writes(9 as Weight))
     }
@@ -161,93 +162,109 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
+    #[cfg(not(tarpaulin_include))]
     fn start() -> Weight {
-        (28_400_000 as Weight)
+        (29_400_000 as Weight)
             .saturating_add(RocksDbWeight::get().reads(1 as Weight))
             .saturating_add(RocksDbWeight::get().writes(1 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn add() -> Weight {
-        (119_100_000 as Weight)
+        (126_600_000 as Weight)
             .saturating_add(RocksDbWeight::get().reads(7 as Weight))
             .saturating_add(RocksDbWeight::get().writes(7 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn challenge() -> Weight {
-        (132_300_000 as Weight)
+        (130_400_000 as Weight)
             .saturating_add(RocksDbWeight::get().reads(8 as Weight))
             .saturating_add(RocksDbWeight::get().writes(8 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn examine() -> Weight {
-        (90_400_000 as Weight)
+        (91_000_000 as Weight)
             .saturating_add(RocksDbWeight::get().reads(5 as Weight))
             .saturating_add(RocksDbWeight::get().writes(3 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn reply_hash(a: u32, ) -> Weight {
-        (118_097_000 as Weight)
-            .saturating_add((155_000 as Weight).saturating_mul(a as Weight))
+        (128_881_000 as Weight)
+            .saturating_add((129_000 as Weight).saturating_mul(a as Weight))
             .saturating_add(RocksDbWeight::get().reads(3 as Weight))
             .saturating_add(RocksDbWeight::get().writes(3 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn reply_hash_next(a: u32, ) -> Weight {
-        (106_768_000 as Weight)
-            .saturating_add((88_000 as Weight).saturating_mul(a as Weight))
+        (110_099_000 as Weight)
+            .saturating_add((103_000 as Weight).saturating_mul(a as Weight))
             .saturating_add(RocksDbWeight::get().reads(4 as Weight))
             .saturating_add(RocksDbWeight::get().writes(3 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn reply_path(a: u32, ) -> Weight {
         (0 as Weight)
-            .saturating_add((86_072_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add((79_562_000 as Weight).saturating_mul(a as Weight))
             .saturating_add(RocksDbWeight::get().reads(8 as Weight))
             .saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(a as Weight)))
             .saturating_add(RocksDbWeight::get().writes(3 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn reply_path_next(a: u32, ) -> Weight {
         (0 as Weight)
-            .saturating_add((79_266_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add((80_924_000 as Weight).saturating_mul(a as Weight))
             .saturating_add(RocksDbWeight::get().reads(9 as Weight))
             .saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(a as Weight)))
             .saturating_add(RocksDbWeight::get().writes(4 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn reply_num(a: u32, ) -> Weight {
         (0 as Weight)
-            .saturating_add((38_006_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add((40_388_000 as Weight).saturating_mul(a as Weight))
             .saturating_add(RocksDbWeight::get().reads(7 as Weight))
             .saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(a as Weight)))
             .saturating_add(RocksDbWeight::get().writes(2 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn evidence_of_shorter() -> Weight {
-        (116_200_000 as Weight)
+        (121_500_000 as Weight)
             .saturating_add(RocksDbWeight::get().reads(10 as Weight))
             .saturating_add(RocksDbWeight::get().writes(7 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn number_too_low(a: u32, ) -> Weight {
         (0 as Weight)
-            .saturating_add((39_172_000 as Weight).saturating_mul(a as Weight))
+            .saturating_add((51_664_000 as Weight).saturating_mul(a as Weight))
             .saturating_add(RocksDbWeight::get().reads(10 as Weight))
             .saturating_add(RocksDbWeight::get().reads((2 as Weight).saturating_mul(a as Weight)))
             .saturating_add(RocksDbWeight::get().writes(7 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn missed_in_hashs() -> Weight {
-        (111_700_000 as Weight)
+        (202_100_000 as Weight)
             .saturating_add(RocksDbWeight::get().reads(9 as Weight))
             .saturating_add(RocksDbWeight::get().writes(3 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn missed_in_paths() -> Weight {
-        (288_400_000 as Weight)
+        (281_900_000 as Weight)
             .saturating_add(RocksDbWeight::get().reads(13 as Weight))
             .saturating_add(RocksDbWeight::get().writes(7 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn invalid_evidence() -> Weight {
-        (128_000_000 as Weight)
+        (65_600_000 as Weight)
             .saturating_add(RocksDbWeight::get().reads(6 as Weight))
             .saturating_add(RocksDbWeight::get().writes(2 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn harvest_challenge() -> Weight {
-        (335_400_000 as Weight)
+        (183_800_000 as Weight)
             .saturating_add(RocksDbWeight::get().reads(7 as Weight))
             .saturating_add(RocksDbWeight::get().writes(9 as Weight))
     }
+    #[cfg(not(tarpaulin_include))]
     fn harvest_seed() -> Weight {
-        (299_800_000 as Weight)
+        (300_900_000 as Weight)
             .saturating_add(RocksDbWeight::get().reads(12 as Weight))
             .saturating_add(RocksDbWeight::get().writes(9 as Weight))
     }

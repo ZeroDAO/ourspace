@@ -12,7 +12,6 @@
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 #![allow(clippy::unnecessary_cast)]
-#[no_coverage]
 
 use frame_support::{
     traits::Get,
@@ -35,6 +34,7 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     {{~#each benchmarks as |benchmark|}}
+    #[cfg(not(tarpaulin_include))]
     fn {{benchmark.name~}}
     (
         {{~#each benchmark.components as |c| ~}}
@@ -63,6 +63,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
     {{~#each benchmarks as |benchmark|}}
+    #[cfg(not(tarpaulin_include))]
     fn {{benchmark.name~}}
     (
         {{~#each benchmark.components as |c| ~}}
