@@ -40,8 +40,7 @@ use frame_support::{
     codec::{Decode, Encode},
     ensure, pallet,
     traits::Get,
-    RuntimeDebug,
-    transactional,
+    transactional, RuntimeDebug,
 };
 use frame_system::{self as system};
 use sp_runtime::{traits::Zero, DispatchResult};
@@ -168,11 +167,11 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-    /// Set the system update interval to the given number of blocks.
-    ///
-    /// The dispatch origin for this call must be `Signed` by the root.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        /// Set the system update interval to the given number of blocks.
+        ///
+        /// The dispatch origin for this call must be `Signed` by the root.
         #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
         #[transactional]
         pub fn set_period(
