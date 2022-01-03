@@ -7,13 +7,13 @@
 
 use std::sync::Arc;
 
-use zerodao::{opaque::Block, AccountId, Balance, Index};
+use zerodao::{opaque::Block, AccountId, Balance, BlockNumber, Index};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{Error as BlockChainError, HeaderMetadata, HeaderBackend};
 use sp_block_builder::BlockBuilder;
 pub use sc_rpc_api::DenyUnsafe;
 use sp_transaction_pool::TransactionPool;
-
+use pallet_contracts_rpc::{Contracts, ContractsApi};
 
 /// Full client dependencies.
 pub struct FullDeps<C, P> {
@@ -36,6 +36,7 @@ pub fn create_full<C, P>(
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: BlockBuilder<Block>,
 	P: TransactionPool + 'static,
+	C::Api: pallet_contracts_rpc::ContractsRuntimeApi<Block, AccountId, Balance, BlockNumber>,
 {
 	use substrate_frame_rpc_system::{FullSystem, SystemApi};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
@@ -52,13 +53,15 @@ pub fn create_full<C, P>(
 	);
 
 	io.extend_with(
-		TransactionPaymentApi::to_delegate(TransactionPayment::new(client))
+		TransactionPaymentApi::to_delegate(TransactionPayment::new(client.clone()))
 	);
 
 	// Extend this RPC with a custom API by using the following syntax.
 	// `YourRpcStruct` should have a reference to a client, which is needed
 	// to call into the runtime.
 	// `io.extend_with(YourRpcTrait::to_delegate(YourRpcStruct::new(ReferenceToClient, ...)));`
+
+	io.extend_with(ContractsApi::to_delegate(Contracts::new(client)));
 
 	io
 }
