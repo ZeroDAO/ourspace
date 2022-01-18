@@ -41,7 +41,7 @@ pub const EVE: AccountId = 5;
 pub const FERDIE: AccountId = 6;
 pub const SWEEPER: AccountId = 7;
 
-pub const ZDAO: CurrencyId = 1;
+pub const ORS: CurrencyId = 1;
 
 pub const INIT_PERIOD: BlockNumber = 10;
 
@@ -112,7 +112,7 @@ impl zd_challenges::Config for Test {
 parameter_types! {
     pub const ExistentialDeposit: u128 = 500;
     pub const MaxLocks: u32 = 50;
-    pub const BaceToken: CurrencyId = ZDAO;
+    pub const BaceToken: CurrencyId = ORS;
 }
 
 parameter_types! {
@@ -130,7 +130,7 @@ impl orml_currencies::Config for Test {
 parameter_type_with_key! {
     pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
         match currency_id {
-			&ZDAO => 1,
+			&ORS => 1,
 			_ => 0,
 		}
     };
@@ -193,10 +193,10 @@ impl Default for ExtBuilder {
         Self {
             period: INIT_PERIOD,
             endowed_accounts: vec![
-                (ALICE, ZDAO, 1000_000_000_000_000u128),
-                (BOB, ZDAO, 1000_000_000_000_000u128),
-                (FERDIE, ZDAO, 1000_000_000_000_000u128),
-                (SWEEPER, ZDAO, 1000_000_000_000_000u128),
+                (ALICE, ORS, 1000_000_000_000_000u128),
+                (BOB, ORS, 1000_000_000_000_000u128),
+                (FERDIE, ORS, 1000_000_000_000_000u128),
+                (SWEEPER, ORS, 1000_000_000_000_000u128),
             ],
         }
     }

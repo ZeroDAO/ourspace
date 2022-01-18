@@ -27,7 +27,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Encode, Debug, Decode, Eq, PartialEq, Copy, Clone, PartialOrd, Ord)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum CurrencyId {
-    ZDAO,
+    ORS,
     SOCI,
 }
 

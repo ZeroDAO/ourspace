@@ -48,7 +48,7 @@ pub const SUB_CHALLENGER: AccountId = 14;
 
 pub const SEED4: AccountId = 15;
 
-pub const ZDAO: CurrencyId = 1;
+pub const ORS: CurrencyId = 1;
 
 pub const INIT_PERIOD: BlockNumber = 10;
 
@@ -86,7 +86,7 @@ parameter_type_with_key! {
 }
 
 parameter_types! {
-    pub const BaceToken: CurrencyId = ZDAO;
+    pub const BaceToken: CurrencyId = ORS;
     pub const ConfirmationPeriod: BlockNumber = 120;
     pub const ChallengePerior: BlockNumber = 100;
     pub const BlockHashCount: u32 = 250;
@@ -234,13 +234,13 @@ impl Default for ExtBuilder {
     fn default() -> Self {
         Self {
             endowed_accounts: vec![
-                (ALICE, ZDAO, 1000_000_000_000_000u128),
-                (BOB, ZDAO, 1000_000_000_000_000u128),
-                (FERDIE, ZDAO, 1000_000_000_000_000u128),
-                (PATHFINDER, ZDAO, 1000_000_000_000_000u128),
-                (CHALLENGER, ZDAO, 1000_000_000_000_000u128),
-                (SWEEPRT, ZDAO, 1000_000_000u128),
-                (SUB_CHALLENGER, ZDAO, 1000_000_000_000_000u128),
+                (ALICE, ORS, 1000_000_000_000_000u128),
+                (BOB, ORS, 1000_000_000_000_000u128),
+                (FERDIE, ORS, 1000_000_000_000_000u128),
+                (PATHFINDER, ORS, 1000_000_000_000_000u128),
+                (CHALLENGER, ORS, 1000_000_000_000_000u128),
+                (SWEEPRT, ORS, 1000_000_000u128),
+                (SUB_CHALLENGER, ORS, 1000_000_000_000_000u128),
             ],
             period: INIT_PERIOD,
         }

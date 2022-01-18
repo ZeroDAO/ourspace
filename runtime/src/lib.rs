@@ -305,7 +305,7 @@ impl pallet_sudo::Config for Runtime {
 }
 
 parameter_types! {
-    pub const GetNativeCurrencyId: CurrencyId = CurrencyId::ZDAO;
+    pub const GetNativeCurrencyId: CurrencyId = CurrencyId::ORS;
 }
 
 impl orml_currencies::Config for Runtime {

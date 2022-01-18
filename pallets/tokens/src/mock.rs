@@ -32,7 +32,7 @@ pub type Balance = u128;
 pub type CurrencyId = u128;
 pub type BlockNumber = u64;
 
-pub const ZDAO: CurrencyId = 1;
+pub const ORS: CurrencyId = 1;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
@@ -121,7 +121,7 @@ impl orml_currencies::Config for Test {
 parameter_types! {
     pub const ExistentialDeposit: u128 = 500;
     pub const MaxLocks: u32 = 50;
-    pub const BaceToken: CurrencyId = ZDAO;
+    pub const BaceToken: CurrencyId = ORS;
 }
 
 impl pallet_balances::Config for Test {
@@ -156,8 +156,8 @@ impl Default for ExtBuilder {
     fn default() -> Self {
         Self {
             endowed_accounts: vec![
-                (ALICE, ZDAO, 1000_000_000_000_000u128),
-                (BOB, ZDAO, 1000_000_000_000_000u128),
+                (ALICE, ORS, 1000_000_000_000_000u128),
+                (BOB, ORS, 1000_000_000_000_000u128),
                 (ALICE, DOT, 1000_000_000_000_000u128),
                 (BOB, DOT, 1000_000_000_000_000u128),
                 (ALICE, BTC, 1000_000_000_000_000u128),

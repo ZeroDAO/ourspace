@@ -46,7 +46,7 @@
     "CurrencyIdOf": "CurrencyId",
     "CurrencyId": {
         "_enum": [
-            "ZOO",
+            "ORS",
             "SOCI",
             "DOT"
         ]
@@ -60,7 +60,7 @@
     },
     "TokenSymbol": {
         "_enum": [
-            "ZOO",
+            "ORS",
             "SOCI",
             "DOT"
         ]

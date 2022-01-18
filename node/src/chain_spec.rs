@@ -306,7 +306,7 @@ fn testnet_genesis(
 pub fn zd_properties() -> Properties {
     let mut properties = Properties::new();
 
-    properties.insert("tokenSymbol".into(), "ZOO".into());
+    properties.insert("tokenSymbol".into(), "ORS".into());
     properties.insert("tokenDecimals".into(), 12.into());
 
     properties
