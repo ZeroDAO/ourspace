@@ -5,12 +5,12 @@ description = 'Decentralized social networks and reputation systems.'
 edition = '2018'
 homepage = 'https://0p0.org'
 license = 'Unlicense'
-name = 'zerodao-node'
-repository = 'https://github.com/ZeroDAO/ZeroDAO-node'
+name = 'ourspace'
+repository = 'https://github.com/ZeroDAO/ourspace'
 version = '0.0.1'
 
 [[bin]]
-name = 'zerodao-node'
+name = 'ourspace'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']

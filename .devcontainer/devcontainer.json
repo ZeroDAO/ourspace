@@ -15,7 +15,7 @@
     9944
   ],
   "preCreateCommand": ["cargo build", "cargo check"],
-  "postStartCommand": "./target/debug/zerodao-node --dev --ws-external",
+  "postStartCommand": "./target/debug/ourspace --dev --ws-external",
   "menuActions": [
     {"id": "polkadotjs",
      "label": "Open PolkadotJS Apps",

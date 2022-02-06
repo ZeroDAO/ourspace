@@ -1,6 +1,6 @@
 .PHONY: run-dev
 run-dev:
-	./target/release/zerodao-node --dev --ws-external
+	./target/release/ourspace --dev --ws-external
 
 .PHONY: build-release
 build-release:
@@ -8,7 +8,7 @@ build-release:
 
 .PHONY: purge-dev
 purge-dev:
-	./target/release/zerodao-node purge-chain --dev
+	./target/release/ourspace purge-chain --dev
 	
 .PHONY: init
 init:

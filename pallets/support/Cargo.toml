@@ -2,7 +2,7 @@
 name = "zd-support"
 description = "Shared traits including `Renew`, `Reputation`, `Seed` and `Trust`."
 authors = ["ZeroDAO <https://github.com/ZeroDAO>"]
-repository = "https://github.com/ZeroDAO/ZeroDAO-node"
+repository = "https://github.com/ZeroDAO/ourspace"
 license = "Apache-2.0"
 version = "0.0.1"
 homepage = 'https://zerodao.net'

@@ -4,7 +4,7 @@ edition = '2018'
 homepage = 'https://0p0.org'
 license = 'Unlicense'
 name = 'zerodao'
-repository = 'https://github.com/ZeroDAO/ZeroDAO-node'
+repository = 'https://github.com/ZeroDAO/ourspace'
 version = '0.0.1'
 
 [package.metadata.docs.rs]

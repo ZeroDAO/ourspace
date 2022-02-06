@@ -2,16 +2,16 @@ version: "3.2"
 
 services:
   dev:
-    container_name: zerodao-node
+    container_name: ourspace
     image: paritytech/ci-linux:105b919b-20210617
-    working_dir: /var/www/zerodao-node
+    working_dir: /var/www/ourspace
     ports:
       - "9944:9944"
     environment:
-      - CARGO_HOME=/var/www/zerodao-node/.cargo
+      - CARGO_HOME=/var/www/ourspace/.cargo
     volumes:
-      - .:/var/www/zerodao-node
+      - .:/var/www/ourspace
       - type: bind
         source: ./.local
         target: /root/.local
-    command: bash -c "cargo build --release && ./target/release/zerodao-node --dev --ws-external"
+    command: bash -c "cargo build --release && ./target/release/ourspace --dev --ws-external"

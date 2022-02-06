@@ -2,7 +2,7 @@
 authors = ["ZeroDAO <https://github.com/ZeroDAO>"]
 description = 'ZeroDAO trust pallet.'
 name = 'zd-trust'
-repository = "https://github.com/ZeroDAO/ZeroDAO-node"
+repository = "https://github.com/ZeroDAO/ourspace"
 license = "Apache-2.0"
 version = "0.0.1"
 homepage = 'https://zerodao.net'
