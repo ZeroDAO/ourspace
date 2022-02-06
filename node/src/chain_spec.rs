@@ -10,13 +10,15 @@ use sp_runtime::Perbill;
 use zerodao::ContractsConfig;
 use zerodao::{
     opaque::SessionKeys, AccountId, BabeConfig, Balance, BalancesConfig, BlockNumber,
-    CouncilConfig, CurrencyId, GenesisConfig, GrandpaConfig, ImOnlineConfig, SessionConfig,
+    CouncilConfig, ElectionsPhragmenConfig, CurrencyId, GenesisConfig, GrandpaConfig, ImOnlineConfig, SessionConfig,
     Signature, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
     TokensConfig, ZdReputationConfig, WASM_BINARY,
 };
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+
+const DEFAULT_PROTOCOL_ID: &str = "ors";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
@@ -117,11 +119,11 @@ pub fn development_config() -> Result<ChainSpec, String> {
         // Telemetry
         None,
         // Protocol ID
-        None,
+        Some(DEFAULT_PROTOCOL_ID),
         // Properties
         Some(zd_properties()),
         // Extensions
-        None,
+        Default::default(),
     ))
 }
 
@@ -205,11 +207,11 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
         // Telemetry
         None,
         // Protocol ID
-        None,
+        Some(DEFAULT_PROTOCOL_ID),
         // Properties
         Some(zd_properties()),
         // Extensions
-        None,
+        Default::default(),
     ))
 }
 
@@ -281,10 +283,12 @@ fn testnet_genesis(
         }),
         pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
             members: vec![],
-            phantom: Default::default(),
+			phantom: Default::default(),
         }),
         pallet_membership_Instance1: Some(Default::default()),
-        pallet_elections_phragmen: Some(Default::default()),
+        pallet_elections_phragmen: Some(ElectionsPhragmenConfig {
+			members: vec![(get_account_id_from_seed::<sr25519::Public>("Alice"), STASH / 2)],
+		}),
         pallet_treasury: Some(Default::default()),
         pallet_contracts: Some(ContractsConfig {
             current_schedule: pallet_contracts::Schedule {
@@ -294,11 +298,7 @@ fn testnet_genesis(
         }),
         zd_reputation: Some(ZdReputationConfig { period }),
         orml_tokens: Some(TokensConfig {
-            endowed_accounts: endowed_accounts
-                .iter()
-                .cloned()
-                .map(|k| (k.0.clone(), CurrencyId::SOCI, k.1))
-                .collect(),
+            endowed_accounts: vec![],
         }),
     }
 }
