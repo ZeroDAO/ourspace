@@ -12,6 +12,8 @@
 
 </div>
 
+**A new version using the OCW calculation reputation will be adopted soon.**
+
 For technical and guides, please refer to the [ZeroDAO Docs](https://docs.zerodao.net/).
 
 # 1. Introduction
