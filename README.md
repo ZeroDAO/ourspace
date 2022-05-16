@@ -12,7 +12,7 @@
 
 </div>
 
-**A new version using the OCW calculation reputation will be adopted soon.**
+**We are planning the next edition. It adds to the graph database by fetching social graph data from each chain. Not only does it run the TIR algorithm to calculate reputation, but also, anyone can deploy smart contracts to calculate the social graph.**
 
 For technical and guides, please refer to the [ZeroDAO Docs](https://docs.zerodao.net/).
 
